@@ -14,7 +14,6 @@
  * limitations under the License.
  * 
  */
-
 package com.petalmd.armor;
 
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -139,5 +138,16 @@ public class TestScenarios extends AbstractScenarioTest {
                 .build();
 
         dlsLdapUserAttribute(settings);
+    }
+
+    @Test
+    public void testArmorSearchAll() throws Exception {
+
+        final boolean wrongPassword = false;
+
+        username = "jacksonm";
+        password = "secret";
+        searchIndexInQuery(getAuthSettings(wrongPassword, "lambda"));
+
     }
 }

@@ -1,0 +1,15 @@
+{
+   "acl":[
+         {
+            "filters_bypass": [],
+            "filters_execute": []
+         },
+         {
+            "__Comment__": "For the unauthenticated user all filters will be executed.",
+            "users": ["jacksonm"],
+            "indices": ["domain"],
+            "filters_bypass": [],
+            "filters_execute": ["allowSearch"]
+         }
+      ]
+}

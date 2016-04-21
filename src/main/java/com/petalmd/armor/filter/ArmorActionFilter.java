@@ -56,7 +56,16 @@ import com.petalmd.armor.tokeneval.TokenEvaluator.Evaluator;
 import com.petalmd.armor.tokeneval.TokenEvaluator.FilterAction;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.search.lookup.SourceLookup;
 
 public class ArmorActionFilter implements ActionFilter {
 
@@ -182,6 +191,48 @@ public class ArmorActionFilter implements ActionFilter {
         final List<String> aliases = new ArrayList<String>();
         final List<String> types = new ArrayList<String>();
 
+        //analyse the request to find if it is a specific index query
+        if (request instanceof SearchRequest) {
+            log.debug("this is a searchRequest.");
+            final SearchRequest sr = (SearchRequest) request;
+
+            sr.validate();
+            final SourceLookup sl = new SourceLookup();
+            if (sr.extraSource() != null) {
+                sl.setNextSource(sr.extraSource());
+                try {
+                    final String query = (String) (sl.extractValue("query.query_string.query"));
+
+                    final QueryParser qp = new QueryParser("_id", new StandardAnalyzer());
+
+                    Query luceneQuery = qp.parse(query);
+
+                    Set<String> indexes = null;
+                    if (luceneQuery instanceof TermQuery) {
+                        TermQuery tq = (TermQuery)luceneQuery;
+                        if(tq.getTerm().field().equals("_index")) {
+                            indexes = new HashSet<String>();
+                            indexes.add(tq.getTerm().text());
+                        }
+                    } else if (luceneQuery instanceof BooleanQuery) {
+                        BooleanQuery bq = (BooleanQuery)luceneQuery;
+                        indexes = validateBooleanQuery(bq, new HashSet<String>());
+                    }
+                    
+                    if (indexes != null && !indexes.isEmpty()) {
+                        log.debug(("find the following indexes to add: " + indexes));
+                        indexes.addAll(Arrays.asList(sr.indices()));
+                        indexes.remove("_all");
+                        sr.indices(indexes.toArray(new String[indexes.size()]));
+                    }
+                } catch (Exception e) {
+                    log.debug("there is no _index field in the Extra Source, we continue", e);
+                    e.printStackTrace();
+                }
+            }
+            
+        }
+        
         if (request instanceof IndicesRequest) {
             final IndicesRequest ir = (IndicesRequest) request;
             addType(ir, types, action);
@@ -442,6 +493,46 @@ public class ArmorActionFilter implements ActionFilter {
 
         }
 
+    }
+
+    private Set<String> validateBooleanQuery(BooleanQuery query, Set<String> validIndices) {
+
+        Set<String> newValidIndices = new HashSet<String>();
+
+        for (BooleanClause clause : query.clauses()) {
+            //check if the query is a term Query on _index. If there is no _index, we consider the query invalid. We also check if the query is a BooleanQuery 
+            // if the query is a BooleanQuery. 
+            Query cq = clause.getQuery();
+            if (cq instanceof BooleanQuery) {
+                Set<String> clauseValidIndices = validateBooleanQuery((BooleanQuery) cq, validIndices);
+                if (clauseValidIndices != null && !clauseValidIndices.isEmpty()) {
+                    //if the boolean query is valid, we add the new Indexes
+                    newValidIndices.addAll(clauseValidIndices);
+                } else //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
+                {
+                    if (clause.getOccur().equals(BooleanClause.Occur.SHOULD)) {
+                        //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
+                        return null;
+                    }
+                }
+            } else if (cq instanceof TermQuery) {
+                //we check here that the field searched is indeed an _index:, if not, we flag the Query as Invalid. 
+                TermQuery tq = (TermQuery) cq;
+                if (tq.getTerm().field().equals("_index")) {
+                    newValidIndices.add(tq.getTerm().text());
+                } else if (clause.getOccur().equals(BooleanClause.Occur.SHOULD)) {
+                    //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
+                    return null;
+                }
+            } else {
+                //we don't analayze other type of Query, so we consider it invalid
+                return null;
+            }
+        }
+
+        validIndices.addAll(newValidIndices);
+
+        return validIndices;
     }
 
 }
