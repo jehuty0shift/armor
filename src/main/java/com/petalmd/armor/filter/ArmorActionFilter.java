@@ -14,7 +14,6 @@
  * limitations under the License.
  * 
  */
-
 package com.petalmd.armor.filter;
 
 import java.io.Serializable;
@@ -80,7 +79,7 @@ public class ArmorActionFilter implements ActionFilter {
 
     @Inject
     public ArmorActionFilter(final Settings settings, final AuditListener auditListener, final ClusterService clusterService,
-                             final Client client, final ArmorConfigService armorConfigService) {
+            final Client client, final ArmorConfigService armorConfigService) {
         this.auditListener = auditListener;
         this.settings = settings;
         this.clusterService = clusterService;
@@ -98,7 +97,7 @@ public class ArmorActionFilter implements ActionFilter {
 
         try {
             apply0(action, request, listener, chain);
-        } catch (final ForbiddenException e){
+        } catch (final ForbiddenException e) {
             log.error("Forbidden while apply() due to {} for action {}", e, e.toString(), action);
             throw e;
         } catch (final Exception e) {
@@ -209,18 +208,18 @@ public class ArmorActionFilter implements ActionFilter {
 
                     Set<String> indexes = null;
                     if (luceneQuery instanceof TermQuery) {
-                        TermQuery tq = (TermQuery)luceneQuery;
-                        if(tq.getTerm().field().equals("_index")) {
+                        TermQuery tq = (TermQuery) luceneQuery;
+                        if (tq.getTerm().field().equals("_index")) {
                             indexes = new HashSet<String>();
                             indexes.add(tq.getTerm().text());
                         }
                     } else if (luceneQuery instanceof BooleanQuery) {
-                        BooleanQuery bq = (BooleanQuery)luceneQuery;
+                        BooleanQuery bq = (BooleanQuery) luceneQuery;
                         indexes = validateBooleanQuery(bq, new HashSet<String>());
                     }
-                    
+
                     if (indexes != null && !indexes.isEmpty()) {
-                        log.debug(("find the following indexes to add: " + indexes));
+                        log.debug(("found the following indexes to add: " + indexes));
                         indexes.addAll(Arrays.asList(sr.indices()));
                         indexes.remove("_all");
                         sr.indices(indexes.toArray(new String[indexes.size()]));
@@ -230,9 +229,9 @@ public class ArmorActionFilter implements ActionFilter {
                     e.printStackTrace();
                 }
             }
-            
+
         }
-        
+
         if (request instanceof IndicesRequest) {
             final IndicesRequest ir = (IndicesRequest) request;
             addType(ir, types, action);
@@ -407,7 +406,6 @@ public class ArmorActionFilter implements ActionFilter {
             }
 
             //DLS/FLS stuff is not done here, its done on SearchCallback
-
         }
 
         chain.proceed(action, request, listener);
@@ -509,19 +507,27 @@ public class ArmorActionFilter implements ActionFilter {
                     //if the boolean query is valid, we add the new Indexes
                     newValidIndices.addAll(clauseValidIndices);
                 } else //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
-                {
-                    if (clause.getOccur().equals(BooleanClause.Occur.SHOULD)) {
+                 if (clause.getOccur().equals(BooleanClause.Occur.SHOULD)) {
                         //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
+                        if (log.isTraceEnabled()) {
+                            log.trace("clause equals SHOULD with no _index, query is Invalid");
+                        }
                         return null;
                     }
-                }
             } else if (cq instanceof TermQuery) {
                 //we check here that the field searched is indeed an _index:, if not, we flag the Query as Invalid. 
                 TermQuery tq = (TermQuery) cq;
                 if (tq.getTerm().field().equals("_index")) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("_all request: Considering to add this index to the Query" + tq.getTerm().text());
+                    }
                     newValidIndices.add(tq.getTerm().text());
                 } else if (clause.getOccur().equals(BooleanClause.Occur.SHOULD)) {
                     //here we can consider the query invalid : SHOULD + no Index means the query try to search on _all
+
+                    if (log.isTraceEnabled()) {
+                        log.trace("clause equals MUST with no _index, query is Invalid");
+                    }
                     return null;
                 }
             } else {

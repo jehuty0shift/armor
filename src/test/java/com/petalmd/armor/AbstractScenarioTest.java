@@ -341,16 +341,16 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
         final JestResult jr = client.execute(action);
 
-        assertJestResultError(jr, null);
+        assertJestResultError(jr, (String[])null);
         log.debug(jr.getErrorMessage());
 
         final Action action2 = new Search.Builder("").setParameter("q", "user:umberto OR _index:domain").build();
         final JestResult jr2 = client.execute(action2);
 
-        assertJestResultError(jr2, null);
+        assertJestResultError(jr2, (String[])null);
         log.debug(jr2.getErrorMessage());
 
-        final Action action3 = new Search.Builder("").setParameter("q", "user:umberto AND _index:domain").build();
+        final Action action3 = new Search.Builder("").setParameter("q", "_index:domain AND user:umberto").build();
         final JestResult jr3 = client.execute(action3);
 
         assertJestResultCount(jr3, 1);

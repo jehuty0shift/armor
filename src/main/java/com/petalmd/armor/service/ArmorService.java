@@ -157,7 +157,7 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
         }
 
         final boolean checkForRoot = settings.getAsBoolean(ConfigConstants.ARMOR_CHECK_FOR_ROOT, true);
-
+        
         if (SecurityUtil.isRootUser()) {
 
             if (checkForRoot) {
