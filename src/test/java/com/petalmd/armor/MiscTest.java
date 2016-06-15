@@ -95,7 +95,7 @@ public class MiscTest extends AbstractUnitTest {
         executeIndex("ac_rules_1.json", "armor", "ac", "ac", true, true);
         executeIndex("ac_rules_1.json", "armor", "xx", "xx", false, false);
 
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final JestClient client = getJestClient(getServerUri(false), username, password,false);
 
         final JestResult jr = client.execute(new PutMapping.Builder("_all", "ac", "{" + "\"properties\" : {"
                 + "\"rules\" : {\"type\" : \"string\", \"store\" : true }" + "}" + "}"

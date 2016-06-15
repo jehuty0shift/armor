@@ -91,6 +91,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.http.client.config.RequestConfig;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.plugins.Plugin;
 
@@ -363,7 +364,8 @@ public abstract class AbstractUnitTest {
     protected final Tuple<JestResult, HttpResponse> executeIndex(final String file, final String index, final String type, final String id,
             final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getJestClient(getServerUri(connectFromLocalhost), username, password);
+        client = getJestClient(getServerUri(connectFromLocalhost), username, password, connectFromLocalhost);
+        
         try {
             final Tuple<JestResult, HttpResponse> restu = client.executeE(new Index.Builder(loadFile(file)).index(index).type(type).id(id)
                     .refresh(true).setHeader(headers).build());
@@ -390,7 +392,7 @@ public abstract class AbstractUnitTest {
     protected final Tuple<JestResult, HttpResponse> executeIndexAsString(final String string, final String index, final String type,
             final String id, final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getJestClient(getServerUri(connectFromLocalhost), username, password);
+        client = getJestClient(getServerUri(connectFromLocalhost), username, password, connectFromLocalhost);
 
         Index.Builder builder = new Index.Builder(string).index(index).type(type)/*.refresh(true)*/.setHeader(headers);
         if (id != null && id.length() > 0) {
@@ -418,7 +420,7 @@ public abstract class AbstractUnitTest {
     protected final Tuple<JestResult, HttpResponse> executeSearch(final String file, final String[] indices, final String[] types,
             final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getJestClient(getServerUri(connectFromLocalhost), username, password);
+        client = getJestClient(getServerUri(connectFromLocalhost), username, password, connectFromLocalhost);
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Search.Builder(loadFile(file))
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
@@ -442,7 +444,7 @@ public abstract class AbstractUnitTest {
     protected final Tuple<JestResult, HttpResponse> executeGet(final String index, final String type, final String id,
             final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getJestClient(getServerUri(connectFromLocalhost), username, password);
+        client = getJestClient(getServerUri(connectFromLocalhost), username, password, connectFromLocalhost);
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Get.Builder(index, id).type(type).refresh(true)
                 .setHeader(headers).build());
@@ -461,7 +463,7 @@ public abstract class AbstractUnitTest {
         return restu;
     }
 
-    protected final HeaderAwareJestHttpClient getJestClient(final String serverUri, final String username, final String password)
+    protected final HeaderAwareJestHttpClient getJestClient(final String serverUri, final String username, final String password, final boolean connectFromLocalhost)
             throws Exception {// http://hc.apache.org/httpcomponents-client-ga/tutorial/html/authentication.html
 
         final CredentialsProvider credsProvider = new BasicCredentialsProvider();
@@ -496,6 +498,12 @@ public abstract class AbstractUnitTest {
         }
 
         hcb.setDefaultCredentialsProvider(credsProvider);
+        
+        if (connectFromLocalhost) {
+            RequestConfig config = RequestConfig.custom()
+                    .setLocalAddress(InetAddress.getByAddress(new byte[]{ 127,0,0,1})).build();
+            hcb.setDefaultRequestConfig(config);
+        }
 
         if (serverUri.startsWith("https")) {
             log.debug("Configure Jest with SSL");
@@ -526,7 +534,7 @@ public abstract class AbstractUnitTest {
         }
 
         hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
-
+        
         final CloseableHttpClient httpClient = hcb.build();
 
         c.setHttpClient(httpClient);
