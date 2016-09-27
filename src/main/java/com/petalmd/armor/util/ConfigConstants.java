@@ -4,21 +4,20 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *  
  */
 
 package com.petalmd.armor.util;
 
 public final class ConfigConstants {
-
     public static final String DEFAULT_SECURITY_CONFIG_INDEX = "armor";
     public static final String ARMOR_ACTIONREQUESTFILTER = "armor.actionrequestfilter.names";
     public static final String ARMOR_ALLOW_ALL_FROM_LOOPBACK = "armor.allow_all_from_loopback";
@@ -28,6 +27,7 @@ public final class ConfigConstants {
     public static final String ARMOR_TRANSPORT_AUTH_ENABLED = "armor.transport_auth.enabled";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND = "armor.authentication.authentication_backend.impl";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE = "armor.authentication.authentication_backend.cache.enable";
+    public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST = "armor.authentication.authorization.multi.auth.backends";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES = "armor.authentication.authorization.ldap.resolve_nested_roles";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE = "armor.authentication.authorization.ldap.rolebase";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLENAME = "armor.authentication.authorization.ldap.rolename";
@@ -37,6 +37,7 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES = "armor.authentication.authorization.settingsdb.roles.";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZER = "armor.authentication.authorizer.impl";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZER_CACHE_ENABLE = "armor.authentication.authorizer.cache.enable";
+    public static final String ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT = "armor.authentication.graylog.endpoint";
     public static final String ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR = "armor.authentication.http_authenticator.impl";
     public static final String ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME = "armor.authentication.https.clientcert.attributename";
     public static final String ARMOR_AUTHENTICATION_LDAP_BIND_DN = "armor.authentication.ldap.bind_dn";
@@ -50,6 +51,7 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_LDAP_USERBASE = "armor.authentication.ldap.userbase";
     public static final String ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE = "armor.authentication.ldap.username_attribute";
     public static final String ARMOR_AUTHENTICATION_LDAP_USERSEARCH = "armor.authentication.ldap.usersearch";
+    public static final String ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST = "armor.authentication.multi.auth.backends";
     public static final String ARMOR_AUTHENTICATION_PROXY_HEADER = "armor.authentication.proxy.header";
     public static final String ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS = "armor.authentication.proxy.trusted_ips";
     public static final String ARMOR_AUTHENTICATION_SETTINGSDB_DIGEST = "armor.authentication.settingsdb.digest";
@@ -92,7 +94,6 @@ public final class ConfigConstants {
     public static final String ARMOR_WAFFLE_WINDOWS_AUTH_PROVIDER_IMPL = "armor.waffle.windows_auth_provider_impl";
 
     private ConfigConstants() {
-
     }
-
 }
+

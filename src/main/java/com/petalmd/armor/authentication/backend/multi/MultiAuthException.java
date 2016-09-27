@@ -1,4 +1,6 @@
-/* Copyright 2016 PetalMD.
+/*
+ * Copyright 2016 PetalMD
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,14 +16,17 @@
  */
 
 
-grant {   
+package com.petalmd.armor.authentication.backend.multi;
 
-  permission java.security.SecurityPermission "createAccessControlContext";
-  permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
-  permission java.io.FilePermission "${java.home}${/}lib${/}security${/}cacerts", "read,readlink";
-  permission java.io.FilePermission ".${/}-", "read,readlink,write";
-  permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
-  permission java.lang.RuntimePermission "accessDeclaredMembers";
- 
-};
+import com.petalmd.armor.authentication.AuthException;
+import java.util.List;
+
+public class MultiAuthException
+extends Exception {
+    final List<AuthException> authException;
+
+    public MultiAuthException(List<AuthException> authException) {
+        this.authException = authException;
+    }
+}
 
