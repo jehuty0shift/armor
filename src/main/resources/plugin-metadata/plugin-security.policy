@@ -16,9 +16,10 @@
 
 grant {   
 
-  permission java.security.SecurityPermission "createAccessControlContext";
+  permission java.io.FilePermission "${java.home}${/}lib${/}security${/}cacerts", "read";
   permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
-  permission java.io.FilePermission "./-", "read,readlink,write";
+  permission java.io.FilePermission "${deployment.system.security.cacerts}", "read,readlink";
+  permission java.security.SecurityPermission "createAccessControlContext";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
   permission java.lang.RuntimePermission "accessDeclaredMembers";
  

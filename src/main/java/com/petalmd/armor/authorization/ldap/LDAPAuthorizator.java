@@ -22,9 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,6 +44,8 @@ import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapConnectionConfig;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
@@ -59,6 +59,8 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.NonCachingAuthorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestRequest;
 
 public class LDAPAuthorizator implements NonCachingAuthorizator {
 
@@ -153,8 +155,22 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
         LdapConnection ldapConnection = null;
 
         try {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkPermission(new SpecialPermission());
+            }
 
-            ldapConnection = getConnection(settings);
+            try {
+                ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
+                    @Override
+                    public LdapConnection run() throws Exception {
+                        return getConnection(settings);
+                    }
+                });
+            } catch (final Exception e) {
+                log.error(e.toString(), e);
+                throw new ElasticsearchException(e.toString());
+            }
 
             final String bindDn = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, null);
 

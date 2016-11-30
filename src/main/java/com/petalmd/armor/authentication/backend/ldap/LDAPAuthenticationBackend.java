@@ -18,10 +18,13 @@
 
 package com.petalmd.armor.authentication.backend.ldap;
 
+import com.petalmd.armor.service.ArmorService;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -35,6 +38,9 @@ import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.authorization.ldap.LDAPAuthorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 
 public class LDAPAuthenticationBackend implements NonCachingAuthenticationBackend {
 
@@ -59,8 +65,21 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
         try {
 
-            ldapConnection = LDAPAuthorizator.getConnection(settings);
-
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkPermission(new SpecialPermission());
+            }
+            try {
+                ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
+                    @Override
+                    public LdapConnection run() throws Exception {
+                        return LDAPAuthorizator.getConnection(settings);
+                    }
+                });
+            } catch (final Exception e) {
+                log.error(e.toString(), e);
+                throw new ElasticsearchException(e.toString());
+            }
             final String bindDn = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, null);
 
             if (bindDn != null) {
@@ -87,7 +106,18 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
             log.trace("Disconnect {}", bindDn == null ? "anonymous" : bindDn);
 
             SecurityUtil.unbindAndCloseSilently(ldapConnection);
-            ldapConnection = LDAPAuthorizator.getConnection(settings);
+
+            try {
+                ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
+                    @Override
+                    public LdapConnection run() throws Exception {
+                        return LDAPAuthorizator.getConnection(settings);
+                    }
+                });
+            } catch (final Exception e) {
+                log.error(e.toString(), e);
+                throw new ElasticsearchException(e.toString());
+            }
 
             log.trace("Try to authenticate dn {}", dn);
 
