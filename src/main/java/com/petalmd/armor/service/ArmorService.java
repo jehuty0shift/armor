@@ -18,9 +18,10 @@
 package com.petalmd.armor.service;
 
 import java.io.File;
+import java.io.FilePermission;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.security.SecureRandom;
+import java.security.*;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -48,8 +49,6 @@ import com.petalmd.armor.rest.DefaultRestFilter;
 import com.petalmd.armor.rest.RestActionFilter;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
 import org.elasticsearch.SpecialPermission;
 
 public class ArmorService extends AbstractLifecycleComponent<ArmorService> {

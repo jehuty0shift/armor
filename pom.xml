@@ -250,6 +250,8 @@
                 <filtering>false</filtering>
                 <excludes>
                     <exclude>es-plugin.properties</exclude>
+                    <!--exclude>plugin-metadata/plugin-descriptor.properties</exclude>
+                    <exclude>plugin-metadata/plugin-security.policy</exclude-->
                 </excludes>
             </resource>
         </resources>
