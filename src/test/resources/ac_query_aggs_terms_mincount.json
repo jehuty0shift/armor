@@ -1,0 +1,46 @@
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "query_string": {
+            "analyze_wildcard": true,
+            "query": "*"
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "1": {
+      "terms": {
+        "field": "user",
+        "size": 50,
+        "order": {
+          "_term": "asc"
+        },
+        "min_doc_count": 0
+      },
+      "aggs": {}
+    },
+    "2": {
+      "terms": {
+        "field": "structure.thesubfield2",
+        "size": 50
+      },
+      "aggregations": {
+        "3": {
+          "terms": {
+            "field": "user",
+            "size": 50,
+            "order": {
+              "_term": "asc"
+            },
+            "min_doc_count": 0
+          }
+        }
+      }
+    }
+  }
+}

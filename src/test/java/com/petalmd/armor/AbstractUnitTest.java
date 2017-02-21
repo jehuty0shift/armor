@@ -565,6 +565,23 @@ public abstract class AbstractUnitTest {
         executeIndex(armorConfig, "armor", "ac", "ac", true, true);
     }
 
+    protected final void setupTestDataWithFilteredAlias(final String armorConfig) throws Exception {
+        setupTestData(armorConfig);
+
+        executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
+        executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);
+
+        esNode1.client().admin().indices()
+                .prepareAliases()
+                .addAlias(new String[]{"financial", "ceo"}, "filtered","{" +
+                        "          \"term\" : {" +
+                        "            \"user\" : \"umberto\"" +
+                        "          }" +
+                        "        }")
+                .execute()
+                .actionGet();
+    }
+
     private static class JaasCredentials implements Credentials {
 
         @Override

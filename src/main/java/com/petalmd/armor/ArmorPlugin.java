@@ -19,6 +19,7 @@ package com.petalmd.armor;
 import java.util.ArrayList;
 import java.util.Collection;
 
+import com.petalmd.armor.filter.*;
 import com.petalmd.armor.transport.ArmorNettyTransport;
 
 import org.elasticsearch.ElasticsearchException;
@@ -34,10 +35,6 @@ import org.elasticsearch.http.HttpServerModule;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestModule;
 
-import com.petalmd.armor.filter.DLSActionFilter;
-import com.petalmd.armor.filter.FLSActionFilter;
-import com.petalmd.armor.filter.RequestActionFilter;
-import com.petalmd.armor.filter.ArmorActionFilter;
 import com.petalmd.armor.filter.level.ArmorWrapperQueryParser;
 import com.petalmd.armor.http.netty.SSLNettyHttpServerTransport;
 import com.petalmd.armor.rest.ArmorInfoAction;
@@ -111,6 +108,7 @@ public final class ArmorPlugin extends Plugin {
         if (enabled && !client) {
             module.registerFilter(ArmorActionFilter.class);
             module.registerFilter(RequestActionFilter.class);
+            module.registerFilter(AggregationFilter.class);
             module.registerFilter(DLSActionFilter.class);
             module.registerFilter(FLSActionFilter.class);
         }
