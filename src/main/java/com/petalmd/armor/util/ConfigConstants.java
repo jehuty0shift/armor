@@ -26,6 +26,8 @@ public final class ConfigConstants {
     public static final String ARMOR_AUDITLOG_ENABLED = "armor.auditlog.enabled";
     public static final String ARMOR_TRANSPORT_AUTH_ENABLED = "armor.transport_auth.enabled";
     public static final String ARMOR_AGGREGATION_FILTER_ENABLED = "armor.aggregation_filter.enabled";
+    public static final String ARMOR_ACTION_CACHE_ENABLED = "armor.action.cache.filter.enabled";
+    public static final String ARMOR_ACTION_CACHE_LIST = "armor.action.cache.filter.actions";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND = "armor.authentication.authentication_backend.impl";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE = "armor.authentication.authentication_backend.cache.enable";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST = "armor.authentication.authorization.multi.auth.backends";
