@@ -13,7 +13,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
@@ -39,18 +38,16 @@ public class ActionCacheFilter extends AbstractActionFilter {
     private final boolean enabled;
     private final List<String> cacheablesActions = new ArrayList<>();
     private final Map<String, ActionResponse> actionsCache;
-    private final Client client;
 
-    private static final  int CACHE_TIMEOUT_SECONDS = 5;
+    private static final  int CACHE_TIMEOUT_SECONDS = 10;
 
 
     @Inject
     public ActionCacheFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final Client client) {
+                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
         super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false);
         log.info("Action Cache Filter is : " + (enabled?"enabled":"disabled"));
-        this.client = client;
         String[] actionsToCache = settings.getAsArray(ConfigConstants.ARMOR_ACTION_CACHE_LIST);
         for (String action : actionsToCache) {
             if (action.startsWith("cluster:monitor")) {
@@ -76,7 +73,7 @@ public class ActionCacheFilter extends AbstractActionFilter {
                 final boolean isCached = actionsCache.containsKey(cacheableAction);
                 if (request instanceof NodesInfoRequest) {
                     NodesInfoRequest niRequest = (NodesInfoRequest) request;
-                    if (isCached && niRequest.timeout() == null) {
+                    if (isCached && (niRequest.timeout() == null || niRequest.timeout().getSeconds() > CACHE_TIMEOUT_SECONDS)) {
                         niRequest.timeout(TimeValue.timeValueSeconds(CACHE_TIMEOUT_SECONDS));
                     }
                     chain.proceed(task,action,request, new CachedActionListener<NodesInfoResponse>(listener,actionsCache,action));
