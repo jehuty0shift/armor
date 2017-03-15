@@ -110,6 +110,7 @@ public final class ArmorPlugin extends Plugin {
             module.registerFilter(RequestActionFilter.class);
             module.registerFilter(AggregationFilter.class);
             module.registerFilter(ActionCacheFilter.class);
+            module.registerFilter(ObfuscationFilter.class);
             module.registerFilter(DLSActionFilter.class);
             module.registerFilter(FLSActionFilter.class);
         }
