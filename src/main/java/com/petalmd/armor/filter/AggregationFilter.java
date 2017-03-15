@@ -24,8 +24,6 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.indices.query.IndicesQueriesRegistry;
-import org.elasticsearch.search.aggregations.AggregatorParsers;
 import org.elasticsearch.search.lookup.SourceLookup;
 import org.elasticsearch.tasks.Task;
 
@@ -38,28 +36,23 @@ import java.util.Map;
 public class AggregationFilter extends AbstractActionFilter {
 
     protected final ESLogger log = Loggers.getLogger(this.getClass());
-    private final IndicesQueriesRegistry queriesRegistry;
-    private final AggregatorParsers aggParsers;
-    private final boolean isFilterEnabled;
+    private final boolean enabled;
 
     private static final String MIN_DOC_COUNT_KEY = "min_doc_count";
 
 
     @Inject
     public AggregationFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final IndicesQueriesRegistry queriesRegistry, final AggregatorParsers aggParsers) {
+                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
         super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
-
-        isFilterEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,false);
-        this.queriesRegistry = queriesRegistry;
-        this.aggParsers = aggParsers;
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,false);
 
     }
 
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 
-        if (!isFilterEnabled) {
+        if (!enabled) {
             chain.proceed(task, action, request, listener);
             return;
         }
