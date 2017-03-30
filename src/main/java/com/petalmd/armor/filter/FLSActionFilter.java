@@ -248,9 +248,8 @@ public class FLSActionFilter extends AbstractActionFilter {
             return sr;
         }
 
-        SourceLookup sl = new SourceLookup();
         for (int i = 0; i < 2; i++) {
-
+            SourceLookup sl = new SourceLookup();
             BytesReference source = null;
             if (i == 0) {
                 source = sr.source();

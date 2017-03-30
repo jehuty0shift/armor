@@ -124,8 +124,8 @@ public class AggregationFilter extends AbstractActionFilter {
         try {
             log.debug("applying SearchRequest");
             BytesReference source;
-            final SourceLookup sl = new SourceLookup();
             for (int i = 0; i < 2; i++) {
+                final SourceLookup sl = new SourceLookup();
                 if (i == 0) {
                     source = sr.source();
                 } else {

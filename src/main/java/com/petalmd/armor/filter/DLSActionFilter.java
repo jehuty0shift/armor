@@ -416,9 +416,9 @@ public class DLSActionFilter extends AbstractActionFilter {
         }
 
         if (!qliste.isEmpty()) {
-            final SourceLookup sl = new SourceLookup();
             BytesReference srSource;
             for (int i = 0; i < 2; i++) {
+                final SourceLookup sl = new SourceLookup();
                 if (i == 0) {
                     srSource = sr.source();
                 } else {
