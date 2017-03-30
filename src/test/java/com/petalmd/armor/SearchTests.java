@@ -9,12 +9,13 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Created by bdiasse on 20/02/17.
  */
-public class AggregationTests extends AbstractScenarioTest {
+public class SearchTests extends AbstractScenarioTest {
 
 
 
@@ -49,4 +50,37 @@ public class AggregationTests extends AbstractScenarioTest {
         Assert.assertEquals(1,aggs2ResSize);
 
     }
+
+    @Test
+    public void scroll() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+        final String[] indices = new String[] { "internal" };
+
+        final Settings settings = Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "scroll")
+                .putArray("armor.actionrequestfilter.scroll.allowed_actions", "indices:data/read/scroll", "indices:data/read/search")
+                .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_9.json");
+
+        Map <String, String> scrollParameters = new HashMap<>();
+        scrollParameters.put("scroll","1m");
+        scrollParameters.put("size","3");
+
+        final Tuple<JestResult, HttpResponse> resulttu = executeSearchWithScroll("ac_query_matchall.json", indices, null,
+                true, false,scrollParameters);
+
+        final JestResult result = resulttu.v1();
+
+        final Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+
+
+    }
+
 }

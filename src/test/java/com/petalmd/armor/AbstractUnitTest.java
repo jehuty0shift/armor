@@ -45,6 +45,7 @@ import java.util.Set;
 
 import javax.net.ssl.SSLContext;
 
+import io.searchbox.core.SearchScroll;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -423,7 +424,7 @@ public abstract class AbstractUnitTest {
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Search.Builder(loadFile(file))
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers)
+                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers).setParameter("size",20)
                 .build());
 
         final JestResult res = restu.v1();
@@ -439,6 +440,37 @@ public abstract class AbstractUnitTest {
         }
         return restu;
     }
+
+    protected final Tuple<JestResult, HttpResponse> executeSearchWithScroll(final String file, final String[] indices, final String[] types,
+                                                                  final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final Map<String, String> scrollParameters) throws Exception {
+
+        client = getJestClient(getServerUri(connectFromLocalhost), username, password);
+
+        Search.Builder searchB = new Search.Builder(loadFile(file))
+                .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
+                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers);
+
+        for (Map.Entry<String,String> parameter : scrollParameters.entrySet()) {
+            searchB.setParameter(parameter.getKey(),parameter.getValue());
+        }
+
+        final Tuple<JestResult, HttpResponse> restu = client.executeE(searchB.build());
+
+        final JestResult res = restu.v1();
+
+        if (mustBeSuccesfull) {
+            if (res.getErrorMessage() != null) {
+                log.error("Search operation result: {}", res.getErrorMessage());
+            }
+            Assert.assertTrue("Error msg: " + res.getErrorMessage() + res.getJsonString(), res.isSucceeded());
+        } else {
+            log.debug("Search operation fails as expected");
+            Assert.assertTrue(!res.isSucceeded());
+        }
+        return restu;
+    }
+
+
 
     protected final Tuple<JestResult, HttpResponse> executeGet(final String index, final String type, final String id,
             final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
