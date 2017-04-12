@@ -20,11 +20,7 @@ package com.petalmd.armor.tokeneval;
 
 import java.io.Serializable;
 import java.net.InetAddress;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.codehaus.jackson.map.DeserializationConfig;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -42,6 +38,7 @@ public class TokenEvaluator {
     private final static ObjectMapper mapper = new ObjectMapper();
     protected static final ESLogger log = Loggers.getLogger(TokenEvaluator.class);
     protected final BytesReference xSecurityConfiguration;
+    protected ACRules acRules = null;
 
     static {
         mapper.configure(DeserializationConfig.Feature.READ_ENUMS_USING_TO_STRING, true);
@@ -68,8 +65,54 @@ public class TokenEvaluator {
         log.trace("Configuration: " + xSecurityConfiguration.toUtf8());
     }
 
+    public RulesEntities findEntitiesforUser(final User user) throws MalformedConfigurationException {
+        RulesEntities entities = new RulesEntities();
+
+        initializeACRulesIfNeeded();
+
+        //retrieve entities
+
+        for (ACRule acl : acRules.getAcl()) {
+            boolean shouldAddEntities = false;
+            //check User names
+            if (acl.getUsers() != null && acl.getUsers().contains(user.getName())) {
+                shouldAddEntities = true;
+            }
+            //check roles
+            if (shouldAddEntities == false && user.getRoles() != null && !user.getRoles().isEmpty() && acl.getRoles() != null) {
+                for (String role : acl.getRoles()) {
+                    if (user.getRoles().contains(role)) {
+                        //one role found is enough
+                        break;
+                    }
+                }
+            }
+            if (shouldAddEntities) {
+                if (acl.getAliases() != null && !acl.getAliases().isEmpty()) {
+                    entities.addAliases(acl.getAliases());
+                }
+                if (acl.getIndices() != null && !acl.getIndices().isEmpty()) {
+                    entities.addIndices(acl.getIndices());
+                }
+            }
+
+        }
+
+        return entities;
+    }
+
+    protected void initializeACRulesIfNeeded() throws MalformedConfigurationException {
+        if (acRules == null) {
+            try {
+                acRules = mapper.readValue(xSecurityConfiguration.toBytes(), ACRules.class);
+            } catch (final Exception e) {
+                throw new MalformedConfigurationException(e);
+            }
+        }
+    }
+
     public Evaluator getEvaluator(List<String> requestedIndices, List<String> requestedAliases, List<String> requestedTypes,
-            final InetAddress requestedHostAddress, final User user) throws MalformedConfigurationException {
+                                  final InetAddress requestedHostAddress, final User user) throws MalformedConfigurationException {
 
         if (requestedIndices == null || requestedIndices.isEmpty()) {
             requestedIndices = Lists.newArrayList("*");
@@ -94,13 +137,10 @@ public class TokenEvaluator {
 
         final Set<String> filtersExecute = new HashSet<String>();
         final Set<String> filterBypass = new HashSet<String>();
-        ACRules acRules = null;
 
-        try {
-            acRules = mapper.readValue(xSecurityConfiguration.toBytes(), ACRules.class);
-        } catch (final Exception e) {
-            throw new MalformedConfigurationException(e);
-        }
+
+        //initialize ACRules.
+        initializeACRulesIfNeeded();
 
         log.debug("Checking " + (acRules.getAcl().size() - 1) + " rules");
         boolean foundDefault = false;
@@ -232,7 +272,8 @@ public class TokenEvaluator {
             //[] == ["...","*","..."] == missing (because empty)
             if (!isNullEmtyStar(p.aliases)) {
 
-                aliasloop: for (final String requestedAlias : requestedAliases) {
+                aliasloop:
+                for (final String requestedAlias : requestedAliases) {
 
                     boolean aliasok = false;
 
@@ -269,7 +310,8 @@ public class TokenEvaluator {
 
             if (!isNullEmtyStar(p.indices)) {
 
-                indexloop: for (final String requestedIndex : requestedIndices) {
+                indexloop:
+                for (final String requestedIndex : requestedIndices) {
 
                     boolean indexok = false;
 
@@ -284,7 +326,6 @@ public class TokenEvaluator {
                             log.debug("    Index " + requestedIndex + " not match " + pIndex + "");
 
                         }
-
                     }
 
                     if (indexok) {
@@ -306,8 +347,7 @@ public class TokenEvaluator {
             filtersExecute.addAll(p.getFilters_execute());
             filterBypass.addAll(p.getFilters_bypass());
 
-        }// end ruleloop
-
+        }
         log.debug("Final executeFilters: {}/bypassFilters: {}", filtersExecute, filterBypass);
 
         return new Evaluator(filterBypass, filtersExecute);
@@ -328,7 +368,7 @@ public class TokenEvaluator {
 
             log.debug("Wildcard indices/aliases: {} -> {}", requested, grantedA[0]);
             if (grantedA.length > 1) {
-                for (final Iterator iterator = requestedTypes.iterator(); iterator.hasNext();) {
+                for (final Iterator iterator = requestedTypes.iterator(); iterator.hasNext(); ) {
                     final String requestedType = (String) iterator.next();
                     if (!SecurityUtil.isWildcardMatch(requestedType, grantedA[1], false)) {
                         log.debug("Wildcard types: {} -> {}", requestedType, grantedA[1]);
@@ -352,7 +392,7 @@ public class TokenEvaluator {
     public static class Evaluator implements Serializable {
 
         /**
-         * 
+         *
          */
         private static final long serialVersionUID = 1L;
         private final Set<String> bypassFilters;
@@ -411,7 +451,7 @@ public class TokenEvaluator {
 
     }
 
-    @SuppressWarnings(value = { "unused" })
+    @SuppressWarnings(value = {"unused"})
     public static class ACRules {
 
         private List<ACRule> acl;
@@ -425,7 +465,7 @@ public class TokenEvaluator {
         }
     }
 
-    @SuppressWarnings(value = { "unused" })
+    @SuppressWarnings(value = {"unused"})
     public static class ACRule {
 
         private String __Comment__;
@@ -530,7 +570,7 @@ public class TokenEvaluator {
     }
 
     private static boolean containsWildcardPattern(final Set<String> set, final String pattern) {
-        for (final Iterator iterator = set.iterator(); iterator.hasNext();) {
+        for (final Iterator iterator = set.iterator(); iterator.hasNext(); ) {
             final String string = (String) iterator.next();
             if (SecurityUtil.isWildcardMatch(string, pattern, false)) {
                 return true;

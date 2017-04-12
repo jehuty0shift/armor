@@ -80,7 +80,81 @@ public class SearchTests extends AbstractScenarioTest {
 
         final Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
 
+        int resultCount = result.getJsonObject().getAsJsonObject("hits").getAsJsonArray("hits").size();
 
+        Assert.assertEquals(3, resultCount);
     }
 
+
+
+    @Test
+    public void searchAliasWildcard() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+
+        final Settings settings = Settings.settingsBuilder()
+                .putArray("armor.actionrequestfilter.names", "wild","forbidden")
+                .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
+                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_10.json");
+
+
+        //test on indice inter* (part of wildcard)
+        final String[] indices1 = new String[] { "inter*" };
+        final Tuple<JestResult, HttpResponse> resulttu1 = executeSearch("ac_query_matchall.json", indices1, null,
+                true, false);
+        JestResult result = resulttu1.v1();
+        Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on indice financial
+        final String[] indices2 = new String[] { "financial" };
+        final Tuple<JestResult, HttpResponse> resulttu2 = executeSearch("ac_query_matchall.json", indices2, null,
+                false, false);
+        result = resulttu2.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+        //test on all
+        final String[] indices3 = new String[] { "_all" };
+        final Tuple<JestResult, HttpResponse> resulttu3 = executeSearch("ac_query_matchall.json", indices3, null,
+                true, false);
+        result = resulttu3.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard *
+        final String[] indices4 = new String[] {};
+        final Tuple<JestResult, HttpResponse> resulttu4 = executeSearch("ac_query_matchall.json", indices4, null,
+                true, false);
+        result = resulttu4.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard interna*
+        final String[] indices5 = new String[] {"interna*"};
+        final Tuple<JestResult, HttpResponse> resulttu5 = executeSearch("ac_query_matchall.json", indices5, null,
+                true, false);
+        result = resulttu5.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard finan
+        final String[] indices6 = new String[] {"finan*"};
+        final Tuple<JestResult, HttpResponse> resulttu6 = executeSearch("ac_query_matchall.json", indices6, null,
+                false, false);
+        result = resulttu6.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+    }
 }

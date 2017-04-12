@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.util.*;
 
+import com.petalmd.armor.tokeneval.RulesEntities;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -70,7 +71,7 @@ public class ArmorActionFilter implements ActionFilter {
 
     @Inject
     public ArmorActionFilter(final Settings settings, final AuditListener auditListener, final ClusterService clusterService,
-            final Client client, final ArmorConfigService armorConfigService) {
+                             final Client client, final ArmorConfigService armorConfigService) {
         this.auditListener = auditListener;
         this.settings = settings;
         this.clusterService = clusterService;
@@ -190,8 +191,15 @@ public class ArmorActionFilter implements ActionFilter {
         final List<String> ci = new ArrayList<String>();
         final List<String> aliases = new ArrayList<String>();
         final List<String> types = new ArrayList<String>();
+        boolean wildcardExpEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, false);
 
-        if (request.getFromContext("armor_ac_evaluator") == null) {
+        //If we enable wildcard expansion the token Evaluator should be regenerated.
+        if (request.getFromContext("armor_ac_evaluator") == null || wildcardExpEnabled) {
+
+            RulesEntities userRulesEntities = null;
+            if (wildcardExpEnabled) {
+                userRulesEntities = evaluator.findEntitiesforUser(user);
+            }
 
             if (request instanceof IndicesRequest) {
                 final IndicesRequest ir = (IndicesRequest) request;
@@ -199,12 +207,13 @@ public class ArmorActionFilter implements ActionFilter {
                 log.trace("Indices {}", Arrays.toString(ir.indices()));
                 log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
                 log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
-
-                try {
+                if (wildcardExpEnabled) {
+                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
+                } else {
                     ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
                     aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
-                } catch (java.lang.NullPointerException e) {
                 }
+
 
                 if (!allowedForAllIndices && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -219,15 +228,20 @@ public class ArmorActionFilter implements ActionFilter {
             if (request instanceof CompositeIndicesRequest) {
                 final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
                 final List irs = irc.subRequests();
-                for (final Iterator iterator = irs.iterator(); iterator.hasNext();) {
+                for (final Iterator iterator = irs.iterator(); iterator.hasNext(); ) {
                     final IndicesRequest ir = (IndicesRequest) iterator.next();
                     addType(ir, types, action);
                     log.trace("C Indices {}", Arrays.toString(ir.indices()));
                     log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
                     log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
 
-                    ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+                    if (wildcardExpEnabled) {
+                        replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
+                    } else {
+                        ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
+                        aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+                    }
+
                     if (!allowedForAllIndices
                             && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
                         log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
@@ -241,7 +255,7 @@ public class ArmorActionFilter implements ActionFilter {
             }
 
             if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
-                log.error("Attemp from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
+                log.error("Attempt from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
                 auditListener.onMissingPrivileges(user.getName(), request);
                 throw new ForbiddenException("Only allowed from localhost (loopback)");
             }
@@ -302,7 +316,7 @@ public class ArmorActionFilter implements ActionFilter {
                 final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
                         Collections.EMPTY_LIST);
 
-                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext();) {
+                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
                     final String forbiddenAction = iterator.next();
                     if (SecurityUtil.isWildcardMatch(action, forbiddenAction, false)) {
 
@@ -313,7 +327,7 @@ public class ArmorActionFilter implements ActionFilter {
                     }
                 }
 
-                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext();) {
+                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
                     final String allowedAction = iterator.next();
                     if (SecurityUtil.isWildcardMatch(action, allowedAction, false)) {
                         log.trace("Action '{}' is allowed due to {}", action, allowedAction);
@@ -337,7 +351,7 @@ public class ArmorActionFilter implements ActionFilter {
                 final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
                         Collections.EMPTY_LIST);
 
-                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext();) {
+                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
                     final String forbiddenAction = iterator.next();
                     if (SecurityUtil.isWildcardMatch(simpleClassName, forbiddenAction, false)) {
                         throw new RuntimeException("[" + ft + "." + fn + "] Forbidden action " + simpleClassName + " . Allowed actions: "
@@ -348,7 +362,7 @@ public class ArmorActionFilter implements ActionFilter {
 
                 boolean passall = false;
 
-                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext();) {
+                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
                     final String allowedAction = iterator.next();
                     if (SecurityUtil.isWildcardMatch(simpleClassName, allowedAction, false)) {
                         passall = true;
@@ -369,6 +383,71 @@ public class ArmorActionFilter implements ActionFilter {
 
     }
 
+    private void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, List<String> ci, List<String> aliases) {
+
+        List<String> irIndices = Arrays.asList(ir.indices());
+        List<String> newIndices = new ArrayList<>();
+        List<String> otherIndicesOrAliases = new ArrayList<>();
+        log.debug("replace index for " + ir.indices());
+        if (irIndices.size() == 0 || irIndices.contains("_all")) {
+            log.debug("request target _all indices, we replace it with rulesEntities items");
+            newIndices.addAll(rulesEntities.getIndices());
+            ci.addAll(rulesEntities.getIndices());
+            newIndices.addAll(rulesEntities.getAliases());
+            aliases.addAll(rulesEntities.getAliases());
+            log.debug("added " + newIndices.size() + " indices");
+
+        } else {
+            //search for wildcards
+            log.debug("indices contains wildcard, we will change them if they are not in the rules");
+            for (String indexOrAlias : irIndices) {
+                if (indexOrAlias.contains("*")) {
+                    log.debug("index contains a wildcard");
+                    //if the index match no indices it will be silently removed (consistent with what ES does).
+                    for (String reIndex : rulesEntities.getIndices()) {
+                        //check if index match rulesEntity (if its the case, we keep the rulesEntity).
+                        if (SecurityUtil.isWildcardMatch(reIndex, indexOrAlias, false)) {
+                            log.debug("index " + indexOrAlias + " match an index contained in a rule: " + reIndex);
+                            newIndices.add(reIndex);
+                            ci.add(reIndex);
+                            //check if rulesEntity match the index (if it is the case, we keep the indexOrAlias)
+                        } else if (SecurityUtil.isWildcardMatch(indexOrAlias, reIndex, false)) {
+                            log.debug("index " + indexOrAlias + "has been matched by a index contained in a rule " + reIndex);
+                            newIndices.add(indexOrAlias);
+                            ci.add(reIndex);
+                        }
+                    }
+                    for (String reAlias : rulesEntities.getAliases()) {
+                        //check if Alias match rulesEntity (if its the case, we keep the rulesEntity).
+                        if (SecurityUtil.isWildcardMatch(reAlias, indexOrAlias, false)) {
+                            log.debug("index " + indexOrAlias + " match an alias contained in a rule: " + reAlias);
+                            newIndices.add(reAlias);
+                            aliases.add(reAlias);
+                            //check if rulesEntity match the alias (if it is the case, we keep the indexOrAlias)
+                        } else if (SecurityUtil.isWildcardMatch(indexOrAlias, reAlias, false)) {
+                            log.debug("index " + indexOrAlias + "has been matched by an alias contained in a rule " + reAlias);
+                            newIndices.add(indexOrAlias);
+                            aliases.add(reAlias);
+                        }
+                    }
+                } else {
+                    log.debug("this index is not a wildcard, we will just have to resolve it");
+                    newIndices.add(indexOrAlias);
+                    otherIndicesOrAliases.add(indexOrAlias);
+                }
+            }
+        }
+
+        ci.addAll(resolveAliases(otherIndicesOrAliases));
+        aliases.addAll(getOnlyAliases(otherIndicesOrAliases));
+
+        if (!newIndices.isEmpty()) {
+            log.debug("replacing indices " + ir.indices() + " by " + newIndices.toString());
+            IndicesRequest.Replaceable irNew = (IndicesRequest.Replaceable) ir;
+            irNew.indices(newIndices.toArray(new String[newIndices.size()]));
+        }
+    }
+
     @Override
     public void apply(final String action, final ActionResponse response, final ActionListener listener, final ActionFilterChain chain) {
         chain.proceed(action, response, listener);
@@ -386,6 +465,10 @@ public class ArmorActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliases.get(index);
 
+            if (indexAliases == null) {
+                continue;
+            }
+
             if (!indexAliases.isAlias()) {
                 result.add(index);
                 log.trace("{} is an concrete index", index);
@@ -396,7 +479,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
 
-            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext();) {
+            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
                 final Tuple<String, AliasMetaData> entry = iterator.next();
                 result.add(entry.v1());
             }
@@ -417,6 +500,10 @@ public class ArmorActionFilter implements ActionFilter {
             final String index = indices.get(i);
 
             final AliasOrIndex indexAliases = aliases.get(index);
+
+            if (indexAliases == null) {
+                continue;
+            }
 
             if (indexAliases.isAlias()) {
                 result.add(index);

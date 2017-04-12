@@ -424,7 +424,7 @@ public abstract class AbstractUnitTest {
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Search.Builder(loadFile(file))
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers).setParameter("size",20)
+                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers)
                 .build());
 
         final JestResult res = restu.v1();
