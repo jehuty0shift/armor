@@ -60,28 +60,6 @@ public class AggregationFilter extends AbstractActionFilter {
         final User user = request.getFromContext("armor_authenticated_user", null);
         final Object authHeader = request.getHeader("armor_authenticated_transport_request");
 
-        final TokenEvaluator.Evaluator evaluator;
-
-        try {
-            evaluator = getFromContextOrHeader("armor_ac_evaluator", request, getEvaluator(request, action, user));
-        } catch (ForbiddenException e) {
-            listener.onFailure(e);
-            throw e;
-        }
-
-        request.putInContext("_armor_token_evaluator", evaluator);
-//
-
-        if (request.remoteAddress() == null && user == null) {
-            log.trace("Return on INTERNODE request");
-            return;
-        }
-
-        if (evaluator.getBypassAll() && user != null) {
-            log.trace("Return on WILDCARD for " + user);
-            return;
-        }
-
         log.trace("user {}", user);
 
         if (user == null) {
@@ -100,8 +78,8 @@ public class AggregationFilter extends AbstractActionFilter {
 
         }
 
-
         //here we know that we either have a non null user or an internally authenticated internode request
+        //this filter does not evaluate the token (this is done in armor action filter).
 
         if (request instanceof SearchRequest) {
             filterSearchRequest((SearchRequest) request);
