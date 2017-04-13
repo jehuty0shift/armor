@@ -207,7 +207,7 @@ public class ArmorActionFilter implements ActionFilter {
                 log.trace("Indices {}", Arrays.toString(ir.indices()));
                 log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
                 log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
-                if (wildcardExpEnabled) {
+                if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
                     replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
                 } else {
                     ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
@@ -235,7 +235,7 @@ public class ArmorActionFilter implements ActionFilter {
                     log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
                     log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
 
-                    if (wildcardExpEnabled) {
+                    if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
                         replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
                     } else {
                         ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
