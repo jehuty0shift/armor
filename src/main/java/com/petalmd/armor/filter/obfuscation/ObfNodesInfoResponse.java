@@ -1,11 +1,29 @@
+/*
+ * Copyright 2017 PetalMD.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.petalmd.armor.filter.obfuscation;
 
 import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.bootstrap.Elasticsearch;
 import org.elasticsearch.client.ElasticsearchClient;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.plugins.PluginInfo;
@@ -14,12 +32,13 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * Created by bdiasse on 10/03/17.
+ * @author jehuty0shift
+ * Created by jehuty0shift on 10/03/17.
  */
-public class ObfNodesInfoResponse extends NodesInfoResponse {
+public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfResponse{
 
 
-    public ObfNodesInfoResponse(NodesInfoResponse response) {
+    public ObfNodesInfoResponse(NodesInfoResponse response, Settings settings) {
         super(response.getClusterName(), response.getNodes());
     }
 
@@ -123,4 +142,8 @@ public class ObfNodesInfoResponse extends NodesInfoResponse {
         }
     }
 
+    @Override
+    public ActionResponse getActionResponse() {
+        return this;
+    }
 }

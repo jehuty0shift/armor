@@ -17,12 +17,15 @@
  */
 package com.petalmd.armor;
 
+import com.google.common.collect.ImmutableMap;
+import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.indices.mapping.PutMapping;
 
 import java.util.Map;
 
+import io.searchbox.indices.reindex.Reindex;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -139,6 +142,37 @@ public class MiscTest extends AbstractUnitTest {
         Assert.assertNotNull(jr.getErrorMessage());
         log.debug(jr.getErrorMessage());
         Assert.assertTrue(jr.getErrorMessage().contains("to _all indices"));
+
+    }
+
+
+    @Test
+    public void reindexTest() throws Exception{
+
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+
+        final Settings settings = Settings.settingsBuilder()
+                .putArray("armor.actionrequestfilter.names", "reindex","forbidden")
+                .putArray("armor.actionrequestfilter.reindex.allowed_actions", "indices:data/read/*", "indices:data/write/reindex", "indices:data/write/bulk*")
+                .putArray("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_11.json");
+        ImmutableMap<String, String> source = ImmutableMap.of("index", "marketing");
+        ImmutableMap<String, String> dest = ImmutableMap.of("index", "financial");
+        final JestClient client = getJestClient(getServerUri(false), username, password);
+
+        Reindex reindex = new Reindex.Builder(source,dest).refresh(false).build();
+        final JestResult jr = client.execute(reindex);
+
+        Assert.assertTrue(jr.getErrorMessage(),jr.isSucceeded());
 
     }
 }

@@ -77,6 +77,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.node.Node;
 import org.junit.After;
 import org.junit.Assert;
@@ -269,6 +270,7 @@ public abstract class AbstractUnitTest {
     private Node NodeWithArmor(final Settings settings) {
         List<Class<? extends Plugin>> list = new ArrayList<>();
         list.add(ArmorPlugin.class);
+        list.add(ReindexPlugin.class);
         return new ArmorNode(settings, list);
     }
 
