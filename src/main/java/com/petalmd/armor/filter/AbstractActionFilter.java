@@ -176,7 +176,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
-        throw new RuntimeException("Unauthenticated request (SEARCHGUARD_UNAUTH_REQ) for action " + action);
+        throw new RuntimeException("Unauthenticated request (ARMOR_UNAUTH_REQ) for action " + action);
     }
 
     public abstract void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener,

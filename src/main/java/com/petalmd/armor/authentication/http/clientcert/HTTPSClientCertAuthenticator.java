@@ -57,7 +57,7 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
             final NettyHttpRequest nettyRequest = (NettyHttpRequest) request;
             final DefaultHttpsRequest httpsRequest = (DefaultHttpsRequest) nettyRequest.request();
             x500Principal = (sun.security.x509.X500Name) httpsRequest.getPrincipal();
-            dn = String.valueOf(x500Principal);// request.header(MutualSSLHandler.SEARCHGUARD_MUTUAL_SSL_AUTH);
+            dn = String.valueOf(x500Principal);
         } catch (final Exception e) {
             log.error("Invalid request or invalid principal. Pls. check settings, this authenticater works only with https/ssl", e);
         }

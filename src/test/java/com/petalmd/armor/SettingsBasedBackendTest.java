@@ -108,9 +108,9 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testDigestSha1FailDigestAgain() throws Exception {
 
         final Settings settings = Settings.settingsBuilder()
-            .putArray("searchguard.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
-            .put("searchguard.authentication.settingsdb.user.spock", "966032eab6276624119a49080934e3936d2976f7")
-            .put("searchguard.authentication.settingsdb.digest", "sha1").build();
+            .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
+            .put("armor.authentication.settingsdb.user.spock", "966032eab6276624119a49080934e3936d2976f7")
+            .put("armor.authentication.settingsdb.digest", "sha1").build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "966032eab6276624119a49080934e3936d2976f7".toCharArray()));
     }
@@ -142,7 +142,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailNullPassword() throws Exception {
 
         final Settings settings = Settings.settingsBuilder()
-                .putArray("searchguard.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
+                .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
                 .build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", null));
@@ -153,8 +153,8 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailEmptyPassword() throws Exception {
 
         final Settings settings = Settings.settingsBuilder()
-                .putArray("searchguard.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
-                .put("searchguard.authentication.settingsdb.user.spock", "").build();
+                .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
+                .put("armor.authentication.settingsdb.user.spock", "").build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "".toCharArray()));
 

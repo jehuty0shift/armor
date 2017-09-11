@@ -50,7 +50,7 @@ public class ArmorInfoAction extends BaseRestHandler {
     public ArmorInfoAction(final Settings settings, final RestController controller, final Client client,
                            final ArmorService service) {
         super(settings, controller, client);
-        controller.registerHandler(GET, "/_searchguard", this);
+        controller.registerHandler(GET, "/_armor", this);
         this.service = service;
     }
 

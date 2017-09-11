@@ -75,7 +75,7 @@ public abstract class AbstractACRestFilter extends RestFilter {
     protected final boolean allowAllFromLoopback;
 
     public AbstractACRestFilter(final ArmorService service, final String filterType, final String filterName,
-            final AuditListener auditListener) {
+                                final AuditListener auditListener) {
 
         this.service = service;
         this.filterName = filterName;
@@ -157,7 +157,7 @@ public abstract class AbstractACRestFilter extends RestFilter {
 
         if (settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false)) {
 
-            final String sessionId = SecurityUtil.getSearchGuardSessionIdFromCookie(request);
+            final String sessionId = SecurityUtil.getArmorSessionIdFromCookie(request);
 
             if (sessionId == null) {
                 log.debug("No cookie found, will call authenticator");
@@ -167,7 +167,7 @@ public abstract class AbstractACRestFilter extends RestFilter {
                     sessionUser = session.getAuthenticatedUser();
                     log.debug("Found a session {}", session);
                 } else {
-                    log.warn("Found search guard cookie but with invalid id, will call authenticator");
+                    log.warn("Found armor cookie but with invalid id, will call authenticator");
                 }
             }
 
@@ -248,7 +248,7 @@ public abstract class AbstractACRestFilter extends RestFilter {
         final MultiSearchRequest msearch = new MultiSearchRequest();
         msearch.copyContextFrom(request);
 
-        for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext();) {
+        for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext(); ) {
             final Item item = iterator.next();
 
             final SearchRequest st = new SearchRequest();

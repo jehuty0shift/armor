@@ -99,7 +99,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
 
     private void askAgain(final RestChannel channel) {
         final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
-        wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Basic realm=\"Search Guard\"");
+        wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Basic realm=\"Armor\"");
         channel.sendResponse(wwwAuthenticateResponse);
     }
 

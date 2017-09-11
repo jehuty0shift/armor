@@ -50,7 +50,7 @@ public class SessionAwareNettyHttpChannel extends AbstractRestChannel {
     public void sendResponse(final RestResponse response) {
 
         final User user = this.request.getFromContext("armor_authenticated_user");
-        final Session _session = sessionStore.getSession(SecurityUtil.getSearchGuardSessionIdFromCookie(request));
+        final Session _session = sessionStore.getSession(SecurityUtil.getArmorSessionIdFromCookie(request));
 
         if (user != null) {
             if (_session == null) {

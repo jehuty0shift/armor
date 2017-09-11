@@ -274,7 +274,7 @@ public class SecurityUtil {
 
     }
 
-    public static String getSearchGuardSessionIdFromCookie(final RestRequest request) {
+    public static String getArmorSessionIdFromCookie(final RestRequest request) {
 
         final String cookies = request.header("Cookie");
 
