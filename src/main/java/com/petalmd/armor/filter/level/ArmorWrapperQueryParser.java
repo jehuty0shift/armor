@@ -15,19 +15,14 @@
  */
 package com.petalmd.armor.filter.level;
 
-import java.io.IOException;
-import org.apache.lucene.search.Query;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.query.QueryParseContext;
 import org.elasticsearch.index.query.QueryParser;
-import org.elasticsearch.index.query.QueryParsingException;
 
 /**
  *
  * @author jehuty0shift
  */
-public class ArmorWrapperQueryParser implements QueryParser{
+public abstract class ArmorWrapperQueryParser implements QueryParser{
     
     public static final String NAME = "armorWrapper";
     
@@ -35,32 +30,32 @@ public class ArmorWrapperQueryParser implements QueryParser{
     public ArmorWrapperQueryParser(){
     }
     
-    @Override 
-    public String[] names() {
-        return new String[]{NAME};
-    }
-    
-    
-    @Override
-    public Query parse(QueryParseContext parseContext) throws IOException, QueryParsingException {
-        XContentParser parser = parseContext.parser();
-
-        XContentParser.Token token = parser.nextToken();
-        if (token != XContentParser.Token.FIELD_NAME) {
-            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
-        }
-        String fieldName = parser.currentName();
-        if (!fieldName.equals("query")) {
-            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
-        }
-        parser.nextToken();
-
-//        String querySource = parser.text();
-        Query query = parseContext.parseInnerQuery();
-        if (parser.nextToken() != XContentParser.Token.END_OBJECT) {
-            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
-        }
-        return query;
-    }
+//    @Override
+//    public String[] names() {
+//        return new String[]{NAME};
+//    }
+//
+//
+//    @Override
+//    public Query parse(QueryParseContext parseContext) throws IOException, QueryParsingException {
+//        XContentParser parser = parseContext.parser();
+//
+//        XContentParser.Token token = parser.nextToken();
+//        if (token != XContentParser.Token.FIELD_NAME) {
+//            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
+//        }
+//        String fieldName = parser.currentName();
+//        if (!fieldName.equals("query")) {
+//            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
+//        }
+//        parser.nextToken();
+//
+////        String querySource = parser.text();
+//        Query query = parseContext.parseInnerQuery();
+//        if (parser.nextToken() != XContentParser.Token.END_OBJECT) {
+//            throw new QueryParsingException(parseContext, "[armorWrapper] query malformed");
+//        }
+//        return query;
+//    }
     
 }

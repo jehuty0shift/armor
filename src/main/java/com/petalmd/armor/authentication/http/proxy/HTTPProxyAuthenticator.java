@@ -18,17 +18,6 @@
 
 package com.petalmd.armor.authentication.http.proxy;
 
-import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.List;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
@@ -36,10 +25,21 @@ import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+
+import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.List;
 
 public class HTTPProxyAuthenticator implements HTTPAuthenticator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
 
     @Inject
@@ -49,7 +49,7 @@ public class HTTPProxyAuthenticator implements HTTPAuthenticator {
 
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+                             final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
         final String headerName = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_HEADER, "X-Authenticated-User");
         final List<String> trustedSourceIps = Arrays.asList(settings.getAsArray(
                 ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS, new String[0]));

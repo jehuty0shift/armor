@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -47,56 +48,67 @@ public class ArmorInfoAction extends BaseRestHandler {
     private final ArmorService service;
 
     @Inject
-    public ArmorInfoAction(final Settings settings, final RestController controller, final Client client,
+    public ArmorInfoAction(final Settings settings, RestController controller,
                            final ArmorService service) {
-        super(settings, controller, client);
+        super(settings);
         controller.registerHandler(GET, "/_armor", this);
         this.service = service;
     }
 
     @Override
-    protected void handleRequest(final RestRequest request, final RestChannel channel, final Client client) throws Exception {
-        final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
-        final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
+    public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) {
 
-        final Authorizator authorizator = service.getAuthorizator();
-        final AuthenticationBackend authenticationBackend = service.getAuthenticationBackend();
-        final HTTPAuthenticator httpAuthenticator = service.getHttpAuthenticator();
+        return new RestChannelConsumer() {
 
-        BytesRestResponse response = null;
-        final XContentBuilder builder = channel.newBuilder();
+            @Override
+            public void accept(RestChannel restChannel) throws Exception {
 
-        try {
 
-            final User authenticatedUser = httpAuthenticator.authenticate(request, channel, authenticationBackend, authorizator);
+                final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
+                final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
-            if (authenticatedUser == null) {
-                return;
+//                final Authorizator authorizator = service.getAuthorizator();
+//                final AuthenticationBackend authenticationBackend = service.getAuthenticationBackend();
+//                final HTTPAuthenticator httpAuthenticator = service.getHttpAuthenticator();
+
+                BytesRestResponse response;
+                final XContentBuilder builder = restChannel.newBuilder();
+
+                try {
+
+                    //TODO : To Delete ? Authentication is done in REST Wrapper
+//
+//                    final User authenticatedUser = httpAuthenticator.authenticate(request, restChannel, authenticationBackend, authorizator);
+//
+//                    if (authenticatedUser == null) {
+//
+//                    }
+
+                    builder.startObject();
+
+                    builder.field("armor.status", "running");
+//                    builder.field("armor.dls.supported", ArmorPlugin.DLS_SUPPORTED);
+//                    builder.field("armor.fls.supported", ArmorPlugin.DLS_SUPPORTED);
+                    builder.field("armor.isloopback", isLoopback);
+                    builder.field("armor.resolvedaddress", resolvedAddress);
+//                    builder.field("armor.authenticated_user", authenticatedUser.getName());
+
+//                    builder.field("armor.roles", authenticatedUser.getRoles());
+
+                    builder.endObject();
+
+                    response = new BytesRestResponse(RestStatus.OK, builder);
+                } catch (final Exception e1) {
+                    builder.startObject();
+                    builder.field("error", e1.toString());
+                    builder.endObject();
+                    response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                }
+
+                final BytesRestResponse finalResponse = response;
+                restChannel.sendResponse(response);
             }
-
-            builder.startObject();
-
-            builder.field("armor.status", "running");
-            builder.field("armor.dls.supported", ArmorPlugin.DLS_SUPPORTED);
-            builder.field("armor.fls.supported", ArmorPlugin.DLS_SUPPORTED);
-            builder.field("armor.isloopback", isLoopback);
-            builder.field("armor.resolvedaddress", resolvedAddress);
-            builder.field("armor.authenticated_user", authenticatedUser.getName());
-
-            builder.field("armor.roles", authenticatedUser, authenticatedUser.getRoles());
-
-            builder.endObject();
-
-            response = new BytesRestResponse(RestStatus.OK, builder);
-        } catch (final Exception e1) {
-            builder.startObject();
-            builder.field("error", e1.toString());
-            builder.endObject();
-            response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
-        }
-
-        channel.sendResponse(response);
-
+        };
     }
 
 }

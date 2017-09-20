@@ -18,6 +18,7 @@
 
 package com.petalmd.armor.authentication.http;
 
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
@@ -28,6 +29,6 @@ import com.petalmd.armor.authorization.Authorizator;
 
 public interface HTTPAuthenticator {
 
-    User authenticate(RestRequest request, RestChannel channel, AuthenticationBackend backend, Authorizator authorizator)
+    User authenticate(RestRequest request, RestChannel channel, AuthenticationBackend backend, Authorizator authorizator, ThreadContext threadContext)
             throws AuthException;
 }

@@ -38,7 +38,7 @@ public class SfSpNegoTest extends AbstractUnitTest {
         ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.restactionfilter.names", "readonly")
                 .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
 

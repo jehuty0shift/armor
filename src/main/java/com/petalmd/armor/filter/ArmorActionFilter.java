@@ -17,30 +17,6 @@
  */
 package com.petalmd.armor.filter;
 
-import java.io.Serializable;
-import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.util.*;
-
-import com.petalmd.armor.tokeneval.RulesEntities;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.CompositeIndicesRequest;
-import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-
 import com.petalmd.armor.ArmorPlugin;
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.AuthException;
@@ -50,33 +26,59 @@ import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.RulesEntities;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.tokeneval.TokenEvaluator.Evaluator;
 import com.petalmd.armor.tokeneval.TokenEvaluator.FilterAction;
+import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.CompositeIndicesRequest;
+import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.util.*;
 
 public class ArmorActionFilter implements ActionFilter {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final AuditListener auditListener;
     protected final Authorizator authorizator = null;
     protected final AuthenticationBackend authenticationBackend = null;
     protected final Settings settings;
+    private final ThreadPool threadpool;
     protected final ClusterService clusterService;
     protected final Client client;
     protected final ArmorConfigService armorConfigService;
 
     @Inject
     public ArmorActionFilter(final Settings settings, final AuditListener auditListener, final ClusterService clusterService,
-                             final Client client, final ArmorConfigService armorConfigService) {
+                             final Client client, final ArmorConfigService armorConfigService, final ThreadPool threadpool) {
         this.auditListener = auditListener;
         this.settings = settings;
         this.clusterService = clusterService;
         this.client = client;
         this.armorConfigService = armorConfigService;
+        this.threadpool = threadpool;
     }
 
     @Override
@@ -101,24 +103,25 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    private void copyContextToHeader(final ActionRequest request) {
+    private void copyContextToHeader(Map<String, Object> contextMap) {
         if (ArmorPlugin.DLS_SUPPORTED) {
 
-            final ImmutableOpenMap<Object, Object> map = request.getContext();
+            ThreadContext threadContext = threadpool.getThreadContext();
 
-            final Iterator it = map.keysIt();
+            final Iterator<String> it = contextMap.keySet().iterator();
+
 
             while (it.hasNext()) {
-                final Object key = it.next();
+                final String key = it.next();
 
-                if (key instanceof String && key.toString().startsWith("armor")) {
+                if (key.toString().startsWith("armor")) {
 
-                    if (request.hasHeader(key.toString())) {
+                    if (threadContext.getHeader(key) != null) {
                         continue;
                     }
 
-                    request.putHeader(key.toString(),
-                            SecurityUtil.encryptAndSerializeObject((Serializable) map.get(key), ArmorService.getSecretKey()));
+                    threadContext.putHeader(key.toString(),
+                            SecurityUtil.encryptAndSerializeObject((Serializable) contextMap.get(key), ArmorService.getSecretKey()));
                     log.trace("Copy from context to header {}", key);
 
                 }
@@ -130,19 +133,22 @@ public class ArmorActionFilter implements ActionFilter {
 
     private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain)
             throws Exception {
-        //proceeding the chaing for kibana field stats request
+        //proceeding for kibana field stats requests
         if (settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true) && (action.startsWith("cluster:monitor/") || action.contains("indices:data/read/field_stats"))) {
             chain.proceed(task, action, request, listener);
             return;
         }
 
-        copyContextToHeader(request);
+        //copyContextToHeader(request);
+
 
         log.trace("action {} ({}) from {}", action, request.getClass(), request.remoteAddress() == null ? "INTRANODE" : request
                 .remoteAddress().toString());
 
-        final User user = request.getFromContext("armor_authenticated_user", null);
-        final Object authHeader = request.getHeader("armor_authenticated_transport_request");
+        ThreadContext threadContext = threadpool.getThreadContext();
+
+        final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        final Object authHeader = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
         if (request.remoteAddress() == null && user == null) {
             log.trace("INTRANODE request");
@@ -186,7 +192,7 @@ public class ArmorActionFilter implements ActionFilter {
 
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
         final Evaluator eval;
-        request.putInContext("_armor_token_evaluator", evaluator);
+        threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
 
         final List<String> ci = new ArrayList<String>();
         final List<String> aliases = new ArrayList<String>();
@@ -194,7 +200,7 @@ public class ArmorActionFilter implements ActionFilter {
         boolean wildcardExpEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, false);
 
         //If we enable wildcard expansion the token Evaluator should be regenerated.
-        if (request.getFromContext("armor_ac_evaluator") == null || wildcardExpEnabled) {
+        if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null || wildcardExpEnabled) {
 
             RulesEntities userRulesEntities = null;
             if (wildcardExpEnabled) {
@@ -226,32 +232,33 @@ public class ArmorActionFilter implements ActionFilter {
             }
 
             if (request instanceof CompositeIndicesRequest) {
-                final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
-                final List irs = irc.subRequests();
-                for (final Iterator iterator = irs.iterator(); iterator.hasNext(); ) {
-                    final IndicesRequest ir = (IndicesRequest) iterator.next();
-                    addType(ir, types, action);
-                    log.trace("C Indices {}", Arrays.toString(ir.indices()));
-                    log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
-                    log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
-
-                    if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
-                        replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
-                    } else {
-                        ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-                        aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
-                    }
-
-                    if (!allowedForAllIndices
-                            && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
-                        log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
-                        auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
-
-                        listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
-                        throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                    }
-
-                }
+                throw new ForbiddenException(("Composites Indices Request must be toroughly inspected"));
+//                final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
+//                final List irs = irc.subRequests();
+//                for (final Iterator iterator = irs.iterator(); iterator.hasNext(); ) {
+//                    final IndicesRequest ir = (IndicesRequest) iterator.next();
+//                    addType(ir, types, action);
+//                    log.trace("C Indices {}", Arrays.toString(ir.indices()));
+//                    log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
+//                    log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
+//
+//                    if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
+//                        replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
+//                    } else {
+//                        ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
+//                        aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+//                    }
+//
+//                    if (!allowedForAllIndices
+//                            && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
+//                        log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
+//                        auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
+//
+//                        listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
+//                        throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+//                    }
+//
+//                }
             }
 
             if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
@@ -269,7 +276,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             }
 
-            final InetAddress resolvedAddress = request.getFromContext("armor_resolved_rest_address");
+            final InetAddress resolvedAddress = threadContext.getTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS);
 
             if (resolvedAddress == null) {
                 //not a rest request
@@ -279,14 +286,17 @@ public class ArmorActionFilter implements ActionFilter {
 
             eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
 
-            request.putInContext("armor_ac_evaluator", eval);
+            threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
 
-            copyContextToHeader(request);
+            //copyContextToHeader(request);
         } else {
-            eval = request.getFromContext("armor_ac_evaluator");
+            eval = threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR);
         }
 
-        final List<String> filter = request.getFromContext("armor_filter", Collections.EMPTY_LIST);
+        List<String> filter = threadContext.getTransient(ArmorConstants.ARMOR_FILTER);
+        if (filter == null) {
+            filter = Collections.EMPTY_LIST;
+        };
 
         log.trace("filter {}", filter);
 
@@ -311,10 +321,15 @@ public class ArmorActionFilter implements ActionFilter {
 
             if ("actionrequestfilter".equals(ft)) {
 
-                final List<String> allowedActions = request.getFromContext("armor." + ft + "." + fn + ".allowed_actions",
-                        Collections.EMPTY_LIST);
-                final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
-                        Collections.EMPTY_LIST);
+                List<String> allowedActions = threadContext.getTransient("armor." + ft + "." + fn + ".allowed_actions");
+                if(allowedActions == null) {
+                    allowedActions = Collections.emptyList();
+                }
+
+                List<String> forbiddenActions = threadContext.getTransient("armor." + ft + "." + fn + ".forbidden_actions");
+                if(forbiddenActions == null) {
+                    forbiddenActions = Collections.emptyList();
+                }
 
                 for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
                     final String forbiddenAction = iterator.next();
@@ -343,40 +358,40 @@ public class ArmorActionFilter implements ActionFilter {
                 throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
             }
 
-            if ("restactionfilter".equals(ft)) {
-                final String simpleClassName = request.getFromContext("armor." + ft + "." + fn + ".class_name", null);
+            //TODO : Delete ?
+//            if ("restactionfilter".equals(ft)) {
+//                final String simpleClassName = request.getFromContext("armor." + ft + "." + fn + ".class_name", null);
+//
+//                final List<String> allowedActions = request.getFromContext("armor." + ft + "." + fn + ".allowed_actions",
+//                        Collections.EMPTY_LIST);
+//                final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
+//                        Collections.EMPTY_LIST);
+//
+//                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
+//                    final String forbiddenAction = iterator.next();
+//                    if (SecurityUtil.isWildcardMatch(simpleClassName, forbiddenAction, false)) {
+//                        throw new RuntimeException("[" + ft + "." + fn + "] Forbidden action " + simpleClassName + " . Allowed actions: "
+//                                + allowedActions);
+//
+//                    }
+//                }
+//
+//                boolean passall = false;
+//
+//                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
+//                    final String allowedAction = iterator.next();
+//                    if (SecurityUtil.isWildcardMatch(simpleClassName, allowedAction, false)) {
+//                        passall = true;
+//                        break;
+//                    }
+//                }
+//
+//                if (!passall) {
+//                    throw new ForbiddenException("Forbidden action {} . Allowed actions: {}", simpleClassName, allowedActions);
+//                }
+//
+//            }
 
-                final List<String> allowedActions = request.getFromContext("armor." + ft + "." + fn + ".allowed_actions",
-                        Collections.EMPTY_LIST);
-                final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
-                        Collections.EMPTY_LIST);
-
-                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
-                    final String forbiddenAction = iterator.next();
-                    if (SecurityUtil.isWildcardMatch(simpleClassName, forbiddenAction, false)) {
-                        throw new RuntimeException("[" + ft + "." + fn + "] Forbidden action " + simpleClassName + " . Allowed actions: "
-                                + allowedActions);
-
-                    }
-                }
-
-                boolean passall = false;
-
-                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
-                    final String allowedAction = iterator.next();
-                    if (SecurityUtil.isWildcardMatch(simpleClassName, allowedAction, false)) {
-                        passall = true;
-                        break;
-                    }
-                }
-
-                if (!passall) {
-                    throw new ForbiddenException("Forbidden action {} . Allowed actions: {}", simpleClassName, allowedActions);
-                }
-
-            }
-
-            //DLS/FLS stuff is not done here, its done on SearchCallback
         }
 
         chain.proceed(task, action, request, listener);
@@ -446,11 +461,6 @@ public class ArmorActionFilter implements ActionFilter {
             IndicesRequest.Replaceable irNew = (IndicesRequest.Replaceable) ir;
             irNew.indices(newIndices.toArray(new String[newIndices.size()]));
         }
-    }
-
-    @Override
-    public void apply(final String action, final ActionResponse response, final ActionListener listener, final ActionFilterChain chain) {
-        chain.proceed(action, response, listener);
     }
 
     //works also with alias of an alias!

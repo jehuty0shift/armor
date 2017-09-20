@@ -7,7 +7,8 @@
     OF ANY KIND, either express or implied. See the License for the specific 
     language governing permissions and limitations under the License. -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <prerequisites>
@@ -16,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>5.0.0-SNAPSHOT</version>
+    <version>5.6.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -44,13 +45,13 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>2.4.4</elasticsearch.version>
+        <elasticsearch.version>5.6.0</elasticsearch.version>
         <apache.ds.version>2.0.0-M17</apache.ds.version>
         <apache.ds.api.version>1.0.0-M28</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.13</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <lucene.maven.version>5.5.2</lucene.maven.version>
+        <lucene.maven.version>6.6.0</lucene.maven.version>
     </properties>
 
     <scm>
@@ -74,7 +75,7 @@
         </developer>
     </developers>
 
-    <contributors />
+    <contributors/>
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
@@ -96,8 +97,8 @@
             <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.elasticsearch.module</groupId>
-            <artifactId>reindex</artifactId>
+            <groupId>org.elasticsearch.plugin</groupId>
+            <artifactId>transport-netty4-client</artifactId>
             <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
@@ -105,7 +106,7 @@
             <artifactId>api-ldap-client-all</artifactId>
             <version>${apache.ds.api.version}</version>
         </dependency>
-                
+
         <dependency>
             <groupId>com.github.dblock.waffle</groupId>
             <artifactId>waffle-jna</artifactId>
@@ -347,7 +348,9 @@
                 <configuration>
                     <includes>
                         <include>**/*Test*.java</include>
-                        <argLine>-Djava.security.manager -Djava.security.policy=${basedir}/src/main/resources/plugin-metadata/plugin-security.policy</argLine>
+                        <argLine>-Djava.security.manager
+                            -Djava.security.policy=${basedir}/src/main/resources/plugin-metadata/plugin-security.policy
+                        </argLine>
                     </includes>
                 </configuration>
             </plugin>
@@ -602,7 +605,7 @@
                     </plugin>
                 </plugins>
             </build>
-            <properties />
+            <properties/>
         </profile>
     </profiles>
 </project>

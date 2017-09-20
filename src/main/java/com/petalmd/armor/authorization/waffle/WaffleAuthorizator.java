@@ -18,27 +18,25 @@
 
 package com.petalmd.armor.authorization.waffle;
 
-import java.util.HashSet;
-import java.util.Set;
-
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.apache.lucene.util.Constants;
-import org.elasticsearch.common.settings.Settings;
-
-import waffle.windows.auth.IWindowsAccount;
-import waffle.windows.auth.IWindowsIdentity;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.NonCachingAuthorizator;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.Constants;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import waffle.windows.auth.IWindowsAccount;
+import waffle.windows.auth.IWindowsIdentity;
+
+import java.util.HashSet;
+import java.util.Set;
 
 public class WaffleAuthorizator implements NonCachingAuthorizator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     protected final Settings settings;
 
     @Inject

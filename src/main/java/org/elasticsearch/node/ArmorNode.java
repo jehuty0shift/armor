@@ -15,11 +15,11 @@
  */
 package org.elasticsearch.node;
 
-import java.util.Collection;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.internal.InternalSettingsPreparer;
 import org.elasticsearch.plugins.Plugin;
+
+import java.util.Collection;
 
 /**
  *
@@ -28,7 +28,7 @@ import org.elasticsearch.plugins.Plugin;
 public final class ArmorNode extends Node {
 
     public ArmorNode(Settings preparedSettings, Collection<Class<? extends Plugin>> plugins) {
-        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null), Version.CURRENT, plugins);
+        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null),  plugins);
     }
 
 }

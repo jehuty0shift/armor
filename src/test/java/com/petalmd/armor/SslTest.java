@@ -39,7 +39,7 @@ public class SslTest extends AbstractScenarioTest {
         enableSSL = true;
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
                 .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
@@ -68,7 +68,7 @@ public class SslTest extends AbstractScenarioTest {
         enableSSLv3Only = true;
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
                 .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
@@ -96,7 +96,7 @@ public class SslTest extends AbstractScenarioTest {
         enableSSL = false;
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
                 .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
@@ -121,7 +121,7 @@ public class SslTest extends AbstractScenarioTest {
     public void testNodeSSL() throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
                 .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
@@ -149,7 +149,7 @@ public class SslTest extends AbstractScenarioTest {
         enableSSL = true;
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .put("armor.authentication.http_authenticator.impl",
                     "com.petalmd.armor.authentication.http.clientcert.HTTPSClientCertAuthenticator")
                 .putArray("armor.authentication.authorization.settingsdb.roles.localhost", "ceo")

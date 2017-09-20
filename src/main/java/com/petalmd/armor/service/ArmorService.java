@@ -17,60 +17,50 @@
  */
 package com.petalmd.armor.service;
 
-import java.io.File;
-import java.io.FilePermission;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.security.*;
-
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.apache.commons.io.FileUtils;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.component.AbstractLifecycleComponent;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.search.SearchService;
-
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.http.SessionStore;
-import com.petalmd.armor.rest.DefaultRestFilter;
-import com.petalmd.armor.rest.RestActionFilter;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestRequest;
 
-public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
+import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+import java.security.SecureRandom;
+
+public class ArmorService extends AbstractLifecycleComponent {
 
     //private final String securityConfigurationIndex;
-    private final RestController restController;
-    private final Client client;
     private final Settings settings;
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private Method method;
     private Method searchServiceSetCallbackMethod;
     private final AuditListener auditListener;
+    private final ClusterService clusterService;
     private static SecretKey secretKey;
-
     private final Authorizator authorizator;
-
     private final AuthenticationBackend authenticationBackend;
-
     private final HTTPAuthenticator httpAuthenticator;
-
     private final SessionStore sessionStore;
-
     public Authorizator getAuthorizator() {
         return authorizator;
     }
@@ -83,22 +73,12 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
         return httpAuthenticator;
     }
 
-    public RestController getRestController() {
-        return restController;
-    }
-
-    public RestHandler getHandler(final RestRequest request) throws IllegalAccessException, IllegalArgumentException,
-            InvocationTargetException, NoSuchMethodException, SecurityException {
-        return (RestHandler) method.invoke(restController, request);
-    }
 
     @Inject
-    public ArmorService(final Settings settings, final RestController restController, final Client client,
+    public ArmorService(final Settings settings, final ClusterService clusterService,
             final Authorizator authorizator, final AuthenticationBackend authenticationBackend, final HTTPAuthenticator httpAuthenticator,
-            final SessionStore sessionStore, final AuditListener auditListener, final SearchService searchService) {
+            final SessionStore sessionStore, final AuditListener auditListener) {
         super(settings);
-        this.restController = restController;
-        this.client = client;
         this.settings = settings;
         //securityConfigurationIndex = settings
         //        .get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
@@ -106,26 +86,27 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
         this.authorizator = authorizator;
         this.httpAuthenticator = httpAuthenticator;
         this.sessionStore = sessionStore;
+        this.clusterService = clusterService;
 
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new SpecialPermission());
         }
 
-        try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
-                @Override
-                public Boolean run() throws Exception {
-                    method = RestController.class.getDeclaredMethod("getHandler", RestRequest.class);
-                    method.setAccessible(true);
-
-                    return true;
-                }
-            });
-        } catch (final Exception e) {
-            log.error(e.toString(), e);
-            throw new ElasticsearchException(e.toString());
-        }
+//        try {
+//            AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
+//                @Override
+//                public Boolean run() throws Exception {
+//                    method = RestController.class.getDeclaredMethod("getHandler", RestRequest.class);
+//                    method.setAccessible(true);
+//
+//                    return true;
+//                }
+//            });
+//        } catch (final Exception e) {
+//            log.error(e.toString(), e);
+//            throw new ElasticsearchException(e.toString());
+//        }
 
         final String keyPath = settings.get(ConfigConstants.ARMOR_KEY_PATH,".");
 //        AccessController.checkPermission(new FilePermission(keyPath+File.separator+"armor_node_key.key", "write"));
@@ -164,17 +145,6 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
         this.auditListener = auditListener;
         //TODO FUTURE index change audit trail
         
-        final boolean checkForRoot = settings.getAsBoolean(ConfigConstants.ARMOR_CHECK_FOR_ROOT, true);
-
-        if (SecurityUtil.isRootUser()) {
-
-            if (checkForRoot) {
-                throw new ElasticsearchException("You're trying to run elasticsearch as root or Windows Administrator and thats forbidden.");
-            } else {
-                log.warn("You're trying to run elasticsearch as root or Windows Administrator! Thats a potential security issue.");
-            }
-
-        }
 
         /*final String scriptingStatus = settings.get(ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING,
                 ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT);
@@ -188,12 +158,11 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
             log.error("{} is configured insecure, consider setting it to false or " + ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT,
                     ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING);
         }*/
-        if (searchService == null) {
-            throw new RuntimeException("ssnull");
-        }
 
         ArmorService.secretKey = sc;
     }
+
+    public ClusterService getClusterService() { return clusterService; }
 
     public static SecretKey getSecretKey() {
         return secretKey;
@@ -207,21 +176,18 @@ public class ArmorService extends AbstractLifecycleComponent<ArmorService> {
         return settings;
     }
 
-    public Client getClient() {
-        return client;
-    }
 
     @Override
     protected void doStart() throws ElasticsearchException {
 
-        restController.registerFilter(new DefaultRestFilter(this, null, null, auditListener));
-
-        final String[] restActionFilters = settings.getAsArray(ConfigConstants.ARMOR_RESTACTIONFILTER);
-        for (int i = 0; i < restActionFilters.length; i++) {
-            final String filterName = restActionFilters[i];
-            restController.registerFilter(new RestActionFilter(this, "restactionfilter", filterName, auditListener));
-            //filterRegistered = true;
-        }
+//        restController.registerFilter(new DefaultRestFilter(this, null, null, auditListener));
+//
+//        final String[] restActionFilters = settings.getAsArray(ConfigConstants.ARMOR_RESTACTIONFILTER);
+//        for (int i = 0; i < restActionFilters.length; i++) {
+//            final String filterName = restActionFilters[i];
+//            restController.registerFilter(new RestActionFilter(this, "restactionfilter", filterName, auditListener));
+//            //filterRegistered = true;
+//        }
 
         //TODO FUTURE version compatibility
         /* if(!Version.CURRENT.before(Version.V_1_4_2)) {

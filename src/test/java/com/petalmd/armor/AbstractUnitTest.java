@@ -17,43 +17,20 @@
  */
 package com.petalmd.armor;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.petalmd.armor.tests.EmbeddedLDAPServer;
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.core.Get;
 import io.searchbox.core.Index;
 import io.searchbox.core.Search;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.KeyStore;
-import java.security.Principal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import javax.net.ssl.SSLContext;
-
-import io.searchbox.core.SearchScroll;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
-import org.apache.http.auth.AuthSchemeProvider;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.Credentials;
-import org.apache.http.auth.NTCredentials;
-import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.auth.*;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.config.Registry;
@@ -67,18 +44,19 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.logging.log4j.Logger;
 import org.apache.mina.util.AvailablePortFinder;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.index.reindex.ReindexPlugin;
+import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.plugins.Plugin;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -87,15 +65,20 @@ import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
-import com.petalmd.armor.tests.EmbeddedLDAPServer;
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import java.util.ArrayList;
-import java.util.List;
-import org.elasticsearch.node.ArmorNode;
-import org.elasticsearch.plugins.Plugin;
+import javax.net.ssl.SSLContext;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.Principal;
+import java.util.*;
 
 public abstract class AbstractUnitTest {
 
@@ -200,7 +183,7 @@ public abstract class AbstractUnitTest {
     private Settings.Builder getDefaultSettingsBuilder(final int nodenum, final int nodePort, final int httpPort, final boolean dataNode,
             final boolean masterNode) {
 
-        return Settings.settingsBuilder().put("node.name", "armor_testnode_" + nodenum)//.put("node.data", dataNode)
+        return Settings.builder().put("node.name", "armor_testnode_" + nodenum)//.put("node.data", dataNode)
                 .put("node.master", masterNode).put("cluster.name", this.clustername)
                 .put("path.home", ".").put("path.data", "data/data")//.put("index.store.fs.memory.enabled", "true")
                 .put("path.work", "data/work").put("path.logs", "data/logs").put("path.conf", "data/config")
@@ -210,11 +193,11 @@ public abstract class AbstractUnitTest {
                 .put("network.bind_host", "0.0.0.0").put("http.port", httpPort).put("http.enabled", true)
                 .put("network.publish_host", "127.0.0.1").put("transport.tcp.port", nodePort).put("http.cors.enabled", true)
                 .put("network.tcp.connect_timeout", "60s").put("discovery.zen.ping.unicast.hosts", "127.0.0.1:" + elasticsearchNodePort1)
-                .put(ConfigConstants.ARMOR_CHECK_FOR_ROOT, false).put(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true)/*.put("node.local", false)*/;
+                .put(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true)/*.put("node.local", false)*/;
 
     }
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
 
     protected final String getServerUri(final boolean connectFromLocalhost) {
 
@@ -270,7 +253,6 @@ public abstract class AbstractUnitTest {
     private Node NodeWithArmor(final Settings settings) {
         List<Class<? extends Plugin>> list = new ArrayList<>();
         list.add(ArmorPlugin.class);
-        list.add(ReindexPlugin.class);
         return new ArmorNode(settings, list);
     }
 
@@ -670,7 +652,7 @@ public abstract class AbstractUnitTest {
     }
 
     protected Settings.Builder cacheEnabled(final boolean cache) {
-        return Settings.settingsBuilder()
+        return Settings.builder()
                 .put("armor.authentication.authorizer.cache.enable", cache)
                 .put("armor.authentication.authentication_backend.cache.enable", cache);
     }

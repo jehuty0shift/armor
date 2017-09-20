@@ -18,45 +18,42 @@
 
 package com.petalmd.armor.http.netty;
 
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.handler.ssl.SslHandler;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import javax.net.ssl.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.security.KeyStore;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.TrustManagerFactory;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.handler.ssl.SslHandler;
-import org.elasticsearch.common.network.NetworkService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.http.netty.NettyHttpServerTransport;
-
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
-
-public class SSLNettyHttpServerTransport extends NettyHttpServerTransport {
+public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     @Inject
-    public SSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays) {
-        super(settings, networkService, bigArrays);
+    public SSLNettyHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher) {
+        super(settings, networkService, bigArrays,threadPool,xContentRegistry,dispatcher);
     }
 
     @Override
-    public ChannelPipelineFactory configureServerChannelPipelineFactory() {
-        return new SSLHttpChannelPipelineFactory(this, this.settings, this.detailedErrorsEnabled);
+    public ChannelHandler configureServerChannelHandler() {
+        return new SSLHttpChannelHandler(this,this.settings,this.detailedErrorsEnabled,threadPool);
     }
 
-    protected static class SSLHttpChannelPipelineFactory extends HttpChannelPipelineFactory {
+    protected static class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
-        protected final ESLogger log = Loggers.getLogger(this.getClass());
+        protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
 
         private final String keystoreType;
         private final String keystoreFilePath;
@@ -66,10 +63,11 @@ public class SSLNettyHttpServerTransport extends NettyHttpServerTransport {
         private final String truststoreType;
         private final String truststoreFilePath;
         private final String truststorePassword;
+        private final ThreadContext threadContext;
 
-        public SSLHttpChannelPipelineFactory(final NettyHttpServerTransport transport, final Settings settings,
-                final boolean detailedErrorsEnabled) {
-            super(transport, detailedErrorsEnabled);
+        public SSLHttpChannelHandler(final Netty4HttpServerTransport transport, final Settings settings,
+                final boolean detailedErrorsEnabled, final ThreadPool threadpool) {
+            super(transport, detailedErrorsEnabled,threadpool.getThreadContext());
             keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE, "JKS");
             keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, null);
             keystorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD, "changeit");
@@ -77,14 +75,15 @@ public class SSLNettyHttpServerTransport extends NettyHttpServerTransport {
             truststoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_TYPE, "JKS");
             truststoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_FILEPATH, null);
             truststorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_PASSWORD, "changeit");
+            this.threadContext = threadpool.getThreadContext();
         }
 
+
         @Override
-        public ChannelPipeline getPipeline() throws Exception {
+        public void initChannel(Channel ch) throws Exception {
 
-            log.trace("SslHandler configured and added to netty pipeline");
+            super.initChannel(ch);
 
-            final org.jboss.netty.channel.ChannelPipeline pipeline = super.getPipeline();
             TrustManagerFactory tmf = null;
 
             if (enforceClientAuth) {
@@ -94,7 +93,6 @@ public class SSLNettyHttpServerTransport extends NettyHttpServerTransport {
 
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ts);
-                log.debug("Enforce client auth enabled");
             }
 
             final KeyStore ks = KeyStore.getInstance(keystoreType);
@@ -114,12 +112,17 @@ public class SSLNettyHttpServerTransport extends NettyHttpServerTransport {
             engine.setUseClientMode(false);
 
             final SslHandler sslHandler = new SslHandler(engine);
-            sslHandler.setEnableRenegotiation(false);
-            pipeline.addFirst("ssl_http", sslHandler);
+
+
+            ch.pipeline().addFirst("ssl_http", sslHandler);
             if (enforceClientAuth) {
-                pipeline.addBefore("handler", "mutual_ssl", new MutualSSLHandler());
+
+                ch.pipeline().addBefore("handler", "mutual_ssl", new MutualSSLHandler(threadContext));
+                log.debug("Enforce client auth enabled");
             }
-            return pipeline;
+
+            log.trace("SslHandler configured and added to netty pipeline");
+
         }
     }
 

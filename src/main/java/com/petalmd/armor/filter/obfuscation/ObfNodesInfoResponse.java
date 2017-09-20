@@ -19,17 +19,14 @@ package com.petalmd.armor.filter.obfuscation;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.bootstrap.Elasticsearch;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.plugins.PluginInfo;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * @author jehuty0shift
@@ -39,7 +36,7 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
 
 
     public ObfNodesInfoResponse(NodesInfoResponse response, Settings settings) {
-        super(response.getClusterName(), response.getNodes());
+        super(response.getClusterName(), response.getNodes(),response.failures());
     }
 
     private String getPrivateIP(int index) {
@@ -59,45 +56,46 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.field("cluster_name", getClusterName().value(), XContentBuilder.FieldCaseConversion.NONE);
+        builder.field("cluster_name", getClusterName().value());
 
         builder.startObject("nodes");
         int index = 0; //starts at 1 for getPrivateIP.
-        for (NodeInfo nodeInfo : this) {
+        for (NodeInfo nodeInfo : getNodes()) {
             index++;
             String obfPrivateIP = getPrivateIP(index);
-            builder.startObject(nodeInfo.getNode().id(), XContentBuilder.FieldCaseConversion.NONE);
+            builder.startObject(nodeInfo.getNode().getId());
 
-            builder.field("name", nodeInfo.getNode().name(), XContentBuilder.FieldCaseConversion.NONE);
-            builder.field("transport_address", obfPrivateIP + ":9300", XContentBuilder.FieldCaseConversion.NONE);
-            builder.field("host", obfPrivateIP, XContentBuilder.FieldCaseConversion.NONE);
-            builder.field("ip", obfPrivateIP, XContentBuilder.FieldCaseConversion.NONE);
+            builder.field("name", nodeInfo.getNode().getName());
+            builder.field("transport_address", obfPrivateIP + ":9300");
+            builder.field("host", obfPrivateIP);
+            builder.field("ip", obfPrivateIP);
 
-            builder.field("version", Version.CURRENT.number());
-            builder.field("build", nodeInfo.getBuild().hashShort());
-
-            if (nodeInfo.getServiceAttributes() != null) {
-                for (Map.Entry<String, String> nodeAttribute : nodeInfo.getServiceAttributes().entrySet()) {
-                    if (nodeAttribute.getKey() == "http_address") {
-                        builder.field(nodeAttribute.getKey(), obfPrivateIP + ":9200", XContentBuilder.FieldCaseConversion.NONE);
-                    }
-                }
+            builder.field("version", Version.CURRENT.toString());
+            builder.field("build", Version.CURRENT.build);
+            if (nodeInfo.getTotalIndexingBuffer() != null) {
+                builder.byteSizeField("total_indexing_buffer", "total_indexing_buffer_in_bytes", nodeInfo.getTotalIndexingBuffer());
             }
 
-            if (!nodeInfo.getNode().attributes().isEmpty()) {
+            builder.startArray("roles");
+            for (DiscoveryNode.Role role : nodeInfo.getNode().getRoles()) {
+                builder.value(role.getRoleName());
+            }
+            builder.endArray();
+
+            if (!nodeInfo.getNode().getAttributes().isEmpty()) {
                 builder.startObject("attributes");
-                builder.field("master", nodeInfo.getNode().attributes().get("master"));
+                builder.field("master", nodeInfo.getNode().getAttributes().get("master"));
                 builder.endObject();
             }
 
 
             if (nodeInfo.getSettings() != null) {
                 builder.startObject("settings");
-                builder.field("bind_host", "0.0.0.0", XContentBuilder.FieldCaseConversion.NONE);
+                builder.field("bind_host", obfPrivateIP);
                 builder.startObject("node");
                 builder.field("name", nodeInfo.getNode().getName());
-                builder.field("data", nodeInfo.getNode().dataNode());
-                builder.field("master", nodeInfo.getNode().masterNode());
+                builder.field("data", nodeInfo.getNode().isDataNode());
+                builder.field("master", nodeInfo.getNode().isMasterNode());
                 builder.endObject();
                 builder.endObject();
             }

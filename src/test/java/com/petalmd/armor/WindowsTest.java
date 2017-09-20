@@ -31,7 +31,7 @@ public class WindowsTest extends AbstractScenarioTest {
         useSpnego = true;
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .put("armor.authentication.http_authenticator", "com.petalmd.armor.authentication.http.waffle.HTTPWaffleAuthenticator")
 
                 .put("armor.authentication.spnego.login_config_filepath", System.getProperty("java.security.auth.login.config"))

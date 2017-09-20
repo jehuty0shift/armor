@@ -15,17 +15,14 @@
  */
 package com.petalmd.armor.filter.obfuscation;
 
-import org.elasticsearch.SpecialPermission;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import java.lang.reflect.Constructor;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,7 +32,7 @@ import java.util.Map;
  */
 public class ObfFilterFactory {
 
-    protected static final ESLogger log = Loggers.getLogger(ObfFilterFactory.class);
+    protected static final Logger log = ESLoggerFactory.getLogger(ObfFilterFactory.class);
     private final Map<String, Class> hubMap;
     private final Settings settings;
 

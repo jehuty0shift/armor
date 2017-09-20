@@ -18,30 +18,29 @@
 
 package com.petalmd.armor.authentication.http.basic;
 
-import java.nio.charset.StandardCharsets;
-
-import javax.xml.bind.DatatypeConverter;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+
+import javax.xml.bind.DatatypeConverter;
+import java.nio.charset.StandardCharsets;
 
 //TODO FUTURE allow only if protocol==https
 public class HTTPBasicAuthenticator implements HTTPAuthenticator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
 
     @Inject
@@ -51,7 +50,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
 
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+                             final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
 
         String authorizationHeader = request.header("Authorization");
 
@@ -98,7 +97,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
     }
 
     private void askAgain(final RestChannel channel) {
-        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED,"access denied");
         wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Basic realm=\"Armor\"");
         channel.sendResponse(wwwAuthenticateResponse);
     }

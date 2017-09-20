@@ -17,7 +17,7 @@
 package com.petalmd.armor.authorization;
 
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.logging.support.LoggerMessageFormat;
+import org.elasticsearch.common.logging.LoggerMessageFormat;
 import org.elasticsearch.rest.RestStatus;
 
 public class ForbiddenException extends ElasticsearchException {

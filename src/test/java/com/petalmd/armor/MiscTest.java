@@ -47,7 +47,7 @@ public class MiscTest extends AbstractUnitTest {
     public void unauthenticatedTest() throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.restactionfilter.names", "readonly")
                 .putArray("armor.restactionfilter.readonly.allowed_actions", "*")
                 .put("armor.authentication.http_authenticator.impl",
@@ -77,7 +77,7 @@ public class MiscTest extends AbstractUnitTest {
     public void testClusterMonitorDisable() throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.actionrequestfilter.names", "allowHealth")
                 .putArray("armor.actionrequestfilter.allowHealth.allowed_actions", "cluster:monitor/health")
                 .put("armor.allow_kibana_actions", false)
@@ -113,7 +113,7 @@ public class MiscTest extends AbstractUnitTest {
     public void testArmorIndexAttack() throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "root")
                 .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
@@ -155,7 +155,7 @@ public class MiscTest extends AbstractUnitTest {
         Settings authSettings = getAuthSettings(false,"ceo" );
 
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.actionrequestfilter.names", "reindex","forbidden")
                 .putArray("armor.actionrequestfilter.reindex.allowed_actions", "indices:data/read/*", "indices:data/write/reindex", "indices:data/write/bulk*")
                 .putArray("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")

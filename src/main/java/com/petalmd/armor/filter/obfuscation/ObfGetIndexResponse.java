@@ -17,22 +17,18 @@
 package com.petalmd.armor.filter.obfuscation;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.io.stream.ByteBufferStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
-import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.search.warmer.IndexWarmersMetaData;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
@@ -46,10 +42,9 @@ import java.util.*;
 
 public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 
-    protected static final ESLogger log = Loggers.getLogger(ObfGetIndexResponse.class);
+    protected static final Logger log = ESLoggerFactory.getLogger(ObfGetIndexResponse.class);
     final private String[] indices;
     final private ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings;
-    final private ImmutableOpenMap<String, List<IndexWarmersMetaData.Entry>> warmers;
     final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;
     final private ImmutableOpenMap<String, Settings> settings;
     final private GetIndexResponse response;
@@ -210,9 +205,6 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
             settings = ImmutableOpenMap.of();
         }
 
-        //we let warmers alone (soon to disappear anyway)
-        warmers = response.getWarmers();
-
     }
 
     @Override
@@ -235,17 +227,6 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeStringArray(indices);
-        out.writeVInt(warmers.size());
-        for (ObjectObjectCursor<String, List<IndexWarmersMetaData.Entry>> indexEntry : warmers) {
-            out.writeString(indexEntry.key);
-            out.writeVInt(indexEntry.value.size());
-            for (IndexWarmersMetaData.Entry warmerEntry : indexEntry.value) {
-                out.writeString(warmerEntry.name());
-                out.writeStringArray(warmerEntry.types());
-                out.writeOptionalBoolean(warmerEntry.requestCache());
-                out.writeBytesReference(warmerEntry.source());
-            }
-        }
         out.writeVInt(mappings.size());
         for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
             out.writeString(indexEntry.key);

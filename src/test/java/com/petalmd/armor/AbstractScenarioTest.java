@@ -39,7 +39,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void simpleDlsScenario(final Settings additionalSettings) throws Exception {
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.dlsfilter.names", "dummy2-only")
+        final Settings settings = Settings.builder().putArray("armor.dlsfilter.names", "dummy2-only")
                 .putArray("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "true")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
@@ -49,7 +49,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
     protected void simpleFlsScenarioExclude(final Settings additionalSettings) throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.dlsfilter.names", "dummy2-only")
                 .putArray("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "false")
                 .putArray("armor.flsfilter.names", "special-fields-only")
@@ -76,7 +76,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void simpleFlsScenarioInclude(final Settings additionalSettings) throws Exception {
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.dlsfilter.names", "dummy2-only")
+        final Settings settings = Settings.builder().putArray("armor.dlsfilter.names", "dummy2-only")
                 .putArray("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "false")
                 .putArray("armor.flsfilter.names", "special-fields-only")
                 .putArray("armor.flsfilter.special-fields-only", "special-fields-only")
@@ -123,7 +123,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         }
          */
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.dlsfilter.names", "dummy2-only")
+        final Settings settings = Settings.builder().putArray("armor.dlsfilter.names", "dummy2-only")
                 .putArray("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "false")
                 .putArray("armor.flsfilter.names", "special-fields-only")
                 .putArray("armor.flsfilter.special-fields-only", "special-fields-only")
@@ -148,7 +148,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
     protected void searchOnlyAllowed(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
         final String[] indices = new String[] { "internal" };
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.restactionfilter.names", "readonly")
+        final Settings settings = Settings.builder().putArray("armor.restactionfilter.names", "readonly")
                 .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
@@ -183,7 +183,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
     }
 
     protected void searchOnlyAllowedMoreFilters(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.restactionfilter.names", "readonly", "al_l", "no-ne")
                 .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
                 .putArray("armor.restactionfilter.al_l.allowed_actions", "*")
@@ -196,7 +196,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
     protected void searchOnlyAllowedAction(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
         final String[] indices = new String[] { "internal" };
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "readonly")
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
                 .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
@@ -232,7 +232,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void dlsLdapUserAttribute(final Settings additionalSettings) throws Exception {
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.restactionfilter.names", "readonly", "noget")
+        final Settings settings = Settings.builder().putArray("armor.restactionfilter.names", "readonly", "noget")
                 .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
                 .putArray("armor.restactionfilter.noget.forbidden_actions", "RestGetAction")
                 .putArray("armor.restactionfilter.noget.allowed_actions", "*")

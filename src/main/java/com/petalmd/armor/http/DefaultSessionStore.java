@@ -18,22 +18,17 @@
 
 package com.petalmd.armor.http;
 
-import java.util.Date;
-import java.util.Iterator;
-import java.util.Map.Entry;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-
 import com.petalmd.armor.authentication.User;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultSessionStore implements SessionStore {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final ConcurrentHashMap<String, Session> store = new ConcurrentHashMap<String, Session>();
 
     public DefaultSessionStore() {

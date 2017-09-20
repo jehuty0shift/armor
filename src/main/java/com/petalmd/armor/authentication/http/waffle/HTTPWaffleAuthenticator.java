@@ -18,35 +18,34 @@
 
 package com.petalmd.armor.authentication.http.waffle;
 
-import java.net.InetSocketAddress;
-
-import org.apache.lucene.util.Constants;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-
-import waffle.windows.auth.IWindowsAuthProvider;
-import waffle.windows.auth.IWindowsIdentity;
-import waffle.windows.auth.IWindowsSecurityContext;
-
+import com.google.common.base.Joiner;
+import com.google.common.io.BaseEncoding;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
-import com.google.common.base.Joiner;
-import com.google.common.io.BaseEncoding;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.Constants;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import waffle.windows.auth.IWindowsAuthProvider;
+import waffle.windows.auth.IWindowsIdentity;
+import waffle.windows.auth.IWindowsSecurityContext;
+
+import java.net.InetSocketAddress;
 
 public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
 
     private final IWindowsAuthProvider authProvider;
@@ -65,13 +64,13 @@ public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
 
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+                             final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
 
         final AuthorizationHeader authorizationHeader = new AuthorizationHeader(request);
 
         if (authorizationHeader.isNull()) {
 
-            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Access denied");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "NTLM");
             channel.sendResponse(wwwAuthenticateResponse);
@@ -97,7 +96,7 @@ public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
         log.trace("token buffer: {} byte(s)", Integer.valueOf(tokenBuffer.length));
         final IWindowsSecurityContext securityContext = authProvider.acceptSecurityToken(connectionId, tokenBuffer, securityPackage);
 
-        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED,"Access denied");
 
         final byte[] continueTokenBytes = securityContext.getToken();
         if (continueTokenBytes != null && continueTokenBytes.length > 0) {

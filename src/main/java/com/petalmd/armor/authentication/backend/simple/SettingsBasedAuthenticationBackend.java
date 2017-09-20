@@ -18,23 +18,48 @@
 
 package com.petalmd.armor.authentication.backend.simple;
 
+import com.petalmd.armor.authentication.AuthCredentials;
+import com.petalmd.armor.authentication.AuthException;
+import com.petalmd.armor.authentication.User;
+import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
+import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
-import com.petalmd.armor.authentication.AuthException;
-import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
-import com.petalmd.armor.util.ConfigConstants;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticationBackend {
 
     private final Settings settings;
+    private List<AuthCredentials> authCreds;
 
-    @Inject
     public SettingsBasedAuthenticationBackend(final Settings settings) {
         this.settings = settings;
+        authCreds = new ArrayList<>();
+        String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
+        for (String userCred : userCreds) {
+            String user = null;
+            String role = "";
+            String password = null;
+            String[] userRolePassArray = userCred.split(":");
+            if (userRolePassArray.length == 2) {
+                String userRole = userRolePassArray[0];
+                if (userRole.contains("@")) {
+                    String[] userRoleArray = userRole.split("@");
+                    user = userRoleArray[0];
+                    role = userRoleArray[1];
+                } else {
+                    user = userRole;
+                }
+                password = userRolePassArray[1];
+            }
+            if (user != null && password != null) {
+                authCreds.add(new AuthCredentials(user,role,password.toCharArray()));
+            }
+        }
     }
 
     @Override

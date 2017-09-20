@@ -18,26 +18,25 @@
 
 package com.petalmd.armor.authentication.http.clientcert;
 
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.http.netty.NettyHttpRequest;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
-import com.petalmd.armor.http.netty.MutualSSLHandler.DefaultHttpsRequest;
+import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
 
 public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
 
     @Inject
@@ -48,15 +47,13 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
     @SuppressWarnings("restriction")
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+            final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
 
         String dn = null;
 
         sun.security.x509.X500Name x500Principal = null;
         try {
-            final NettyHttpRequest nettyRequest = (NettyHttpRequest) request;
-            final DefaultHttpsRequest httpsRequest = (DefaultHttpsRequest) nettyRequest.request();
-            x500Principal = (sun.security.x509.X500Name) httpsRequest.getPrincipal();
+            x500Principal = (sun.security.x509.X500Name) threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL);
             dn = String.valueOf(x500Principal);
         } catch (final Exception e) {
             log.error("Invalid request or invalid principal. Pls. check settings, this authenticater works only with https/ssl", e);

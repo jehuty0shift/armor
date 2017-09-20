@@ -18,31 +18,30 @@
 
 package com.petalmd.armor.audit;
 
-import java.net.UnknownHostException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.google.common.collect.Iterables;
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Client;
-import com.google.common.collect.Iterables;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
+import java.net.UnknownHostException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ESStoreAuditListener implements AuditListener {
 
     private final Client client;
     private final Settings settings;
     private final String securityConfigurationIndex;
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
 
     @Inject
     public ESStoreAuditListener(final Client client, final Settings settings) {
@@ -95,7 +94,7 @@ public class ESStoreAuditListener implements AuditListener {
             }
 
             @Override
-            public void onFailure(final Throwable e) {
+            public void onFailure(final Exception e) {
                 log.error("Unable to write audit log due to {}", e, e.toString());
             }
         });
@@ -108,8 +107,9 @@ public class ESStoreAuditListener implements AuditListener {
             auditInfo.put("audit_user", username);
             auditInfo.put("audit_message", message);
             auditInfo.put("audit_date", new Date().toString());
-            auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
-            auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
+            //TODO
+            //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
+            //auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
             auditInfo.put("audit_details_class", request.getClass().toString());
             auditInfo.put("audit_ip", String.valueOf(request.remoteAddress()));
 
@@ -119,8 +119,9 @@ public class ESStoreAuditListener implements AuditListener {
             auditInfo.put("audit_user", username);
             auditInfo.put("audit_message", message);
             auditInfo.put("audit_date", new Date().toString());
-            auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
-            auditInfo.put("audit_details_headers", Iterables.toString(request.headers()));
+            //TODO
+            //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
+            //auditInfo.put("audit_details_headers", Iterables.toString(request.headers()));
             auditInfo.put("audit_details_rest", request.method() + " " + request.path() + " " + request.params());
             auditInfo.put("audit_details_class", request.getClass().toString());
             try {

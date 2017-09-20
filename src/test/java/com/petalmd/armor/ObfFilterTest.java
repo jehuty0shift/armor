@@ -47,7 +47,7 @@ public class ObfFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
 
-        final Settings settings =  Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "monitoronly")
+        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "monitoronly")
                 .putArray("armor.actionrequestfilter.monitoronly.allowed_actions", "cluster:monitor*")
                 .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
                 .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
@@ -79,7 +79,7 @@ public class ObfFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
 
-        final Settings settings =  Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "indicesadmin")
+        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "indicesadmin")
                 .putArray("armor.actionrequestfilter.indicesadmin.allowed_actions", "indices:admin*")
                 .putArray("armor.obfuscation.filter.getindexresponse.remove","mappings.post_date","indices.ceo","aliases")
                 .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)

@@ -31,7 +31,7 @@ public class UnixTest extends AbstractScenarioTest {
     public void testWaffleFailOnUnix() throws Exception {
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.waffle.HTTPWaffleAuthenticator")
                         .put("armor.authentication.authorizer", "com.petalmd.armor.authorization.waffle.WaffleAuthorizator")

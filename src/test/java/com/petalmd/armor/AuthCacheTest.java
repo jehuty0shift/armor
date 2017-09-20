@@ -34,7 +34,7 @@ public class AuthCacheTest extends AbstractUnitTest {
     @Test
     public void testAuthentication() throws Exception {
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .put("armor.authentication.settingsdb.user.spock", "vulcan")
                 .put("armor.authentication.settingsdb.user.picard", "secret")
                 .build();
@@ -54,7 +54,7 @@ public class AuthCacheTest extends AbstractUnitTest {
     @Test
     public void testAuthorization() throws Exception {
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
                 .build();
 
@@ -76,7 +76,7 @@ public class AuthCacheTest extends AbstractUnitTest {
     @Test
     public void testBoth() throws Exception {
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
                 .put("armor.authentication.settingsdb.user.spock", "vulcan")
                 .put("armor.authentication.settingsdb.user.picard", "secret").build();

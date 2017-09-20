@@ -28,7 +28,7 @@ public class SearchTests extends AbstractScenarioTest {
 
         final String[] indices = new String[] { "filtered" };
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "readonly")
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
                 .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true)
         .put(authSettings).build();
@@ -60,7 +60,7 @@ public class SearchTests extends AbstractScenarioTest {
 
         final String[] indices = new String[] { "internal" };
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "scroll")
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "scroll")
                 .putArray("armor.actionrequestfilter.scroll.allowed_actions", "indices:data/read/scroll", "indices:data/read/search")
                 .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true)
                 .put(authSettings).build();
@@ -95,7 +95,7 @@ public class SearchTests extends AbstractScenarioTest {
         Settings authSettings = getAuthSettings(false,"ceo" );
 
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.actionrequestfilter.names", "wild","forbidden")
                 .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
                 .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")

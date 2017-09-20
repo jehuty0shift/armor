@@ -21,32 +21,6 @@
 
 package com.petalmd.armor.authentication.http.spnego;
 
-import java.io.Serializable;
-import java.security.Principal;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-
-import javax.security.auth.Subject;
-import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
-import javax.xml.bind.DatatypeConverter;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.ietf.jgss.GSSContext;
-import org.ietf.jgss.GSSCredential;
-import org.ietf.jgss.GSSException;
-import org.ietf.jgss.GSSManager;
-import org.ietf.jgss.GSSName;
-import org.ietf.jgss.Oid;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
@@ -55,10 +29,30 @@ import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.ietf.jgss.*;
+
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
+import javax.xml.bind.DatatypeConverter;
+import java.io.Serializable;
+import java.security.Principal;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
     private final String loginContextName;
     private final boolean strip;
@@ -83,7 +77,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
     //some of this is borrowed from Apache Tomcat 8 http://svn.apache.org/repos/asf/tomcat/tc8.0.x/trunk/
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+                             final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
 
         String authorizationHeader = request.header("Authorization");
         Principal principal = null;
@@ -125,7 +119,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                     if (outToken == null) {
                         log.trace("Ticket validation not successful");
-                        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+                        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access denied");
                         wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                         channel.sendResponse(wwwAuthenticateResponse);
                         return null;
@@ -135,7 +129,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                 } catch (final GSSException e) {
                     log.trace("Ticket validation not successful due to {}", e);
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access denied");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                     channel.sendResponse(wwwAuthenticateResponse);
                     return null;
@@ -146,7 +140,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                     } else {
                         log.error("Service login not successful due to {}", e.toString(), e);
                     }
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                     channel.sendResponse(wwwAuthenticateResponse);
                     return null;
@@ -169,7 +163,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                 if (principal == null) {
 
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate " + DatatypeConverter.printBase64Binary(outToken));
                     channel.sendResponse(wwwAuthenticateResponse);
                     throw new AuthException("Cannot authenticate");
@@ -179,9 +173,9 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                 final User authenticatedUser = backend.authenticate(new AuthCredentials(((SimpleUserPrincipal) principal).getName(),
                         gssContext));
                 authorizator.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName(), gssContext));
-
-                decodedNegotiateHeader = null;
-                authorizationHeader = null;
+                //TODO: delete ?
+//                decodedNegotiateHeader = null;
+//                authorizationHeader = null;
 
                 log.debug("User '{}' is authenticated", authenticatedUser);
 
@@ -191,7 +185,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
         } else {
             log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
 
-            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED);
+            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
             channel.sendResponse(wwwAuthenticateResponse);
             return null;

@@ -19,27 +19,24 @@
 package com.petalmd.armor.filter;
 
 import com.petalmd.armor.audit.AuditListener;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import java.util.*;
+import java.util.Map.Entry;
 
 public class RequestActionFilter extends AbstractActionFilter {
 
@@ -48,8 +45,8 @@ public class RequestActionFilter extends AbstractActionFilter {
 
     @Inject
     public RequestActionFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-            final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
+                               final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool) {
+        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener,threadPool);
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
         for (int i = 0; i < arFilters.length; i++) {
@@ -73,6 +70,8 @@ public class RequestActionFilter extends AbstractActionFilter {
             return;
         }
 
+        final ThreadContext threadContext = threadpool.getThreadContext();
+
         for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext();) {
 
             final Entry<String, Tuple<List<String>, List<String>>> entry = it.next();
@@ -81,17 +80,17 @@ public class RequestActionFilter extends AbstractActionFilter {
             final List<String> allowedActions = entry.getValue().v1();
             final List<String> forbiddenActions = entry.getValue().v2();
 
-            request.putInContext("armor." + filterType + "." + filterName + ".allowed_actions", allowedActions);
-            request.putInContext("armor." + filterType + "." + filterName + ".forbidden_actions", forbiddenActions);
+            threadContext.putTransient("armor." + filterType + "." + filterName + ".allowed_actions", allowedActions);
+            threadContext.putTransient("armor." + filterType + "." + filterName + ".forbidden_actions", forbiddenActions);
 
-            if (request.hasInContext("armor_filter") && filterType != null) {
-                if (!((List<String>) request.getFromContext("armor_filter")).contains(filterType + ":" + filterName)) {
-                    ((List<String>) request.getFromContext("armor_filter")).add(filterType + ":" + filterName);
+            if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null && filterType != null) {
+                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
+                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
                 }
             } else if (filterType != null) {
                 final List<String> _filters = new ArrayList<String>();
                 _filters.add(filterType + ":" + filterName);
-                request.putInContext("armor_filter", _filters);
+                threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
             }
         }
 

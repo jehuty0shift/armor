@@ -23,27 +23,38 @@ import java.util.Arrays;
 public final class AuthCredentials {
 
     private final String username;
+    private final String role;
     private char[] password;
     private Object nativeCredentials;
     private final int hashCode;
 
     public AuthCredentials(final String username, final Object nativeCredentials) {
-        this(username, null, nativeCredentials);
+        this(username,"", null, nativeCredentials);
+    }
+
+    public AuthCredentials(final String username, String role, final char[] password) {
+        this(username,role, password, null);
     }
 
     public AuthCredentials(final String username, final char[] password) {
-        this(username, password, null);
+        this(username,"", password, null);
     }
 
     public AuthCredentials(final String username) {
-        this(username, null, null);
+        this(username, "", null, null);
     }
 
-    private AuthCredentials(final String username, char[] password, Object nativeCredentials) {
+    private AuthCredentials(final String username, final String role, char[] password, Object nativeCredentials) {
         super();
 
         if (username == null || username.isEmpty()) {
             throw new IllegalArgumentException("username must not be null or empty");
+        }
+
+        if(role == null){
+            this.role = "";
+        } else {
+            this.role = role;
         }
 
         this.username = username;
@@ -90,6 +101,7 @@ public final class AuthCredentials {
         result = prime * result + ((username == null) ? 0 : username.hashCode());
         return result;
     }
+
 
     @Override
     public boolean equals(final Object obj) {

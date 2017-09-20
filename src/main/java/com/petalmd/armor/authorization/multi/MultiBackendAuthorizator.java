@@ -23,21 +23,22 @@ import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.NonCachingAuthorizator;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
 
 public class MultiBackendAuthorizator
 implements NonCachingAuthorizator {
     private final Settings settings;
     private final List<NonCachingAuthorizator> nonCachingAuthBackends;
-    private final ESLogger log = Loggers.getLogger(MultiBackendAuthorizator.class);
+    private final Logger log = ESLoggerFactory.getLogger(MultiBackendAuthorizator.class);
 
     @Inject
     public MultiBackendAuthorizator(Settings settings) {

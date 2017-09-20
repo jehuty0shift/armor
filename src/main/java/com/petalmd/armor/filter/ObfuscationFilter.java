@@ -21,19 +21,17 @@ import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.filter.obfuscation.ObfFilterFactory;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
-
-import java.util.Map;
+import org.elasticsearch.threadpool.ThreadPool;
 
 /**
  * @author jehuty0shift
@@ -42,14 +40,14 @@ import java.util.Map;
 public class ObfuscationFilter extends AbstractActionFilter {
 
 
-    protected final ESLogger log = Loggers.getLogger(ObfuscationFilter.class);
+    protected final Logger log = ESLoggerFactory.getLogger(ObfuscationFilter.class);
     private final boolean enabled;
     ObfFilterFactory factory;
 
     @Inject
     public ObfuscationFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
+                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool) {
+        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, false);
         if(enabled) {
             factory = new ObfFilterFactory(settings);
@@ -93,7 +91,7 @@ public class ObfuscationFilter extends AbstractActionFilter {
         }
 
         @Override
-        public void onFailure(Throwable e) {
+        public void onFailure(Exception e) {
             privListener.onFailure(e);
         }
 

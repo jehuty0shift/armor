@@ -38,7 +38,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         startLDAPServer();
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})").build();
 
@@ -55,7 +55,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         startLDAPServer();
 
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")
@@ -76,7 +76,7 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "true")
@@ -99,7 +99,7 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "true")
@@ -122,7 +122,7 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "false")
@@ -144,7 +144,7 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "false")
@@ -164,7 +164,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test(expected = AuthException.class)
     public void testLdapAuthenticationFail() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})").build();
 
@@ -179,7 +179,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationDN() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -199,7 +199,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test(expected = AuthException.class)
     public void testLdapAuthorizationDNWithNonAnonBindFail() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -221,7 +221,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationDNWithNonAnonBind() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -244,7 +244,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorization() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -264,7 +264,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationUserRoles() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -285,7 +285,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationNestedRoles() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -307,7 +307,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationNestedRolesCache() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
@@ -332,7 +332,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     @Test
     public void testLdapAuthorizationNestedRolesOff() throws Exception {
         startLDAPServer();
-        final Settings settings = Settings.settingsBuilder()
+        final Settings settings = Settings.builder()
                 .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")

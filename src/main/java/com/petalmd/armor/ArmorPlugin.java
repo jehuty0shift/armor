@@ -16,55 +16,87 @@
  */
 package com.petalmd.armor;
 
-import java.util.ArrayList;
-import java.util.Collection;
-
+import com.petalmd.armor.audit.AuditListener;
+import com.petalmd.armor.audit.ESStoreAuditListener;
+import com.petalmd.armor.audit.NullStoreAuditListener;
+import com.petalmd.armor.authentication.backend.AuthenticationBackend;
+import com.petalmd.armor.authentication.backend.GuavaCachingAuthenticationBackend;
+import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
+import com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend;
+import com.petalmd.armor.authentication.http.HTTPAuthenticator;
+import com.petalmd.armor.authentication.http.basic.HTTPBasicAuthenticator;
+import com.petalmd.armor.authorization.Authorizator;
+import com.petalmd.armor.authorization.GuavaCachingAuthorizator;
+import com.petalmd.armor.authorization.NonCachingAuthorizator;
+import com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator;
 import com.petalmd.armor.filter.*;
-import com.petalmd.armor.transport.ArmorNettyTransport;
-
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionModule;
-import com.google.common.collect.ImmutableList;
-import org.elasticsearch.common.component.LifecycleComponent;
-import org.elasticsearch.common.inject.Module;
-import org.apache.commons.lang.StringUtils;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.http.HttpServerModule;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.rest.RestModule;
-
-import com.petalmd.armor.filter.level.ArmorWrapperQueryParser;
-import com.petalmd.armor.http.netty.SSLNettyHttpServerTransport;
+import com.petalmd.armor.http.DefaultSessionStore;
+import com.petalmd.armor.http.NullSessionStore;
+import com.petalmd.armor.http.SessionStore;
 import com.petalmd.armor.rest.ArmorInfoAction;
+import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.transport.SSLClientNettyTransport;
-import com.petalmd.armor.transport.SSLNettyTransport;
+import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
-import org.elasticsearch.indices.IndicesModule;
-import org.elasticsearch.transport.TransportModule;
+import org.apache.commons.lang.StringUtils;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.*;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.NetworkPlugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.watcher.ResourceWatcherService;
 
-//TODO FUTURE store users/roles also in elasticsearch search guard index
+import java.util.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+
+//TODO FUTURE store users/roles also in elasticsearch armor index
 //TODO FUTURE Multi authenticator/authorizator
 //TODO FUTURE special handling scroll searches
 //TODO FUTURE negative rules/users in acrules
 //TODO update some settings during runtime
-public final class ArmorPlugin extends Plugin {
+public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
     private static final String ARMOR_DEBUG = "armor.debug";
     private static final String CLIENT_TYPE = "client.type";
     private static final String HTTP_TYPE = "http.type";
     private static final String TRANSPORT_TYPE = "transport.type";
-    private static final String BULK_UDP_ENABLED = "bulk.udp.enabled";
 
-    private static final ESLogger log = Loggers.getLogger(ArmorPlugin.class);
+    private static final Logger log = ESLoggerFactory.getLogger(ArmorPlugin.class);
     private final boolean enabled;
-    private final boolean client;
+    private final boolean clientBool;
     private final Settings settings;
     public static boolean DLS_SUPPORTED = true; //implemented as filters now
-    
+
+    private ArmorService armorService;
+    private ArmorRestShield armorRestShield;
+    private ArmorConfigService armorConfigService;
+    private AuditListener auditListener;
+    private Authorizator authorizator;
+    private AuthenticationBackend authenticationBackend;
+    private ClusterService clusterService;
+    private Client client;
+    private HTTPAuthenticator httpAuthenticator;
+    private SessionStore sessionStore;
+    private ThreadPool threadPool;
+
+
     static {
         if (Boolean.parseBoolean(System.getProperty(ArmorPlugin.ARMOR_DEBUG, "false"))) {
             System.setProperty("javax.net.debug", "all");
@@ -76,93 +108,324 @@ public final class ArmorPlugin extends Plugin {
     public ArmorPlugin(final Settings settings) {
         this.settings = settings;
         enabled = this.settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, true);
-        client = !"node".equals(this.settings.get(ArmorPlugin.CLIENT_TYPE, "node"));
+        clientBool = !"node".equals(this.settings.get(ArmorPlugin.CLIENT_TYPE, "node"));
     }
 
-    public void onModule(RestModule module) {
-        if (enabled && !client) {
-            module.addRestAction(ArmorInfoAction.class);
-        }
-    }
-
-    public void onModule(TransportModule transportModule) {
-        //Inject transport module only if Armor plugin is enabled
-        if (enabled) {
-            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
-                transportModule.setTransport(client ? com.petalmd.armor.transport.SSLClientNettyTransport.class : com.petalmd.armor.transport.SSLNettyTransport.class, this.name());
-            } else if (!client) {
-                transportModule.setTransport(ArmorNettyTransport.class, this.name());
-            }
-        }
-    }
-
-    public void onModule(HttpServerModule httpServerModue) {
-        if (enabled && !client) {
-            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false)) {
-                httpServerModue.setHttpServerTransport(SSLNettyHttpServerTransport.class, this.name());
-            }
-        }
-    }
-
-    public void onModule(ActionModule module) {
-        if (enabled && !client) {
-            module.registerFilter(ArmorActionFilter.class);
-            module.registerFilter(RequestActionFilter.class);
-            module.registerFilter(AggregationFilter.class);
-            module.registerFilter(ActionCacheFilter.class);
-            module.registerFilter(ObfuscationFilter.class);
-            module.registerFilter(DLSActionFilter.class);
-            module.registerFilter(FLSActionFilter.class);
-        }
-    }
-
-    public void onModule(IndicesModule module) {
-        module.registerQueryParser(ArmorWrapperQueryParser.class);
-    }
-
-    @SuppressWarnings("rawtypes")
     @Override
-    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
-        if (enabled && !client) {
-            return ImmutableList.<Class<? extends LifecycleComponent>>of(ArmorService.class, ArmorConfigService.class);
-        }
-        return ImmutableList.of();
+    public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
+        return Collections.emptyList();
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
-    public Collection<Module> nodeModules() {
-        if (enabled && !client) {
-            Collection<Module> modules = new ArrayList<>();
-            modules.add(new AuthModule(settings));
-            return modules;
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry) {
+
+
+        List<Object> componentsList = new ArrayList<Object>();
+
+        if (!enabled) {
+            return componentsList;
         }
-        return ImmutableList.of();
+
+        this.clusterService = clusterService;
+        this.client = client;
+        this.threadPool = threadPool;
+
+        final Class<? extends HTTPAuthenticator> defaultHTTPAuthenticatorClass = HTTPBasicAuthenticator.class;
+        final Class<? extends NonCachingAuthorizator> defaultNonCachingAuthorizatorClass = SettingsBasedAuthorizator.class;
+        final Class<? extends NonCachingAuthenticationBackend> defaultNonCachingAuthenticationClass = SettingsBasedAuthenticationBackend.class;
+
+        //create Authenticator
+        try {
+            String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND);
+            Class authenticationBackendClass;
+            authenticationBackendClass = Class.forName(className);
+            if (authenticationBackendClass != null && NonCachingAuthenticationBackend.class.isAssignableFrom(authenticationBackendClass)) {
+                authenticationBackend = (AuthenticationBackend) authenticationBackendClass.getConstructor(Settings.class).newInstance(settings);
+            } else {
+                authenticationBackend = defaultNonCachingAuthenticationClass.getConstructor(Settings.class).newInstance(settings);
+            }
+
+            if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE, true)) {
+                authenticationBackend = new GuavaCachingAuthenticationBackend((NonCachingAuthenticationBackend) authenticationBackend, settings);
+            }
+        } catch (Exception e) {
+            log.error("Unable to instantiate the AuthenticationBackend Class ! ! ", e);
+        }
+
+        //create Authorizator
+        try {
+            String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR);
+            Class authorizerClass;
+            authorizerClass = Class.forName(className);
+            if (authorizerClass != null && NonCachingAuthenticationBackend.class.isAssignableFrom(authorizerClass)) {
+                authorizator = (Authorizator) authorizerClass.getConstructor(Settings.class).newInstance(settings);
+            } else {
+                authorizator = defaultNonCachingAuthorizatorClass.getConstructor(Settings.class).newInstance(settings);
+            }
+
+            if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE, true)) {
+                authorizator = new GuavaCachingAuthorizator((NonCachingAuthorizator) authorizator, settings);
+            }
+        } catch (Exception e) {
+            log.error("Unable to instantiate the Authorizator Class ! ! ", e);
+        }
+
+        //create httpAuthenticator
+        try {
+            String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR);
+            Class httpAuthenticatorClass;
+            httpAuthenticatorClass = Class.forName(className);
+            if (httpAuthenticatorClass != null && HTTPAuthenticator.class.isAssignableFrom(httpAuthenticatorClass)) {
+                httpAuthenticator = (HTTPAuthenticator) httpAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
+            } else {
+                httpAuthenticator = defaultHTTPAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
+            }
+
+
+        } catch (Exception e) {
+            log.error("Unable to instantiate the HTTP Authenticator Class ! ! ", e);
+        }
+
+
+        //create sessionStore
+        Boolean enableHTTPSession = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false);
+        if (enableHTTPSession != null && enableHTTPSession.booleanValue()) {
+            sessionStore = new DefaultSessionStore();
+        } else {
+            sessionStore = new NullSessionStore();
+        }
+
+        //create auditLog
+        Boolean enableAuditLog = settings.getAsBoolean(ConfigConstants.ARMOR_AUDITLOG_ENABLED, true);
+        if (enableAuditLog.booleanValue()) {
+            auditListener = new ESStoreAuditListener(client, settings);
+        } else {
+            auditListener = new NullStoreAuditListener();
+        }
+
+        //create Armor Service
+        armorService = new ArmorService(settings, clusterService, authorizator, authenticationBackend, httpAuthenticator, sessionStore, auditListener);
+        componentsList.add(armorService);
+
+        //create Armor Rest Shield (will handle REST authentication)
+        armorRestShield = new ArmorRestShield(settings, authenticationBackend, authorizator, httpAuthenticator, threadPool.getThreadContext(), auditListener, sessionStore);
+        componentsList.add(armorRestShield);
+
+        //create Armor Config Service
+        armorConfigService = new ArmorConfigService(settings, client);
+        componentsList.add(armorConfigService);
+
+        return componentsList;
+
+    }
+
+    @Override
+    public List<Class<? extends ActionFilter>> getActionFilters() {
+        List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
+        actionFilters.add(ArmorActionFilter.class);
+        actionFilters.add(ObfuscationFilter.class);
+        actionFilters.add(RequestActionFilter.class);
+        actionFilters.add(ActionCacheFilter.class);
+        actionFilters.add(DLSActionFilter.class);
+        actionFilters.add(FLSActionFilter.class);
+
+        return actionFilters;
+    }
+
+    @Override
+    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<DiscoveryNodes> nodesInCluster) {
+
+        if (!enabled) {
+            return Collections.emptyList();
+        } else {
+            return Collections.singletonList(new ArmorInfoAction(settings, restController, Objects.requireNonNull(armorService)));
+        }
+    }
+
+
+    @Override
+    public Collection<String> getRestHeaders() {
+        if (!enabled) {
+            return Collections.emptyList();
+        } else {
+            List<String> headerList = new ArrayList<String>();
+            headerList.add(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+            headerList.add(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
+            headerList.add(ArmorConstants.ARMOR_TRANSPORT_CREDS);
+
+            return headerList;
+
+        }
+    }
+
+    @Override
+    public UnaryOperator<RestHandler> getRestHandlerWrapper(ThreadContext threadContext) {
+        return (rh) -> armorRestShield.shield(rh);
+    }
+
+
+
+    //    public void onModule(RestModule module) {
+//        if (enabled && !client) {
+//            module.addRestAction(ArmorInfoAction.class);
+//        }
+//    }
+
+//    public void onModule(TransportModule transportModule) {
+//        //Inject transport module only if Armor plugin is enabled
+//        if (enabled) {
+//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
+//                transportModule.setTransport(client ? com.petalmd.armor.transport.SSLClientNettyTransport.class : com.petalmd.armor.transport.SSLNettyTransport.class, this.name());
+//            } else if (!client) {
+//                transportModule.setTransport(ArmorNettyTransport.class, this.name());
+//            }
+//        }
+//    }
+
+//    public void onModule(HttpServerModule httpServerModue) {
+//        if (enabled && !client) {
+//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false)) {
+//                httpServerModue.setHttpServerTransport(SSLNettyHttpServerTransport.class, this.name());
+//            }
+//        }
+//    }
+
+//    public void onModule(ActionModule module) {
+//        if (enabled && !client) {
+//            module.registerFilter(ArmorActionFilter.class);
+//            module.registerFilter(RequestActionFilter.class);
+//            module.registerFilter(AggregationFilter.class);
+//            module.registerFilter(ActionCacheFilter.class);
+//            module.registerFilter(ObfuscationFilter.class);
+//            module.registerFilter(DLSActionFilter.class);
+//            module.registerFilter(FLSActionFilter.class);
+//        }
+//    }
+
+//    public void onModule(IndicesModule module) {
+//        module.registerQueryParser(ArmorWrapperQueryParser.class);
+//    }
+
+//    @SuppressWarnings("rawtypes")
+//    @Override
+//    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
+//        if (enabled && !client) {
+//            return ImmutableList.<Class<? extends LifecycleComponent>>of(ArmorService.class, ArmorConfigService.class);
+//        }
+//        return ImmutableList.of();
+//    }
+//
+//    @SuppressWarnings("rawtypes")
+//    @Override
+//    public Collection<Module> nodeModules() {
+//        if (enabled && !client) {
+//            Collection<Module> modules = new ArrayList<>();
+//            modules.add(new AuthModule(settings));
+//            return modules;
+//        }
+//        return ImmutableList.of();
+//    }
+
+
+    @Override
+    public List<Setting<?>> getSettings() {
+        List<Setting<?>> settings = new ArrayList<>();
+
+        //Generic Armor settings
+        settings.add(Setting.simpleString(ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDITLOG_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEY_PATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //armor filters
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+
+        //ssl
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+
+        //armor authentication
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //armor authorization
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+
+        //multi backend
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //settings backend
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList(),Function.identity(),Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //KRB5
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_KRB5_CONFIG_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_STRIP_REALM, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //GRAYLOG backend
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //ldap backend
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLEATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //WAFFLE
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_WAFFLE_WINDOWS_AUTH_PROVIDER_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+
+        return settings;
     }
 
     @Override
     public Settings additionalSettings() {
-        if (enabled) {
-            checkSSLConfig();
-            final Settings.Builder builder = Settings.settingsBuilder();
-            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
-                builder.put(ArmorPlugin.TRANSPORT_TYPE, client ? SSLClientNettyTransport.class : SSLNettyTransport.class);
-            } else if (!client) {
-                builder.put(ArmorPlugin.TRANSPORT_TYPE, ArmorNettyTransport.class);
-            }
-
-            if (!client) {
-                if (settings.getAsBoolean(ArmorPlugin.BULK_UDP_ENABLED, false)) {
-                    log.error("UDP Bulk service enabled, will disable it because its unsafe and deprecated");
-                }
-
-                builder.put(ArmorPlugin.BULK_UDP_ENABLED, false);
-            }
-
-            return builder.build();
-        } else {
-            return Settings.Builder.EMPTY_SETTINGS;
-        }
+        return Settings.Builder.EMPTY_SETTINGS;
+//        if (enabled) {
+//            checkSSLConfig();
+//            final Settings.Builder builder = Settings.builder();
+//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
+//                builder.put(ArmorPlugin.TRANSPORT_TYPE, client ? SSLClientNettyTransport.class : SSLNettyTransport.class);
+//            } else if (!client) {
+//                builder.put(ArmorPlugin.TRANSPORT_TYPE, ArmorNettyTransport.class);
+//            }
+//
+//
+//            return builder.build();
+//        } else {
+//            return Settings.Builder.EMPTY_SETTINGS;
+//        }
     }
 
     private void checkSSLConfig() {
@@ -174,7 +437,7 @@ public final class ArmorPlugin extends Plugin {
 
             if (StringUtils.isBlank(keystoreFilePath) || StringUtils.isBlank(truststoreFilePath)) {
                 throw new ElasticsearchException(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH + " and "
-                        + ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH + " must be set if transport ssl is reqested.");
+                        + ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH + " must be set if transport ssl is requested.");
             }
         }
 
@@ -186,20 +449,11 @@ public final class ArmorPlugin extends Plugin {
 
             if (StringUtils.isBlank(keystoreFilePath) || StringUtils.isBlank(truststoreFilePath)) {
                 throw new ElasticsearchException(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH + " and "
-                        + ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_FILEPATH + " must be set if https is reqested.");
+                        + ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_FILEPATH + " must be set if https is requested.");
             }
         }
 
     }
 
-    @Override
-    public String description() {
-        return "Armor" + (enabled ? "" : " (disabled)");
-    }
-
-    @Override
-    public String name() {
-        return "Armor" + (enabled ? "" : " (disabled)");
-    }
 
 }

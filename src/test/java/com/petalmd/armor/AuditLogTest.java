@@ -15,7 +15,7 @@ public class AuditLogTest extends AbstractScenarioTest {
         username = "jacksonm";
         password = "secret";
 
-        final Settings settings = Settings.settingsBuilder().putArray("armor.actionrequestfilter.names", "readonly")
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
                 .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(getAuthSettings(false, "ceo")).build();
 

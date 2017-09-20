@@ -75,7 +75,7 @@ public final class AuthModule extends AbstractModule {
 
             bind(HTTPAuthenticator.class).to(httpAuthenticator).asEagerSingleton();
 
-            impl = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZER);
+            impl = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR);
             Class<? extends NonCachingAuthorizator> authorizator = defaultNonCachingAuthorizator;
             if (impl != null) {
                 authorizator = (Class<? extends NonCachingAuthorizator>) Class.forName(impl);
@@ -88,7 +88,7 @@ public final class AuthModule extends AbstractModule {
                 bind(AuthenticationBackend.class).to(authenticationBackend).asEagerSingleton();
             }
 
-            if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZER_CACHE_ENABLE, true)) {
+            if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE, true)) {
                 bind(NonCachingAuthorizator.class).to(authorizator).asEagerSingleton();
                 bind(Authorizator.class).to(GuavaCachingAuthorizator.class).asEagerSingleton();
             } else {

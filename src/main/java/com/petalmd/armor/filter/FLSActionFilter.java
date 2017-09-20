@@ -19,46 +19,37 @@ package com.petalmd.armor.filter;
 
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.User;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
+import com.petalmd.armor.authentication.backend.AuthenticationBackend;
+import com.petalmd.armor.authorization.Authorizator;
+import com.petalmd.armor.authorization.ForbiddenException;
+import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.TokenEvaluator;
+import com.petalmd.armor.util.ArmorConstants;
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
-import com.petalmd.armor.authorization.ForbiddenException;
-import static com.petalmd.armor.filter.AbstractActionFilter.getFromContextOrHeader;
-import com.petalmd.armor.service.ArmorConfigService;
-import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.tokeneval.TokenEvaluator;
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.search.fetch.source.FetchSourceContext;
-import org.elasticsearch.search.fetch.source.FetchSourceParseElement;
-import org.elasticsearch.search.lookup.SourceLookup;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.StoredFieldsContext;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import java.util.*;
+import java.util.Map.Entry;
 
 public class FLSActionFilter extends AbstractActionFilter {
 
@@ -69,8 +60,8 @@ public class FLSActionFilter extends AbstractActionFilter {
 
     @Inject
     public FLSActionFilter(final Settings settings, final Client client, final AuthenticationBackend backend,
-            final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
+                           final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool) {
+        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadPool);
 
         this.client = client;
 
@@ -97,8 +88,10 @@ public class FLSActionFilter extends AbstractActionFilter {
             return;
         }
 
+        ThreadContext threadContext = threadpool.getThreadContext();
+
         final List<String> _filters = new ArrayList<String>();
-        for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext();) {
+        for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext(); ) {
 
             final Entry<String, Tuple<List<String>, List<String>>> entry = it.next();
 
@@ -106,36 +99,36 @@ public class FLSActionFilter extends AbstractActionFilter {
             final List<String> sourceIncludes = entry.getValue().v1();
             final List<String> sourceExcludes = entry.getValue().v2();
 
-            request.putInContext("armor." + filterType + "." + filterName + ".source_includes", sourceIncludes);
-            request.putInContext("armor." + filterType + "." + filterName + ".source_excludes", sourceExcludes);
+            threadContext.putTransient("armor." + filterType + "." + filterName + ".source_includes", sourceIncludes);
+            threadContext.putTransient("armor." + filterType + "." + filterName + ".source_excludes", sourceExcludes);
 
-            if (request.hasInContext("armor_filter") && filterType != null) {
-                if (!((List<String>) request.getFromContext("armor_filter")).contains(filterType + ":" + filterName)) {
-                    ((List<String>) request.getFromContext("armor_filter")).add(filterType + ":" + filterName);
+            if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null && filterType != null) {
+                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
+                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
                     _filters.add(filterType + ":" + filterName);
                 }
             } else if (filterType != null) {
                 _filters.add(filterType + ":" + filterName);
-                request.putInContext("armor_filter", _filters);
+                threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
             }
 
             log.trace("armor." + filterType + "." + filterName + ".source_includes", sourceIncludes);
             log.trace("armor." + filterType + "." + filterName + ".source_excludes", sourceExcludes);
 
         }
-        final User user = request.getFromContext("armor_authenticated_user", null);
-        final Object authHeader = request.getHeader("armor_authenticated_transport_request");
+        final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
         final TokenEvaluator.Evaluator evaluator;
 
         try {
-            evaluator = getFromContextOrHeader("armor_ac_evaluator", request, getEvaluator(request, action, user));
+            evaluator = getFromContextOrHeader(ArmorConstants.ARMOR_AC_EVALUATOR, threadContext, getEvaluator(request, action, user, threadContext));
         } catch (ForbiddenException e) {
             listener.onFailure(e);
             throw e;
         }
 
-        request.putInContext("_armor_token_evaluator", evaluator);
+        threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
 //
 
         if (request.remoteAddress() == null && user == null) {
@@ -248,99 +241,64 @@ public class FLSActionFilter extends AbstractActionFilter {
             return sr;
         }
 
-        for (int i = 0; i < 2; i++) {
-            SourceLookup sl = new SourceLookup();
-            BytesReference source = null;
-            if (i == 0) {
-                source = sr.source();
-            } else {
-                source = sr.extraSource();
-            }
-            if (source != null) {
-                sl.setSource(source);
-                if (sl.isEmpty()) { //WARNING : this also initialize the sourceLookup for(sl.soure() call), so DO NOT REMOVE.
-                    continue;
+        SearchSourceBuilder source = sr.source();
+        if (source.storedFields() != null) {
+            source.storedFields(Collections.emptyList());
+        }
+        if (source.docValueFields() != null && !source.docValueFields().isEmpty()) {
+            source.docValueFields().clear();
+        }
+        if (source.scriptFields() != null && !source.scriptFields().isEmpty()) {
+            source.scriptFields().clear();
+        }
+        if (source.storedFields() != null) {
+            //remove script Fields and doc_values fields;
+
+            //fields parameter
+            StoredFieldsContext storedFieldsContext = source.storedFields();
+            if (storedFieldsContext != null && (storedFieldsContext.fetchFields() == true || !storedFieldsContext.fieldNames().isEmpty())) {
+                final List<String> survivingFields = new ArrayList(storedFieldsContext.fieldNames());
+                for (String field : storedFieldsContext.fieldNames()) {
+                    for (final Iterator<String> iteratorExcludes = sourceExcludes.iterator(); iteratorExcludes.hasNext(); ) {
+                        final String exclude = iteratorExcludes.next();
+                        if (field.startsWith("_source.") || SecurityUtil.isWildcardMatch(field, exclude, false)) { //we remove any field request starting with '_source.' since it should not be used (If the field is legit, it works without prefixing by '_source.').
+                            survivingFields.remove(field);
+                        }
+                    }
                 }
-                try {
-                    Map<String, Object> sourceMap = sl.source();
+                log.trace("survivingFields with stored Fields {}", survivingFields.toString());
 
-                    //fields parameter
-                    if (sl.containsKey("fields")) {
-                        final List<String> fields = (List<String>) sl.extractValue("fields");
-                        final List<String> survivingFields = new ArrayList<String>(fields);
-                        for (final Iterator<String> iterator = fields.iterator(); iterator.hasNext();) {
-                            final String field = iterator.next();
+                source.storedFields(StoredFieldsContext.fromList(survivingFields));
+            }
+        } else {
 
-                            for (final Iterator<String> iteratorExcludes = sourceExcludes.iterator(); iteratorExcludes.hasNext();) {
-                                final String exclude = iteratorExcludes.next();
-                                if (field.startsWith("_source.") || SecurityUtil.isWildcardMatch(field, exclude, false)) { //we remove any field request starting with '_source.' since it should not be used (If the field is legit, it works without prefixing by '_source.'). 
-                                    survivingFields.remove(field);
-                                }
+            //fields parameter
+            FetchSourceContext fetchSourceContext = source.fetchSource();
+            if (fetchSourceContext == null) {
+                source.fetchSource(new FetchSourceContext(true, null, sourceExcludes.toArray(new String[sourceExcludes.size()])));
+            } else {
+                if (fetchSourceContext.fetchSource() == true || (fetchSourceContext.includes() != null && fetchSourceContext.includes().length > 0)) {
+                    final String[] fields = fetchSourceContext.includes();
+                    final List<String> survivingFields = new ArrayList(Arrays.asList(fields));
+
+                    for (String field : fields) {
+                        for (final Iterator<String> iteratorExcludes = sourceExcludes.iterator(); iteratorExcludes.hasNext(); ) {
+                            final String exclude = iteratorExcludes.next();
+                            if (field.startsWith("_source.") || SecurityUtil.isWildcardMatch(field, exclude, false)) { //we remove any field request starting with '_source.' since it should not be used (If the field is legit, it works without prefixing by '_source.').
+                                survivingFields.remove(field);
                             }
                         }
-                        log.trace("survivingFields {}", survivingFields.equals(fields) ? "-all-" : survivingFields.toString());
-                        fields.retainAll(survivingFields);
-                        sourceMap.put("fields", fields);
-                    } else {
-                        Map<String, Object> sourceQuery = (Map<String, Object>) sl.extractValue("_source");
-                        if (sourceQuery == null) {
-                            sourceQuery = new HashMap<>();
-                        }
-                        //_source parameter
-                        List<String> finalSourceIncludes = null;
-                        List<String> finalSourceExcludes = null;
-                        if (!sourceQuery.isEmpty()) {
-                            FetchSourceParseElement fetchSourceParseElement = new FetchSourceParseElement();
-                            XContentBuilder builder = XContentFactory.jsonBuilder().map(sourceQuery);
-                            XContentParser parser = XContentType.JSON.xContent().createParser(builder.string());
-                            FetchSourceContext fSContext = fetchSourceParseElement.parse(parser);
-                            if (fSContext.fetchSource() != false) {
-                                final List<String> fields = fSContext.includes() != null ? Arrays.asList(fSContext.includes()) : new ArrayList<String>();
-                                final List<String> survivingFields = new ArrayList<String>(fields);
-                                for (final Iterator<String> iterator = fields.iterator(); iterator.hasNext();) {
-                                    final String field = iterator.next();
-                                    //remove Fields from Excludes
-                                    for (final Iterator<String> iteratorExcludes = sourceExcludes.iterator(); iteratorExcludes.hasNext();) {
-                                        final String exclude = iteratorExcludes.next();
-                                        if (SecurityUtil.isWildcardMatch(field, exclude, false)) {
-                                            survivingFields.remove(field);
-                                        }
-                                    }
-                                }
-                                log.trace("survivingFields {}", survivingFields.equals(fields) ? "-all-" : survivingFields.toString());
-                                fields.retainAll(survivingFields);
-                                finalSourceIncludes = fields;
-                                finalSourceExcludes = new ArrayList(sourceExcludes);
-                                if (fSContext.excludes() != null) {
-                                    finalSourceExcludes.addAll(fields);
-                                }
-                            }
-                        } else {
-                            finalSourceIncludes = sourceIncludes;
-                            finalSourceExcludes = sourceExcludes;
-                        }
-                        sourceQuery.clear();
-                        if (finalSourceIncludes != null && !finalSourceIncludes.isEmpty()) {
-                            sourceQuery.put("include", finalSourceIncludes);
-                        }
-                        if (finalSourceExcludes != null && !finalSourceExcludes.isEmpty()) {
-                            sourceQuery.put("exclude", finalSourceExcludes);
-                        }
-                        sourceMap.put("_source", sourceQuery);
                     }
-                    if (i == 0) {
-                        sr.source(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-                    } else {
-                        sr.extraSource(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-                    }
-                } catch (Exception e) {
-                    log.warn("Couldn't apply the FLS Filter, aborting the query", e);
-                    return null;
+                    log.trace("survivingFields with FetchSource {}", survivingFields.toString());
+
+                    List<String> finalSourceExcludes = new ArrayList(sourceExcludes);
+                    finalSourceExcludes.addAll(Arrays.asList(fetchSourceContext.excludes()));
+                    source.fetchSource(new FetchSourceContext(true, survivingFields.toArray(new String[survivingFields.size()]), finalSourceExcludes.toArray(new String[finalSourceExcludes.size()])));
+
                 }
             }
         }
-
+        sr.source(source);
         return sr;
     }
-
 }

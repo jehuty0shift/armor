@@ -24,20 +24,24 @@ import org.elasticsearch.index.query.QueryBuilder;
  *
  * @author jehuty0shift
  */
-public class ArmorWrapperQueryBuilder extends QueryBuilder {
+public abstract class ArmorWrapperQueryBuilder implements QueryBuilder {
     
     private final Map<String,Object> source;
     
     public ArmorWrapperQueryBuilder(Map<String, Object> source){
         this.source = source;
     }
-    
-    
+
     @Override
-    protected void doXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject(ArmorWrapperQueryParser.NAME);
-        builder.field("query", source);
-        builder.endObject();
+    public String getName() {
+        return ArmorWrapperQueryParser.NAME;
     }
-    
+
+//    @Override
+//    protected void toXContent(XContentBuilder builder, Params params) throws IOException {
+//        builder.startObject(ArmorWrapperQueryParser.NAME);
+//        builder.field("query", source);
+//        builder.endObject();
+//    }
+//
 }

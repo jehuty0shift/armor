@@ -39,8 +39,8 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLEATTRIBUTE = "armor.authentication.authorization.ldap.userroleattribute";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLENAME = "armor.authentication.authorization.ldap.userrolename";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES = "armor.authentication.authorization.settingsdb.roles.";
-    public static final String ARMOR_AUTHENTICATION_AUTHORIZER = "armor.authentication.authorizer.impl";
-    public static final String ARMOR_AUTHENTICATION_AUTHORIZER_CACHE_ENABLE = "armor.authentication.authorizer.cache.enable";
+    public static final String ARMOR_AUTHENTICATION_AUTHORIZATOR = "armor.authentication.authorizer.impl";
+    public static final String ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE = "armor.authentication.authorizer.cache.enable";
     public static final String ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT = "armor.authentication.graylog.endpoint";
     public static final String ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR = "armor.authentication.http_authenticator.impl";
     public static final String ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME = "armor.authentication.https.clientcert.attributename";
@@ -60,12 +60,12 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS = "armor.authentication.proxy.trusted_ips";
     public static final String ARMOR_AUTHENTICATION_SETTINGSDB_DIGEST = "armor.authentication.settingsdb.digest";
     public static final String ARMOR_AUTHENTICATION_SETTINGSDB_USER = "armor.authentication.settingsdb.user.";
+    public static final String ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS = "armor.authentication.settingsdb.usercreds";
     public static final String ARMOR_AUTHENTICATION_SPNEGO_KRB5_CONFIG_FILEPATH = "armor.authentication.spnego.krb5_config_filepath";
     public static final String ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_FILEPATH = "armor.authentication.spnego.login_config_filepath";
     public static final String ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_NAME = "armor.authentication.spnego.login_config_name";
     public static final String ARMOR_AUTHENTICATION_SPNEGO_STRIP_REALM = "armor.authentication.spnego.strip_realm";
     public static final String ARMOR_AUTHENTICATION_WAFFLE_STRIP_DOMAIN = "armor.authentication.waffle.strip_domain";
-    public static final String ARMOR_CHECK_FOR_ROOT = "armor.check_for_root";
     public static final String ARMOR_CONFIG_INDEX_NAME = "armor.config_index_name";
     public static final String ARMOR_DLSFILTER = "armor.dlsfilter.names";
     public static final String ARMOR_ENABLED = "armor.enabled";

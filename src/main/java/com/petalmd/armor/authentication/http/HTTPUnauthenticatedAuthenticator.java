@@ -18,23 +18,23 @@
 
 package com.petalmd.armor.authentication.http;
 
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authorization.Authorizator;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
 
 public class HTTPUnauthenticatedAuthenticator implements HTTPAuthenticator {
 
     private static final String UNAUTHENTICATED_USER = "armor_unauthenticated_user";
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
 
     @Inject
@@ -44,7 +44,7 @@ public class HTTPUnauthenticatedAuthenticator implements HTTPAuthenticator {
 
     @Override
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
-            final Authorizator authorizator) throws AuthException {
+            final Authorizator authorizator, ThreadContext threadContext) throws AuthException {
 
         final User authenticatedUser = backend
                 .authenticate(new AuthCredentials(HTTPUnauthenticatedAuthenticator.UNAUTHENTICATED_USER, null));

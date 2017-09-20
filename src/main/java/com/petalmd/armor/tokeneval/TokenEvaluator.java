@@ -18,25 +18,24 @@
 
 package com.petalmd.armor.tokeneval;
 
+import com.google.common.collect.Lists;
+import com.petalmd.armor.authentication.User;
+import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.map.DeserializationConfig;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.util.*;
 
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-
-import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.util.SecurityUtil;
-import com.google.common.collect.Lists;
-import org.codehaus.jackson.annotate.JsonIgnore;
-
 public class TokenEvaluator {
 
     private final static ObjectMapper mapper = new ObjectMapper();
-    protected static final ESLogger log = Loggers.getLogger(TokenEvaluator.class);
+    protected static final Logger log = ESLoggerFactory.getLogger(TokenEvaluator.class);
     protected final BytesReference xSecurityConfiguration;
     protected ACRules acRules = null;
 
@@ -62,7 +61,7 @@ public class TokenEvaluator {
         }
 
         this.xSecurityConfiguration = xSecurityConfiguration;
-        log.trace("Configuration: " + xSecurityConfiguration.toUtf8());
+        log.trace("Configuration: " + xSecurityConfiguration.utf8ToString());
     }
 
     public RulesEntities findEntitiesforUser(final User user) throws MalformedConfigurationException {
@@ -104,7 +103,7 @@ public class TokenEvaluator {
     protected void initializeACRulesIfNeeded() throws MalformedConfigurationException {
         if (acRules == null) {
             try {
-                acRules = mapper.readValue(xSecurityConfiguration.toBytes(), ACRules.class);
+                acRules = mapper.readValue(xSecurityConfiguration.toBytesRef().bytes, ACRules.class);
             } catch (final Exception e) {
                 throw new MalformedConfigurationException(e);
             }

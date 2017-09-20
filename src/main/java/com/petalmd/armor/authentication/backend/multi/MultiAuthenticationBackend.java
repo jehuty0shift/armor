@@ -6,28 +6,28 @@ import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
-import com.petalmd.armor.authentication.backend.multi.MultiAuthException;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.settings.Settings;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.common.settings.Settings;
 
 public class MultiAuthenticationBackend
 implements NonCachingAuthenticationBackend {
     private final Settings settings;
     private final List<NonCachingAuthenticationBackend> nonCachingAuthBackends;
-    protected final ESLogger log;
+    protected final Logger log;
 
     @Inject
     public MultiAuthenticationBackend(Settings settings) {
         String[] backendArray;
-        this.log = Loggers.getLogger(this.getClass());
+        this.log = ESLoggerFactory.getLogger(this.getClass());
         this.settings = settings;
         this.nonCachingAuthBackends = new ArrayList<NonCachingAuthenticationBackend>();
         for (String backend : backendArray = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST)) {

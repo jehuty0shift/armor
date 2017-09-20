@@ -18,10 +18,11 @@
 
 package com.petalmd.armor.authentication.backend.waffle;
 
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.Constants;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 
@@ -36,7 +37,7 @@ import com.petalmd.armor.util.ConfigConstants;
 
 public class WaffleAuthenticationBackend implements AuthenticationBackend {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
     protected final boolean stripDomain;
 

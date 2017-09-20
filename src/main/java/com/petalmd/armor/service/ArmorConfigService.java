@@ -18,12 +18,7 @@
 
 package com.petalmd.armor.service;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
+import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetResponse;
@@ -37,25 +32,21 @@ import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.indices.IndicesService;
 
-import com.petalmd.armor.util.ConfigConstants;
+import java.util.concurrent.*;
 
-public class ArmorConfigService extends AbstractLifecycleComponent<ArmorConfigService> {
+public class ArmorConfigService extends AbstractLifecycleComponent {
 
     private final Client client;
-    private final Settings settings;
     private final String securityConfigurationIndex;
-    private final IndicesService indicesService;
     private volatile BytesReference securityConfiguration;
     private ScheduledThreadPoolExecutor scheduler;
     private ScheduledFuture scheduledFuture;
     private final CountDownLatch latch = new CountDownLatch(1);
 
     @Inject
-    public ArmorConfigService(final Settings settings, final Client client, final IndicesService indicesService) {
+    public ArmorConfigService(final Settings settings, final Client client) {
         super(settings);
         this.client = client;
-        this.settings = settings;
-        this.indicesService = indicesService;
 
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
@@ -93,13 +84,13 @@ public class ArmorConfigService extends AbstractLifecycleComponent<ArmorConfigSe
             }
 
             @Override
-            public void onFailure(final Throwable e) {
+            public void onFailure(final Exception e) {
                 if (e instanceof IndexNotFoundException) {
                     logger.debug(
-                            "Try to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
+                            "Tried to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
                             e.toString());
                 } else {
-                    logger.error("Try to refresh security configuration but it failed due to {}", e, e.toString());
+                    logger.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
                 }
             }
         });

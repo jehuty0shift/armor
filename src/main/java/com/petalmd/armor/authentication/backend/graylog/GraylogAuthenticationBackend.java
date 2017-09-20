@@ -22,27 +22,25 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import com.mashape.unirest.request.GetRequest;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
-import org.json.JSONObject;
 
 public class GraylogAuthenticationBackend
 implements NonCachingAuthenticationBackend {
     private final Settings settings;
-    private final ESLogger log;
+    private final Logger log;
     private String graylogAPIEndpoint;
 
     @Inject
     public GraylogAuthenticationBackend(Settings settings) {
-        this.log = Loggers.getLogger(this.getClass());
+        this.log = ESLoggerFactory.getLogger(this.getClass());
         this.settings = settings;
         this.graylogAPIEndpoint = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT);
         if (this.graylogAPIEndpoint == null) {

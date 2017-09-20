@@ -20,14 +20,18 @@ package com.petalmd.armor.filter;
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.LdapUser;
 import com.petalmd.armor.authentication.User;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
+import com.petalmd.armor.authentication.backend.AuthenticationBackend;
+import com.petalmd.armor.authorization.Authorizator;
+import com.petalmd.armor.authorization.ForbiddenException;
+import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.TokenEvaluator;
+import com.petalmd.armor.util.ArmorConstants;
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
+import org.apache.directory.api.ldap.model.entry.Attribute;
+import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.get.GetRequest;
@@ -36,32 +40,24 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
-
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
-import com.petalmd.armor.authorization.ForbiddenException;
-import com.petalmd.armor.filter.level.ArmorWrapperQueryBuilder;
-import com.petalmd.armor.service.ArmorConfigService;
-import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.tokeneval.TokenEvaluator;
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
-import org.apache.directory.api.ldap.model.entry.Attribute;
-import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ExistsQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.search.lookup.SourceLookup;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.*;
+import java.util.Map.Entry;
 
 public class DLSActionFilter extends AbstractActionFilter {
 
@@ -72,8 +68,8 @@ public class DLSActionFilter extends AbstractActionFilter {
 
     @Inject
     public DLSActionFilter(final Settings settings, final Client client, final AuthenticationBackend backend,
-            final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener);
+                           final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
+        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadpool);
         this.client = client;
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_DLSFILTER);
@@ -96,44 +92,46 @@ public class DLSActionFilter extends AbstractActionFilter {
             return;
         }
 
+        ThreadContext threadContext = threadpool.getThreadContext();
+
         if (request instanceof SearchRequest || request instanceof MultiSearchRequest || request instanceof GetRequest
                 || request instanceof MultiGetRequest) {
 
             final List<String> _filters = new ArrayList<String>();
-            for (final Iterator<Entry<String, List<String>>> it = filterMap.entrySet().iterator(); it.hasNext();) {
+            for (final Iterator<Entry<String, List<String>>> it = filterMap.entrySet().iterator(); it.hasNext(); ) {
 
                 final Entry<String, List<String>> entry = it.next();
 
                 final String filterName = entry.getKey();
                 final List<String> filters = entry.getValue();
 
-                if (request.hasInContext("armor_filter")) {
-                    if (!((List<String>) request.getFromContext("armor_filter")).contains(filterType + ":" + filterName)) {
-                        ((List<String>) request.getFromContext("armor_filter")).add(filterType + ":" + filterName);
+                if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null) {
+                    if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
+                        ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
                         _filters.add(filterType + ":" + filterName);
                     }
                 } else {
                     _filters.add(filterType + ":" + filterName);
-                    request.putInContext("armor_filter", _filters);
+                    threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
                 }
 
-                request.putInContext("armor." + filterType + "." + filterName + ".filters", filters);
+                threadContext.putTransient("armor." + filterType + "." + filterName + ".filters", filters);
 
                 log.trace("armor." + filterType + "." + filterName + ".filters {}", filters);
             }
-            final User user = request.getFromContext("armor_authenticated_user", null);
-            final Object authHeader = request.getHeader("armor_authenticated_transport_request");
+            final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+            final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
             final TokenEvaluator.Evaluator evaluator;
 
             try {
-                evaluator = getFromContextOrHeader("armor_ac_evaluator", request, getEvaluator(request, action, user));
+                evaluator = getFromContextOrHeader(ArmorConstants.ARMOR_AC_EVALUATOR, threadContext, getEvaluator(request, action, user, threadContext));
             } catch (ForbiddenException e) {
                 listener.onFailure(e);
                 throw e;
             }
-            request.putInContext("_armor_token_evaluator", evaluator);
-//
+            threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
+
 
             if (request.remoteAddress() == null && user == null) {
                 log.trace("Return on INTERNODE request");
@@ -240,10 +238,10 @@ public class DLSActionFilter extends AbstractActionFilter {
         log.debug("Modifiy search filters for query {} and index {} requested from {} and {}/{}", "SearchRequest",
                 Arrays.toString(sr.indices()), sr.remoteAddress(), "dlsfilter", fn);
 
-        if(!filterMap.containsKey(fn)){
+        if (!filterMap.containsKey(fn)) {
             return sr;
         }
-        
+
         final List<String> list = filterMap.get(fn);
 
         //log.trace("filterStrings {}", list);
@@ -297,7 +295,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                 final boolean negate = Boolean.parseBoolean(list.get(2));
 
                 final List<QueryBuilder> inner = new ArrayList<QueryBuilder>();
-                for (final Iterator iterator = user.getRoles().iterator(); iterator.hasNext();) {
+                for (final Iterator iterator = user.getRoles().iterator(); iterator.hasNext(); ) {
                     final String role = (String) iterator.next();
                     if (negate) {
                         inner.add(new BoolQueryBuilder().mustNot(new TermQueryBuilder(field, role)));
@@ -316,7 +314,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                 }
                 qliste.add(boolQueryBuilder);
             }
-            ;
+
             break;
             case "ldap_user_attribute": {
 
@@ -350,7 +348,6 @@ public class DLSActionFilter extends AbstractActionFilter {
                 }
 
             }
-            ;
             break;
             case "ldap_user_roles": {
 
@@ -369,7 +366,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                 final boolean negate = Boolean.parseBoolean(list.get(3));
 
                 final List<QueryBuilder> inner = new ArrayList<QueryBuilder>();
-                for (final Iterator<org.apache.directory.api.ldap.model.entry.Entry> iterator = ldapUser.getRoleEntries().iterator(); iterator.hasNext();) {
+                for (final Iterator<org.apache.directory.api.ldap.model.entry.Entry> iterator = ldapUser.getRoleEntries().iterator(); iterator.hasNext(); ) {
                     final org.apache.directory.api.ldap.model.entry.Entry roleEntry = iterator.next();
 
                     try {
@@ -394,7 +391,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                 }
                 qliste.add(boolQueryBuilder);
             }
-            ;
+
             break;
             case "exists": {
                 final boolean negate = Boolean.parseBoolean(list.get(2));
@@ -406,7 +403,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                     qliste.add(new BoolQueryBuilder().filter(existQueryBuilder));
                 }
             }
-            ;
+
             break;
         }
 
@@ -416,43 +413,57 @@ public class DLSActionFilter extends AbstractActionFilter {
         }
 
         if (!qliste.isEmpty()) {
-            BytesReference srSource;
-            for (int i = 0; i < 2; i++) {
-                final SourceLookup sl = new SourceLookup();
-                if (i == 0) {
-                    srSource = sr.source();
-                } else {
-                    srSource = sr.extraSource();
-                }
-                if (srSource != null) {
-                    sl.setSource(srSource);
-                    if (sl.isEmpty()) { //WARNING : this also initialize the sourceLookup for following sl.soure() call, so DO NOT REMOVE.
-                        continue;
-                    }
-                    try {
-                        final BoolQueryBuilder sourceQueryBuilder = new BoolQueryBuilder();
-                        final Map<String, Object> query = (Map<String, Object>) (sl.extractValue("query"));
-                        sourceQueryBuilder.filter(dlsBoolQuery);
-                        sourceQueryBuilder.must(new ArmorWrapperQueryBuilder(query));
-                        String queryString = sourceQueryBuilder.toString();
-                        log.debug("final query of ExtraSource is :\n" + queryString);
-                        Map<String, Object> fullQueryMap = XContentHelper.convertToMap(sourceQueryBuilder.buildAsBytes(XContentType.JSON), false).v2();
-                        Map<String, Object> sourceMap = sl.source();
-                        sourceMap.put("query", fullQueryMap);
-                        if (i == 0) {
-                            sr.source(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-                        } else {
-                            sr.extraSource(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-                        }
-                    } catch (Exception e) {
-                        String source = sl.toString();
-                        log.warn("Error during extract of query in the source, aborting the request." + source);
-                        return null;
-                    }
-                }
+            SearchSourceBuilder srSource = sr.source();
+            QueryBuilder query = srSource.query();
+            final BoolQueryBuilder sourceQueryBuilder = new BoolQueryBuilder();
+            sourceQueryBuilder.filter(dlsBoolQuery);
+            sourceQueryBuilder.must(query);
+            sr.source(srSource);
+//            for (int i = 0; i < 2; i++) {
+//                final SourceLookup sl = new SourceLookup();
+//                if (i == 0) {
+//                    srSource = sr.source();
+//                } else {
+//                    srSource = sr.extraSource();
+//                }
+//                if (srSource != null) {
+//                    sl.setSource(srSource);
+//                    if (sl.isEmpty()) { //WARNING : this also initialize the sourceLookup for following sl.soure() call, so DO NOT REMOVE.
+//                        continue;
+//                    }
+//                    try {
+//                        final BoolQueryBuilder sourceQueryBuilder = new BoolQueryBuilder();
+//                        final Map<String, Object> query = (Map<String, Object>) (sl.extractValue("query"));
+//                        sourceQueryBuilder.filter(dlsBoolQuery);
+//                        sourceQueryBuilder.must(new ArmorWrapperQueryBuilder(query));
+//                        String queryString = sourceQueryBuilder.toString();
+//                        log.debug("final query of ExtraSource is :\n" + queryString);
+//                        Map<String, Object> fullQueryMap = XContentHelper.convertToMap(sourceQueryBuilder.buildAsBytes(XContentType.JSON), false).v2();
+//                        Map<String, Object> sourceMap = sl.source();
+//                        sourceMap.put("query", fullQueryMap);
+//                        if (i == 0) {
+//                            sr.source(XContentFactory.jsonBuilder().map(sourceMap).bytes());
+//                        } else {
+//                            sr.extraSource(XContentFactory.jsonBuilder().map(sourceMap).bytes());
+//                        }
+//                    } catch (Exception e) {
+//                        String source = sl.toString();
+//                        log.warn("Error during extract of query in the source, aborting the request." + source);
+//                        return null;
+//                    }
+//                }
+//            }
+        }
+        if (log.isDebugEnabled()) {
+            try {
+                BytesStreamOutput sourceStream = new BytesStreamOutput();
+                sr.source().writeTo(sourceStream);
+                sourceStream.close();
+                log.debug("Search request is now : \n" + sourceStream.bytes().utf8ToString());
+            } catch (IOException e) {
+
             }
         }
-        log.debug("Search request is now : \n" + sr.source().toUtf8());
 
         return sr;
 

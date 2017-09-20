@@ -115,7 +115,7 @@ public class TestScenarios extends AbstractScenarioTest {
         ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
 
         final Settings settings = Settings
-                .settingsBuilder()
+                .builder()
                 .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "true")
                 .put("armor.authentication.authentication_backend.impl",

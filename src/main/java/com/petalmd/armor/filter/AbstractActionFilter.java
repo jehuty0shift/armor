@@ -18,14 +18,20 @@
 package com.petalmd.armor.filter;
 
 import com.petalmd.armor.audit.AuditListener;
-import java.nio.charset.StandardCharsets;
-import java.util.Iterator;
-
-import javax.xml.bind.DatatypeConverter;
-
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
+import com.petalmd.armor.authentication.AuthCredentials;
+import com.petalmd.armor.authentication.User;
+import com.petalmd.armor.authentication.backend.AuthenticationBackend;
+import com.petalmd.armor.authorization.Authorizator;
+import com.petalmd.armor.authorization.ForbiddenException;
+import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.MalformedConfigurationException;
+import com.petalmd.armor.tokeneval.TokenEvaluator;
+import com.petalmd.armor.util.ArmorConstants;
+import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.*;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -38,49 +44,37 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.DelegatingActionListener;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterService;
-import org.elasticsearch.common.logging.ESLogger;
-import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.query.IdsQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 
-import com.petalmd.armor.authentication.AuthCredentials;
-import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
-import com.petalmd.armor.authorization.ForbiddenException;
-import com.petalmd.armor.service.ArmorConfigService;
-import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.tokeneval.MalformedConfigurationException;
-import com.petalmd.armor.tokeneval.TokenEvaluator;
-import com.petalmd.armor.util.ConfigConstants;
-import com.petalmd.armor.util.SecurityUtil;
+import javax.xml.bind.DatatypeConverter;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.SortedMap;
-import org.elasticsearch.action.CompositeIndicesRequest;
-import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.transport.TransportRequest;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public abstract class AbstractActionFilter implements ActionFilter {
 
-    protected final ESLogger log = Loggers.getLogger(this.getClass());
+    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     protected final Settings settings;
     protected final AuthenticationBackend backend;
     protected final AuditListener auditListener;
     protected final Authorizator authorizator;
     protected final ClusterService clusterService;
     protected final ArmorConfigService armorConfigService;
+    protected final ThreadPool threadpool;
 
     @Override
     public final int order() {
@@ -88,28 +82,30 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     protected AbstractActionFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-            final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener) {
+                                   final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
         this.settings = settings;
         this.authorizator = authorizator;
         this.backend = backend;
         this.clusterService = clusterService;
         this.armorConfigService = armorConfigService;
         this.auditListener = auditListener;
+        this.threadpool = threadpool;
     }
 
     @Override
     public final void apply(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
         log.debug("REQUEST on node {}: {} ({}) from {}", clusterService.localNode().getName(), action, request.getClass(),
                 request.remoteAddress() == null ? "INTRANODE" : request.remoteAddress().toString());
-        log.debug("Context {}", request.getContext());
-        log.debug("Headers {}", request.getHeaders());
+        //log.debug("Context {}", request.getContext());
+        ThreadContext threadContext = threadpool.getThreadContext();
+        log.debug("Headers {}", threadContext.getHeaders());
 
         if (settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true) && (action.startsWith("cluster:monitor/") || action.contains("indices:data/read/field_stats"))) {
             chain.proceed(task, action, request, listener);
             return;
         }
 
-        final User restUser = request.getFromContext("armor_authenticated_user", null);
+        final User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
 
         final boolean restAuthenticated = restUser != null;
 
@@ -119,6 +115,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
+        //TODO: check that THIS is done properly ! !
         final boolean intraNodeRequest = request.remoteAddress() == null;
 
         if (intraNodeRequest) {
@@ -127,7 +124,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
-        final Object authHeader = request.getHeader("armor_authenticated_transport_request");
+        final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
         boolean interNodeAuthenticated = false;
 
         if (authHeader != null && authHeader instanceof String) {
@@ -145,9 +142,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
-        final Object transportCreds = request.getHeader("armor_transport_creds");
+        final Object transportCreds = threadContext.getHeader(ArmorConstants.ARMOR_TRANSPORT_CREDS);
         User authenticatedTransportUser = null;
-        boolean transportAuthenticated = false;
         if (transportCreds != null && transportCreds instanceof String
                 && settings.getAsBoolean(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, false)) {
 
@@ -161,14 +157,14 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
                 authenticatedTransportUser = backend.authenticate(new AuthCredentials(username, password));
                 authorizator.fillRoles(authenticatedTransportUser, new AuthCredentials(authenticatedTransportUser.getName(), null));
-                request.putInContext("armor_authenticated_user", authenticatedTransportUser);
+                threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedTransportUser);
             } catch (final Exception e) {
                 throw new RuntimeException("Transport authentication failed due to " + e, e);
             }
 
         }
 
-        transportAuthenticated = authenticatedTransportUser != null;
+        boolean transportAuthenticated = authenticatedTransportUser != null;
 
         if (transportAuthenticated) {
             log.debug("TYPE: transport authenticated request, apply filters");
@@ -182,20 +178,16 @@ public abstract class AbstractActionFilter implements ActionFilter {
     public abstract void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener,
             final ActionFilterChain chain);
 
-    @Override
-    public final void apply(final String action, final ActionResponse response, final ActionListener listener, final ActionFilterChain chain) {
-        chain.proceed(action, response, listener);
 
-    }
     
-    protected static <T> T getFromContextOrHeader(final String key, final TransportRequest request, final T defaultValue) {
+    protected static <T> T getFromContextOrHeader(final String key, final ThreadContext threadContext, final T defaultValue) {
 
-        if (request.hasInContext(key)) {
-            return request.getFromContext(key);
+        if (threadContext.getTransient(key) != null) {
+            return threadContext.getTransient(key);
         }
 
-        if (request.hasHeader(key)) {
-            return (T) SecurityUtil.decryptAnDeserializeObject((String) request.getHeader(key), ArmorService.getSecretKey());
+        if (threadContext.getHeader(key) != null) {
+            return (T) SecurityUtil.decryptAnDeserializeObject((String) threadContext.getHeader(key), ArmorService.getSecretKey());
         }
 
         return defaultValue;
@@ -205,11 +197,11 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         final SearchRequest searchRequest = new SearchRequest();
         searchRequest.routing(request.routing());
-        searchRequest.copyContextFrom(request);
+        //searchRequest.copyContextFrom(request);
         searchRequest.preference(request.preference());
         searchRequest.indices(request.indices());
         searchRequest.types(request.type());
-        searchRequest.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder(request.type()).addIds(request.id())));
+        searchRequest.source(SearchSourceBuilder.searchSource().query( new IdsQueryBuilder().types(request.type()).addIds(request.id())));
         return searchRequest;
 
     }
@@ -217,7 +209,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
     protected MultiSearchRequest toMultiSearchRequest(final MultiGetRequest multiGetRequest) {
 
         final MultiSearchRequest msearch = new MultiSearchRequest();
-        msearch.copyContextFrom(multiGetRequest);
+        //msearch.copyContextFrom(multiGetRequest);
 
         for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext();) {
             final Item item = iterator.next();
@@ -227,7 +219,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
             st.indices(item.indices());
             st.types(item.type());
             st.preference(multiGetRequest.preference());
-            st.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder(item.type()).addIds(item.id())));
+            st.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().types(item.type()).addIds(item.id())));
             msearch.add(st);
         }
 
@@ -247,7 +239,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
                     throw new RuntimeException("cannot happen");
                 } else {
                     final SearchHit sh = searchResponse.getHits().getHits()[0];
-                    return new GetResponse(new GetResult(sh.index(), sh.type(), sh.id(), sh.version(), true, sh.getSourceRef(), null));
+                    return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
                 }
 
             }
@@ -267,20 +259,19 @@ public abstract class AbstractActionFilter implements ActionFilter {
                 } else {
                     final org.elasticsearch.action.search.MultiSearchResponse.Item item = searchResponse.getResponses()[0];
                     final SearchHit sh = item.getResponse().getHits().getHits()[0];
-                    return new GetResponse(new GetResult(sh.index(), sh.type(), sh.id(), sh.version(), true, sh.getSourceRef(), null));
+                    return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
                 }
 
             }
         });
     }
 
-    protected TokenEvaluator.Evaluator getEvaluator(final ActionRequest request, final String action, final User user) {
+    protected TokenEvaluator.Evaluator getEvaluator(final ActionRequest request, final String action, final User user, final ThreadContext threadContext) {
 
         final List<String> ci = new ArrayList<String>();
         final List<String> aliases = new ArrayList<String>();
         final List<String> types = new ArrayList<String>();        
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
-
 
         final boolean allowedForAllIndices = !SecurityUtil.isWildcardMatch(action, "*put*", false)
                 && !SecurityUtil.isWildcardMatch(action, "*delete*", false)
@@ -311,30 +302,31 @@ public abstract class AbstractActionFilter implements ActionFilter {
         }
 
         if (request instanceof CompositeIndicesRequest) {
-            final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
-            final List irs = irc.subRequests();
-            for (final Iterator iterator = irs.iterator(); iterator.hasNext();) {
-                final IndicesRequest ir = (IndicesRequest) iterator.next();
-                addType(ir, types, action);
-                log.trace("C Indices {}", Arrays.toString(ir.indices()));
-                log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
-                log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
-
-                ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
-                if (!allowedForAllIndices
-                        && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
-                    log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
-                    auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
-
-                    throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                }
-
-            }
+            throw new ForbiddenException("We have not yet implemented CompositeIndicesRequest Support");
+//            final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
+//            final List irs = irc.subRequests();
+//            for (final Iterator iterator = irs.iterator(); iterator.hasNext();) {
+//                final IndicesRequest ir = (IndicesRequest) iterator.next();
+//                addType(ir, types, action);
+//                log.trace("C Indices {}", Arrays.toString(ir.indices()));
+//                log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
+//                log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
+//
+//                ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
+//                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+//                if (!allowedForAllIndices
+//                        && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
+//                    log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
+//                    auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
+//
+//                    throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+//                }
+//
+//            }
         }
 
         if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
-            log.error("Attemp from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
+            log.error("Attempt from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
             auditListener.onMissingPrivileges(user.getName(), request);
             throw new ForbiddenException("Only allowed from localhost (loopback)");
         }
@@ -348,7 +340,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         }
 
-        final InetAddress resolvedAddress = request.getFromContext("armor_resolved_rest_address");
+        final InetAddress resolvedAddress = threadContext.getTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS);
 
         if (resolvedAddress == null) {
             //not a rest request
@@ -358,7 +350,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         try { 
             final TokenEvaluator.Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
-            request.putInContext("armor_ac_evaluator", eval);
+            threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             return eval;
         } catch (MalformedConfigurationException ex) {
             log.warn("Error in configuration");
