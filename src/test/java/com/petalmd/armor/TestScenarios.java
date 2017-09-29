@@ -18,13 +18,14 @@
 
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 
-
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class TestScenarios extends AbstractScenarioTest {
 
     @Test
@@ -130,5 +131,7 @@ public class TestScenarios extends AbstractScenarioTest {
                 .build();
 
         dlsLdapUserAttribute(settings);
+        ldapServer.stop();
+        ldapServer = null;
     }
 }

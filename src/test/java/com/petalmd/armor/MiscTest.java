@@ -120,8 +120,8 @@ public class MiscTest extends AbstractUnitTest {
                 .put("armor.authentication.authentication_backend.impl",
                         "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
                 .put("armor.authentication.authentication_backend.cache.enable", "true")
-                .putArray("armor.restactionfilter.names", "readonly")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction").build();
+                .putArray("armor.actionrequestfilter.names", "readonly")
+                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search").build();
 
         startES(settings);
         username = "jacksonm";

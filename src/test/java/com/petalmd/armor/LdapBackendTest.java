@@ -238,7 +238,6 @@ public class LdapBackendTest extends AbstractUnitTest {
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials(user.getName(), null));
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals(2, ((LdapUser) user).getRoleEntries().size());
-
     }
 
     @Test
@@ -258,7 +257,6 @@ public class LdapBackendTest extends AbstractUnitTest {
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("jacksonm", null));
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals(2, user.getRoleEntries().size());
-
     }
 
     @Test
@@ -279,7 +277,6 @@ public class LdapBackendTest extends AbstractUnitTest {
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("jacksonm", null));
         Assert.assertEquals(3, user.getRoles().size());
         Assert.assertEquals(3, user.getRoleEntries().size());
-
     }
 
     @Test
@@ -302,6 +299,7 @@ public class LdapBackendTest extends AbstractUnitTest {
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("spock", null));
         Assert.assertEquals(4, user.getRoles().size());
         Assert.assertEquals(4, user.getRoleEntries().size());
+
     }
 
     @Test
@@ -349,6 +347,5 @@ public class LdapBackendTest extends AbstractUnitTest {
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("spock", null));
         Assert.assertEquals(2, user.getRoles().size());
         Assert.assertEquals(2, user.getRoleEntries().size());
-
     }
 }

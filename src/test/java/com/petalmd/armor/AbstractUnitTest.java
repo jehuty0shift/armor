@@ -69,6 +69,7 @@ import org.junit.Rule;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -85,6 +86,7 @@ import java.security.KeyStore;
 import java.security.Principal;
 import java.util.*;
 
+@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 public abstract class AbstractUnitTest {
 
     public static boolean debugAll = false;
