@@ -27,6 +27,7 @@ import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.core.Get;
 import io.searchbox.core.Index;
 import io.searchbox.core.Search;
+import joptsimple.internal.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -36,14 +37,17 @@ import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.SSLContexts;
 import org.apache.http.impl.auth.NTLMSchemeFactory;
 import org.apache.http.impl.auth.SPNegoSchemeFactory;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.ssl.TrustStrategy;
 import org.apache.logging.log4j.Logger;
 import org.apache.mina.util.AvailablePortFinder;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -57,6 +61,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -172,8 +177,9 @@ public abstract class AbstractUnitTest {
 
     protected Settings getAuthSettings(final boolean wrongPassword, final String... roles) {
         return cacheEnabled(false)
-                .putArray("armor.authentication.authorization.settingsdb.roles." + username, roles)
-                .put("armor.authentication.settingsdb.user." + username, password + (wrongPassword ? "-wrong" : ""))
+                //.putArray("armor.authentication.authorization.settingsdb.roles." + username, roles)
+                .putArray("armor.authentication.settingsdb.usercreds", username+"@"+ Strings.join(roles,",")+":"+password+(wrongPassword ? "-wrong" : ""))
+//                .put("armor.authentication.settingsdb.user." + username, password + (wrongPassword ? "-wrong" : ""))
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                 .put("armor.authentication.authentication_backend.impl",
@@ -185,10 +191,11 @@ public abstract class AbstractUnitTest {
 
         return Settings.builder().put("node.name", "armor_testnode_" + nodenum)//.put("node.data", dataNode)
                 .put("node.master", masterNode).put("cluster.name", this.clustername)
+                .put("node.max_local_storage_nodes",3)
                 .put("path.home", ".").put("path.data", "data/data")//.put("index.store.fs.memory.enabled", "true")
-                .put("path.work", "data/work").put("path.logs", "data/logs").put("path.conf", "data/config")
-                .put("path.plugins", "data/plugins").put("plugin.types", ArmorPlugin.class.getName())
-                .put("index.number_of_shards", "3").put("index.number_of_replicas", "1")
+                .put("path.logs", "data/logs").put("path.conf", "data/config")
+                //.put("path.plugins", "data/plugins").put("plugin.types", ArmorPlugin.class.getName())
+                //.put("index.number_of_shards", "3").put("index.number_of_replicas", "1")
                 .put("cluster.routing.allocation.disk.threshold_enabled", false)
                 .put("network.bind_host", "0.0.0.0").put("http.port", httpPort).put("http.enabled", true)
                 .put("network.publish_host", "127.0.0.1").put("transport.tcp.port", nodePort).put("http.cors.enabled", true)
@@ -253,6 +260,7 @@ public abstract class AbstractUnitTest {
     private Node NodeWithArmor(final Settings settings) {
         List<Class<? extends Plugin>> list = new ArrayList<>();
         list.add(ArmorPlugin.class);
+        list.add(Netty4Plugin.class);
         return new ArmorNode(settings, list);
     }
 
@@ -291,6 +299,8 @@ public abstract class AbstractUnitTest {
         esNode1.start();
         esNode2.start();
         esNode3.start();
+
+        log.info("started ES Clusters on HTTP ports :" + elasticsearchHttpPort1 + ", " + elasticsearchHttpPort2 + ", " + elasticsearchHttpPort3);
         
         waitForGreenClusterState(esNode1.client());
     }
@@ -352,7 +362,7 @@ public abstract class AbstractUnitTest {
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
         try {
             final Tuple<JestResult, HttpResponse> restu = client.executeE(new Index.Builder(loadFile(file)).index(index).type(type).id(id)
-                    .refresh(true).setHeader(headers).build());
+                    .refresh(true).setHeader(headers).setParameter("timeout","1m").build());
 
             final JestResult res = restu.v1();
 
@@ -408,7 +418,7 @@ public abstract class AbstractUnitTest {
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Search.Builder(loadFile(file))
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers)
+                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers)
                 .build());
 
         final JestResult res = restu.v1();
@@ -432,7 +442,7 @@ public abstract class AbstractUnitTest {
 
         Search.Builder searchB = new Search.Builder(loadFile(file))
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).refresh(true).setHeader(headers);
+                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers);
 
         for (Map.Entry<String,String> parameter : scrollParameters.entrySet()) {
             searchB.setParameter(parameter.getKey(),parameter.getValue());
@@ -524,8 +534,8 @@ public abstract class AbstractUnitTest {
             final KeyStore keyStore = KeyStore.getInstance("JKS");
             keyStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks")), "changeit".toCharArray());
 
-            final SSLContext sslContext = SSLContexts.custom().useTLS().loadKeyMaterial(keyStore, "changeit".toCharArray())
-                    .loadTrustMaterial(myTrustStore).build();
+            final SSLContext sslContext = SSLContexts.custom().loadKeyMaterial(keyStore, "changeit".toCharArray())
+                    .loadTrustMaterial(myTrustStore,null).build();
 
             String[] protocols = null;
 
@@ -536,7 +546,7 @@ public abstract class AbstractUnitTest {
             }
 
             final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols,
-                    SecurityUtil.ENABLED_SSL_CIPHERS, SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+                    SecurityUtil.ENABLED_SSL_CIPHERS, NoopHostnameVerifier.INSTANCE);
 
             hcb.setSSLSocketFactory(sslsf);
 

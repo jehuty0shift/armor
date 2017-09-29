@@ -1,9 +1,6 @@
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
@@ -44,9 +41,8 @@ public class AggregationFilter extends AbstractActionFilter {
 
 
     @Inject
-    public AggregationFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadpool);
+    public AggregationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService ) {
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, false);
 
     }

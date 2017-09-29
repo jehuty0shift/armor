@@ -61,18 +61,6 @@ public class ArmorService extends AbstractLifecycleComponent {
     private final AuthenticationBackend authenticationBackend;
     private final HTTPAuthenticator httpAuthenticator;
     private final SessionStore sessionStore;
-    public Authorizator getAuthorizator() {
-        return authorizator;
-    }
-
-    public AuthenticationBackend getAuthenticationBackend() {
-        return authenticationBackend;
-    }
-
-    public HTTPAuthenticator getHttpAuthenticator() {
-        return httpAuthenticator;
-    }
-
 
     @Inject
     public ArmorService(final Settings settings, final ClusterService clusterService,
@@ -87,6 +75,9 @@ public class ArmorService extends AbstractLifecycleComponent {
         this.httpAuthenticator = httpAuthenticator;
         this.sessionStore = sessionStore;
         this.clusterService = clusterService;
+
+        //TODO FUTURE index change audit trail
+        this.auditListener = auditListener;
 
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -142,10 +133,6 @@ public class ArmorService extends AbstractLifecycleComponent {
             throw new ElasticsearchException(e.toString());
         }
 
-        this.auditListener = auditListener;
-        //TODO FUTURE index change audit trail
-        
-
         /*final String scriptingStatus = settings.get(ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING,
                 ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT);
 
@@ -176,6 +163,19 @@ public class ArmorService extends AbstractLifecycleComponent {
         return settings;
     }
 
+    public Authorizator getAuthorizator() {
+        return authorizator;
+    }
+
+    public AuthenticationBackend getAuthenticationBackend() {
+        return authenticationBackend;
+    }
+
+    public HTTPAuthenticator getHttpAuthenticator() {
+        return httpAuthenticator;
+    }
+
+    public AuditListener getAuditListener() { return auditListener;}
 
     @Override
     protected void doStart() throws ElasticsearchException {

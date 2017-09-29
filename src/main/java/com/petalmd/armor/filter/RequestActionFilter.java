@@ -22,6 +22,7 @@ import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.action.ActionListener;
@@ -44,13 +45,11 @@ public class RequestActionFilter extends AbstractActionFilter {
     private final Map<String, Tuple<List<String>, List<String>>> filterMap = new HashMap<String, Tuple<List<String>, List<String>>>();
 
     @Inject
-    public RequestActionFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                               final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener,threadPool);
+    public RequestActionFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
-        for (int i = 0; i < arFilters.length; i++) {
-            final String filterName = arFilters[i];
+        for (final String filterName : arFilters) {
 
             final List<String> allowedActions = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName
                     + ".allowed_actions", new String[0]));
@@ -59,7 +58,6 @@ public class RequestActionFilter extends AbstractActionFilter {
 
             filterMap.put(filterName, new Tuple<List<String>, List<String>>(allowedActions, forbiddenActions));
         }
-
     }
 
     @Override
@@ -80,8 +78,15 @@ public class RequestActionFilter extends AbstractActionFilter {
             final List<String> allowedActions = entry.getValue().v1();
             final List<String> forbiddenActions = entry.getValue().v2();
 
-            threadContext.putTransient("armor." + filterType + "." + filterName + ".allowed_actions", allowedActions);
-            threadContext.putTransient("armor." + filterType + "." + filterName + ".forbidden_actions", forbiddenActions);
+            String allowedActionsKey = "armor." + filterType + "." + filterName + ".allowed_actions";
+            String forbiddenActionsKey = "armor." + filterType + "." + filterName + ".allowed_actions";
+
+            if (threadContext.getTransient(allowedActionsKey) == null) {
+                threadContext.putTransient("armor." + filterType + "." + filterName + ".allowed_actions", allowedActions);
+            }
+            if (threadContext.getTransient(forbiddenActionsKey) == null) {
+                threadContext.putTransient("armor." + filterType + "." + filterName + ".forbidden_actions", forbiddenActions);
+            }
 
             if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null && filterType != null) {
                 if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {

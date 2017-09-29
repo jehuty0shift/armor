@@ -18,7 +18,9 @@
 
 package com.petalmd.armor.authorization.simple;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -32,24 +34,51 @@ import com.petalmd.armor.util.ConfigConstants;
 public class SettingsBasedAuthorizator implements NonCachingAuthorizator {
 
     private final Settings settings;
+    private final List<AuthCredentials> authCredsList;
 
     @Inject
     public SettingsBasedAuthorizator(final Settings settings) {
         this.settings = settings;
+        authCredsList = new ArrayList<>();
+        String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
+        for (String userCred : userCreds) {
+            String user = null;
+            List<String> roles = null;
+            String password = null;
+            //user password roles String has the following syntax user@role1,role2,role3:password
+            String[] userRolePassArray = userCred.split(":");
+            if (userRolePassArray.length == 2) {
+                String userRoles = userRolePassArray[0];
+                if (userRoles.contains("@")) {
+                    String[] userRoleArray = userRoles.split("@");
+                    user = userRoleArray[0];
+                    String roleArray = userRoleArray[1];
+                    roles = Arrays.asList(roleArray.split(","));
+                } else {
+                    user = userRoles;
+                }
+                password = userRolePassArray[1];
+            }
+            if (user != null && password != null) {
+                authCredsList.add(new AuthCredentials(user, roles, password.toCharArray()));
+            }
+        }
+
     }
 
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds) throws AuthException {
 
-        final String[] roles = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES
-                + user.getName());
+        final String[] roles = null;
+
+        for (AuthCredentials authCredentials : authCredsList) {
+            if (authCredentials.getUsername().equals(user.getName())) {
+                user.addRoles(authCredentials.getRoles());
+            }
+        }
 
         if (optionalAuthCreds != null) {
             optionalAuthCreds.clear();
-        }
-
-        if (roles != null) {
-            user.addRoles(Arrays.asList(roles));
         }
     }
 }

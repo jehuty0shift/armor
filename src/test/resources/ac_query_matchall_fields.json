@@ -1,7 +1,7 @@
 {
-    "fields": ["user"], 
+    "_source": ["user"],
 
     "query" : {
-        "matchAll" : {}
+        "match_all" : {}
     }
 }

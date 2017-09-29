@@ -18,15 +18,16 @@
 
 package com.petalmd.armor.audit;
 
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
 public interface AuditListener {
-    void onFailedLogin(String username, RestRequest request);
+    default void onFailedLogin(String username, RestRequest request, ThreadContext threadContext){};
 
-    void onMissingPrivileges(String username, RestRequest request);
+    default void onMissingPrivileges(String username, RestRequest request, ThreadContext threadContext){};
 
-    void onFailedLogin(String username, TransportRequest request);
+    default void onFailedLogin(String username, TransportRequest request, ThreadContext threadContext){};
 
-    void onMissingPrivileges(String username, TransportRequest request);
+    default void onMissingPrivileges(String username, TransportRequest request, ThreadContext threadContext){};
 }

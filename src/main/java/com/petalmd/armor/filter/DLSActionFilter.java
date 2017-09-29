@@ -67,9 +67,8 @@ public class DLSActionFilter extends AbstractActionFilter {
     protected final boolean rewriteGetAsSearch;
 
     @Inject
-    public DLSActionFilter(final Settings settings, final Client client, final AuthenticationBackend backend,
-                           final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadpool);
+    public DLSActionFilter(final Settings settings, final Client client, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.client = client;
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_DLSFILTER);
@@ -130,8 +129,6 @@ public class DLSActionFilter extends AbstractActionFilter {
                 listener.onFailure(e);
                 throw e;
             }
-            threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
-
 
             if (request.remoteAddress() == null && user == null) {
                 log.trace("Return on INTERNODE request");
@@ -214,8 +211,6 @@ public class DLSActionFilter extends AbstractActionFilter {
                         log.warn("couldn't rewrite the search, Aborting the request");
                         return;
                     }
-                    SearchRequest sr = (SearchRequest) request;
-
                 }
 
                 if (request instanceof MultiSearchRequest) {
@@ -229,8 +224,8 @@ public class DLSActionFilter extends AbstractActionFilter {
                 }
             }
 
-            chain.proceed(task, action, request, listener);
         }
+        chain.proceed(task, action, request, listener);
     }
 
     private SearchRequest addFiltersToSearchRequest(SearchRequest sr, final User user, String fn) {
@@ -413,12 +408,10 @@ public class DLSActionFilter extends AbstractActionFilter {
         }
 
         if (!qliste.isEmpty()) {
-            SearchSourceBuilder srSource = sr.source();
-            QueryBuilder query = srSource.query();
             final BoolQueryBuilder sourceQueryBuilder = new BoolQueryBuilder();
             sourceQueryBuilder.filter(dlsBoolQuery);
-            sourceQueryBuilder.must(query);
-            sr.source(srSource);
+            sourceQueryBuilder.must(sr.source().query());
+            sr.source().query(sourceQueryBuilder);
 //            for (int i = 0; i < 2; i++) {
 //                final SourceLookup sl = new SourceLookup();
 //                if (i == 0) {

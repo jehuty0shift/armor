@@ -218,7 +218,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
             response.readFrom(bSO.bytes().streamInput());
             return response;
         } catch (Exception e) {
-            log.error("Coulnd't modify Response",e);
+            log.error("Couldn't modify Response",e);
             return null;
         }
     }

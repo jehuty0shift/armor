@@ -14,7 +14,9 @@ public final class ArmorConstants {
     public static final String ARMOR_AC_EVALUATOR = "armor_ac_evaluator";
     public static final String ARMOR_RESOLVED_REST_ADDRESS = "armor_resolved_rest_address";
     public static final String ARMOR_FILTER = "armor_filter";
+    public static final String ARMOR_IS_LOOPBACK = "armor_is_loopback";
     public static final String ARMOR_SSL_CERT_PRINCIPAL = "armor_ssl_cert_principal";
+    public static final String ARMOR_REQUEST_IS_EXTERNAL = "armor_request_is_external";
 
 
 }

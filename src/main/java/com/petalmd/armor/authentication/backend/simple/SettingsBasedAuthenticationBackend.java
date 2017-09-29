@@ -25,39 +25,43 @@ import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticationBackend {
 
     private final Settings settings;
-    private List<AuthCredentials> authCreds;
+    private List<AuthCredentials> authCredsList;
 
     public SettingsBasedAuthenticationBackend(final Settings settings) {
         this.settings = settings;
-        authCreds = new ArrayList<>();
+        authCredsList = new ArrayList<>();
         String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
         for (String userCred : userCreds) {
             String user = null;
-            String role = "";
+            List<String> roles = null;
             String password = null;
+            //user password roles String has the following syntax user@role1,role2,role3:password
             String[] userRolePassArray = userCred.split(":");
             if (userRolePassArray.length == 2) {
-                String userRole = userRolePassArray[0];
-                if (userRole.contains("@")) {
-                    String[] userRoleArray = userRole.split("@");
+                String userRoles = userRolePassArray[0];
+                if (userRoles.contains("@")) {
+                    String[] userRoleArray = userRoles.split("@");
                     user = userRoleArray[0];
-                    role = userRoleArray[1];
+                    String roleArray = userRoleArray[1];
+                    if(roleArray.contains(",")) {
+                        roles = Arrays.asList(roleArray.split(","));
+                    }
                 } else {
-                    user = userRole;
+                    user = userRoles;
                 }
                 password = userRolePassArray[1];
             }
             if (user != null && password != null) {
-                authCreds.add(new AuthCredentials(user,role,password.toCharArray()));
+                authCredsList.add(new AuthCredentials(user,roles,password.toCharArray()));
             }
         }
     }
@@ -69,7 +73,12 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
         authCreds.clear();
 
         String digest = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_DIGEST, null);
-        final String storedPasswordOrDigest = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USER + user, null);
+        String storedPasswordOrDigest = null;
+        for(AuthCredentials authCredentials : authCredsList) {
+            if(authCredentials.getUsername().equals(user)) {
+                storedPasswordOrDigest = new String(authCredentials.getPassword());
+            }
+        }
 
         if(!StringUtils.isEmpty(clearTextPassword) && !StringUtils.isEmpty(storedPasswordOrDigest)) {
 

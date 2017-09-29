@@ -18,43 +18,49 @@
 
 package com.petalmd.armor.authentication;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public final class AuthCredentials {
 
     private final String username;
-    private final String role;
+    private final List<String> roles;
     private char[] password;
     private Object nativeCredentials;
     private final int hashCode;
 
     public AuthCredentials(final String username, final Object nativeCredentials) {
-        this(username,"", null, nativeCredentials);
+        this(username,new ArrayList<>(), null, nativeCredentials);
     }
 
     public AuthCredentials(final String username, String role, final char[] password) {
-        this(username,role, password, null);
+        this(username,Arrays.asList(role), password, null);
+    }
+
+    public AuthCredentials(final String username, List<String> roles, final char[] password) {
+        this(username,roles, password, null);
     }
 
     public AuthCredentials(final String username, final char[] password) {
-        this(username,"", password, null);
+        this(username,new ArrayList<>(), password, null);
     }
 
     public AuthCredentials(final String username) {
-        this(username, "", null, null);
+        this(username, new ArrayList<>(), null, null);
     }
 
-    private AuthCredentials(final String username, final String role, char[] password, Object nativeCredentials) {
+    private AuthCredentials(final String username, final List<String> roles, char[] password, Object nativeCredentials) {
         super();
 
         if (username == null || username.isEmpty()) {
             throw new IllegalArgumentException("username must not be null or empty");
         }
 
-        if(role == null){
-            this.role = "";
+        if(roles == null){
+            this.roles = new ArrayList<>();
         } else {
-            this.role = role;
+            this.roles = roles;
         }
 
         this.username = username;
@@ -84,6 +90,10 @@ public final class AuthCredentials {
         return password == null ? null : Arrays.copyOf(password, password.length);
     }
 
+    public List<String> getRoles() {
+        return roles;
+    }
+
     public Object getNativeCredentials() {
         return nativeCredentials;
     }
@@ -98,6 +108,7 @@ public final class AuthCredentials {
         int result = 1;
         result = prime * result + ((nativeCredentials == null) ? 0 : nativeCredentials.hashCode());
         result = prime * result + Arrays.hashCode(password);
+        result = prime * result + roles.hashCode();
         result = prime * result + ((username == null) ? 0 : username.hashCode());
         return result;
     }
@@ -120,7 +131,9 @@ public final class AuthCredentials {
 
 	@Override
 	public String toString() {
-		return "AuthCredentials [username=" + username + ", hash="+ this.hashCode() +", hasPassword="
+		return "AuthCredentials [username=" + username + ", "
+                + "roles=" + roles.toString() + ", "
+                + "hash="+ this.hashCode() +", hasPassword="
                 + (password != null) + ", hasNativeCredentials="
                 + (nativeCredentials != null) + "]";
     }

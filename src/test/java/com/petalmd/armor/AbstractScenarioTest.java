@@ -11,7 +11,9 @@ import org.junit.Assert;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.junit.runner.RunWith;
 
+@RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected String baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount,
@@ -112,7 +114,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         "_type": "internal",
         "_id": "tp_1",
         "_score": 1.0,
-        "fields": {
+        "_source": {
           "structure.thesubfield2": [
             "yepp"
           ],
@@ -123,6 +125,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         }
          */
 
+        //test will use source filtering
         final Settings settings = Settings.builder().putArray("armor.dlsfilter.names", "dummy2-only")
                 .putArray("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "false")
                 .putArray("armor.flsfilter.names", "special-fields-only")
@@ -141,15 +144,14 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         Assert.assertTrue(!json.contains("thesubfield2"));
         Assert.assertTrue(!json.contains("structure"));
         Assert.assertTrue(json.contains("user"));
-        Assert.assertTrue(!json.contains("_source"));
 
     }
 
     protected void searchOnlyAllowed(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
         final String[] indices = new String[] { "internal" };
 
-        final Settings settings = Settings.builder().putArray("armor.restactionfilter.names", "readonly")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
+                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "index:data/read/search")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
         startES(settings);
@@ -164,11 +166,10 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
             result = executeGet(indices[0], "test", "dummy", false, false).v1();
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestGetAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Forbidden action RestGetAction . Allowed actions: [RestSearchAction]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Forbidden action RestGetAction . Allowed actions: [RestSearchAction]\"}");
-
+            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to DEFAULT\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to DEFAULT\"}");
             result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestIndexAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Forbidden action RestIndexAction . Allowed actions: [RestSearchAction]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Forbidden action RestIndexAction . Allowed actions: [RestSearchAction]\"}");
+            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to DEFAULT\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to DEFAULT\"}");
         } else {
 
             JestResult result = executeSearch("ac_query_matchall.json", indices, null, false, false).v1();
@@ -184,10 +185,10 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void searchOnlyAllowedMoreFilters(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
         final Settings settings = Settings.builder()
-                .putArray("armor.restactionfilter.names", "readonly", "al_l", "no-ne")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
-                .putArray("armor.restactionfilter.al_l.allowed_actions", "*")
-                .putArray("armor.restactionfilter.no-ne.allowed_actions", "RestSearchAction")
+                .putArray("armor.actionrequestfilter.names", "readonly", "al_l", "no-ne")
+                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
+                .putArray("armor.actionrequestfilter.al_l.allowed_actions", "*")
+                .putArray("armor.actionrequestfilter.no-ne.allowed_actions", "indices:data/read/search")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
         searchOnlyAllowed(settings, wrongPwd);
@@ -232,10 +233,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void dlsLdapUserAttribute(final Settings additionalSettings) throws Exception {
 
-        final Settings settings = Settings.builder().putArray("armor.restactionfilter.names", "readonly", "noget")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
-                .putArray("armor.restactionfilter.noget.forbidden_actions", "RestGetAction")
-                .putArray("armor.restactionfilter.noget.allowed_actions", "*")
+        final Settings settings = Settings.builder()
 
                 .putArray("armor.dlsfilter.names", "a")
                 .putArray("armor.dlsfilter.a", "ldap_user_attribute", "user", "cn", "true")
@@ -243,12 +241,12 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                 .putArray("armor.flsfilter.names", "messageonly")
                 .putArray("armor.flsfilter.messageonly.source_includes", "message", "userrr")
                 .putArray("armor.flsfilter.messageonly.source_excludes", "*")
-                //wins
 
-                .putArray("armor.actionrequestfilter.names", "readonly")
+                .putArray("armor.actionrequestfilter.names", "readonly","noget")
                 .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/*", "*monitor*")
                 .putArray("armor.actionrequestfilter.readonly.forbidden_actions", "cluster:*", "indices:admin*")
-
+                .putArray("armor.actionrequestfilter.noget.allowed_actions",  "*monitor*")
+                .putArray("armor.actionrequestfilter.noget.forbidden_actions", "indices:data/read/get", "indices:admin*")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
         username = "jacksonm";

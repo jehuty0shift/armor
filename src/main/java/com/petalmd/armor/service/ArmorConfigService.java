@@ -31,6 +31,7 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.*;
 
@@ -41,13 +42,14 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private volatile BytesReference securityConfiguration;
     private ScheduledThreadPoolExecutor scheduler;
     private ScheduledFuture scheduledFuture;
+    //private ThreadPool threadPool;
     private final CountDownLatch latch = new CountDownLatch(1);
 
     @Inject
     public ArmorConfigService(final Settings settings, final Client client) {
         super(settings);
         this.client = client;
-
+ //       this.threadPool = threadPool;
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
 

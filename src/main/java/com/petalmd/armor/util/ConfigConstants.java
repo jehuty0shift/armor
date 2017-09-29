@@ -20,6 +20,7 @@ package com.petalmd.armor.util;
 public final class ConfigConstants {
     public static final String DEFAULT_SECURITY_CONFIG_INDEX = "armor";
     public static final String ARMOR_ACTIONREQUESTFILTER = "armor.actionrequestfilter.names";
+    public static final String ARMOR_ACTIONREQUESTFILTERS = "armor.actionrequestfilter.";
     public static final String ARMOR_ALLOW_ALL_FROM_LOOPBACK = "armor.allow_all_from_loopback";
     public static final String ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX = "armor.allow_non_loopback_query_on_armor_index";
     public static final String ARMOR_ALLOW_KIBANA_ACTIONS = "armor.allow_kibana_actions";
@@ -46,6 +47,7 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME = "armor.authentication.https.clientcert.attributename";
     public static final String ARMOR_AUTHENTICATION_LDAP_BIND_DN = "armor.authentication.ldap.bind_dn";
     public static final String ARMOR_AUTHENTICATION_LDAP_HOST = "armor.authentication.ldap.host";
+    public static final String ARMOR_AUTHENTICATION_LDAP_HOSTS = "armor.authentication.ldap.host.";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED = "armor.authentication.ldap.ldaps.ssl.enabled";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED = "armor.authentication.ldap.ldaps.starttls.enabled";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH = "armor.authentication.ldap.ldaps.truststore_filepath";
@@ -68,8 +70,10 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_WAFFLE_STRIP_DOMAIN = "armor.authentication.waffle.strip_domain";
     public static final String ARMOR_CONFIG_INDEX_NAME = "armor.config_index_name";
     public static final String ARMOR_DLSFILTER = "armor.dlsfilter.names";
+    public static final String ARMOR_DLSFILTERS = "armor.dlsfilter.";
     public static final String ARMOR_ENABLED = "armor.enabled";
     public static final String ARMOR_FLSFILTER = "armor.flsfilter.names";
+    public static final String ARMOR_FLSFILTERS = "armor.flsfilter.";
     public static final String ARMOR_HTTP_ENABLE_SESSIONS = "armor.http.enable_sessions";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_ENFORCE = "armor.http.xforwardedfor.enforce";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_HEADER = "armor.http.xforwardedfor.header";

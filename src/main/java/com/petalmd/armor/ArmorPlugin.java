@@ -71,7 +71,7 @@ import java.util.function.UnaryOperator;
 //TODO FUTURE special handling scroll searches
 //TODO FUTURE negative rules/users in acrules
 //TODO update some settings during runtime
-public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
+public final class ArmorPlugin extends Plugin implements ActionPlugin {
 
     private static final String ARMOR_DEBUG = "armor.debug";
     private static final String CLIENT_TYPE = "client.type";
@@ -151,6 +151,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         } catch (Exception e) {
             log.error("Unable to instantiate the AuthenticationBackend Class ! ! ", e);
         }
+        componentsList.add(authenticationBackend);
 
         //create Authorizator
         try {
@@ -169,12 +170,13 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         } catch (Exception e) {
             log.error("Unable to instantiate the Authorizator Class ! ! ", e);
         }
+        componentsList.add(authorizator);
 
         //create httpAuthenticator
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR);
             Class httpAuthenticatorClass;
-            httpAuthenticatorClass = Class.forName(className);
+            httpAuthenticatorClass = className==null?null:Class.forName(className);
             if (httpAuthenticatorClass != null && HTTPAuthenticator.class.isAssignableFrom(httpAuthenticatorClass)) {
                 httpAuthenticator = (HTTPAuthenticator) httpAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
             } else {
@@ -185,6 +187,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         } catch (Exception e) {
             log.error("Unable to instantiate the HTTP Authenticator Class ! ! ", e);
         }
+        componentsList.add(httpAuthenticator);
 
 
         //create sessionStore
@@ -194,6 +197,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         } else {
             sessionStore = new NullSessionStore();
         }
+        componentsList.add(sessionStore);
 
         //create auditLog
         Boolean enableAuditLog = settings.getAsBoolean(ConfigConstants.ARMOR_AUDITLOG_ENABLED, true);
@@ -202,6 +206,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         } else {
             auditListener = new NullStoreAuditListener();
         }
+        componentsList.add(auditListener);
 
         //create Armor Service
         armorService = new ArmorService(settings, clusterService, authorizator, authenticationBackend, httpAuthenticator, sessionStore, auditListener);
@@ -215,6 +220,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         armorConfigService = new ArmorConfigService(settings, client);
         componentsList.add(armorConfigService);
 
+        log.info("added " + componentsList.size() + " number of components.");
+        log.info(authenticationBackend.getClass().getName());
         return componentsList;
 
     }
@@ -351,11 +358,13 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        //settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        //settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
 
         //ssl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -397,10 +406,22 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         //ldap backend
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES,false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS,Setting.Property.NodeScope));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLEATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //WAFFLE
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_WAFFLE_WINDOWS_AUTH_PROVIDER_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));

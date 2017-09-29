@@ -17,10 +17,7 @@
  */
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
@@ -59,9 +56,8 @@ public class FLSActionFilter extends AbstractActionFilter {
     protected final boolean rewriteGetAsSearch;
 
     @Inject
-    public FLSActionFilter(final Settings settings, final Client client, final AuthenticationBackend backend,
-                           final Authorizator authorizator, final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener, threadPool);
+    public FLSActionFilter(final Settings settings, final Client client, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
 
         this.client = client;
 
@@ -128,8 +124,6 @@ public class FLSActionFilter extends AbstractActionFilter {
             throw e;
         }
 
-        threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
-//
 
         if (request.remoteAddress() == null && user == null) {
             log.trace("Return on INTERNODE request");
@@ -191,9 +185,7 @@ public class FLSActionFilter extends AbstractActionFilter {
             }
             return;
 
-        }
-
-        if (rewriteGetAsSearch && request instanceof MultiGetRequest) {
+        } else if (rewriteGetAsSearch && request instanceof MultiGetRequest) {
             log.debug("Rewrite GetRequest as SearchRequest");
             MultiGetRequest multiGetRequest = (MultiGetRequest) request;
             MultiSearchRequest mSRequest = toMultiSearchRequest(multiGetRequest);
@@ -213,11 +205,7 @@ public class FLSActionFilter extends AbstractActionFilter {
                 log.warn("couldn't rewrite the search, Aborting the request");
                 return;
             }
-            SearchRequest sr = (SearchRequest) request;
-
-        }
-
-        if (request instanceof MultiSearchRequest) {
+        } else if (request instanceof MultiSearchRequest) {
             log.debug("MultiSearchRequestRewrite");
             for (SearchRequest sr : ((MultiSearchRequest) request).requests()) {
                 if (addFiltersToSearchRequest(sr, user, sourceIncludes, sourceExcludes) == null) {
@@ -242,9 +230,6 @@ public class FLSActionFilter extends AbstractActionFilter {
         }
 
         SearchSourceBuilder source = sr.source();
-        if (source.storedFields() != null) {
-            source.storedFields(Collections.emptyList());
-        }
         if (source.docValueFields() != null && !source.docValueFields().isEmpty()) {
             source.docValueFields().clear();
         }

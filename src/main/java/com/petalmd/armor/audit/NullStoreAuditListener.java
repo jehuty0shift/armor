@@ -18,29 +18,12 @@
 
 package com.petalmd.armor.audit;
 
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
 public class NullStoreAuditListener implements AuditListener {
 
-    @Override
-    public void onFailedLogin(final String username, final RestRequest request) {
-        //no-op
-    }
-
-    @Override
-    public void onMissingPrivileges(final String username, final RestRequest request) {
-        //no-op
-    }
-
-    @Override
-    public void onFailedLogin(final String username, final TransportRequest request) {
-        //no-op
-    }
-
-    @Override
-    public void onMissingPrivileges(final String username, final TransportRequest request) {
-        //no-op
-    }
+  //NO-OP use default functions of AuditListener that do nothing.
 
 }

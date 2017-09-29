@@ -24,6 +24,7 @@ import org.junit.Test;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 
+
 public class TestScenarios extends AbstractScenarioTest {
 
     @Test

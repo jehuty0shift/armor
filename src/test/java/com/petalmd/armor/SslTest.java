@@ -40,8 +40,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -69,8 +68,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -97,8 +95,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -122,8 +119,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "ceo")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")

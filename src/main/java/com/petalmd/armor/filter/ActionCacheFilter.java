@@ -1,9 +1,7 @@
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.AuditListener;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
@@ -44,9 +42,8 @@ public class ActionCacheFilter extends AbstractActionFilter {
 
 
     @Inject
-    public ActionCacheFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                             final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
-        super(settings, backend, authorizator, clusterService, armorConfigService, auditListener,threadpool);
+    public ActionCacheFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
+        super(settings, armorService.getAuthenticationBackend(),armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(),threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false);
         log.info("Action Cache Filter is : " + (enabled?"enabled":"disabled"));
         String[] actionsToCache = settings.getAsArray(ConfigConstants.ARMOR_ACTION_CACHE_LIST);

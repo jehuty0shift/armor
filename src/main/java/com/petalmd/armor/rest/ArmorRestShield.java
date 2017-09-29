@@ -25,7 +25,6 @@ import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.http.Session;
 import com.petalmd.armor.http.SessionStore;
-import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
@@ -38,6 +37,7 @@ import org.elasticsearch.rest.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Babacar Diassé on 14/09/17.
@@ -90,8 +90,12 @@ public class ArmorRestShield {
         log.debug("--> Rest request {} {} (loopback?: {})", request.method(), request.path(), isLoopback);
         //log.trace("Context: {}", request.getContext());
 
+        //we always mark the request as external to the cluster.
+        threadContext.putTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL,new AtomicBoolean(true));
+
         //allow all if request is coming from loopback
         if (isLoopback) {
+            threadContext.putTransient(ArmorConstants.ARMOR_IS_LOOPBACK,Boolean.TRUE);
             log.debug("This is a connection from localhost/loopback, will allow all");
             return true;
         }
@@ -191,9 +195,8 @@ public class ArmorRestShield {
             return true;
 
         } catch (final AuthException e1) {
-            auditListener.onFailedLogin("unknown", request);
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN,e1));
-            auditListener.onFailedLogin("unknown", request);
+            auditListener.onFailedLogin("unknown", request, threadContext);
             log.error(e1.toString(), e1);
             return false;
         } catch (final Exception e1) {

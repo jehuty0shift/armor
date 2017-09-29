@@ -31,7 +31,10 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.*;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.CompositeIndicesRequest;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -57,19 +60,20 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 
 import javax.xml.bind.DatatypeConverter;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractActionFilter implements ActionFilter {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     protected final Settings settings;
     protected final AuthenticationBackend backend;
+    private final boolean allowAllFromLoopback;
     protected final AuditListener auditListener;
     protected final Authorizator authorizator;
     protected final ClusterService clusterService;
@@ -90,6 +94,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         this.armorConfigService = armorConfigService;
         this.auditListener = auditListener;
         this.threadpool = threadpool;
+        allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
     }
 
     @Override
@@ -105,6 +110,27 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
+        //allow all if request is coming from loopback
+        Boolean isLoopback = threadContext.getTransient(ArmorConstants.ARMOR_IS_LOOPBACK);
+
+        if (isLoopback != null && isLoopback == true) {
+            log.debug("This is a connection from localhost/loopback, will allow all because of " + ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK + " setting.");
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
+        AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
+
+
+        //TODO: check that THIS is done properly ! !
+        final boolean intraNodeRequest = request.remoteAddress() == null;
+
+        if (intraNodeRequest && (isRequestExternal == null || isRequestExternal.get() == false)) {
+            log.debug("TYPE: intra node request, skip filters");
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
         final User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
 
         final boolean restAuthenticated = restUser != null;
@@ -112,15 +138,6 @@ public abstract class AbstractActionFilter implements ActionFilter {
         if (restAuthenticated) {
             log.debug("TYPE: rest authenticated request, apply filters");
             applySecure(task, action, request, listener, chain);
-            return;
-        }
-
-        //TODO: check that THIS is done properly ! !
-        final boolean intraNodeRequest = request.remoteAddress() == null;
-
-        if (intraNodeRequest) {
-            log.debug("TYPE: intra node request, skip filters");
-            chain.proceed(task, action, request, listener);
             return;
         }
 
@@ -136,10 +153,13 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         }
 
-        if (interNodeAuthenticated) {
+
+        if (interNodeAuthenticated || isRequestExternal == null || isRequestExternal.get() == false) {
             log.debug("TYPE: inter node cluster request, skip filters");
             chain.proceed(task, action, request, listener);
             return;
+        } else {
+            log.debug("Request is external, evaluating filters.");
         }
 
         final Object transportCreds = threadContext.getHeader(ArmorConstants.ARMOR_TRANSPORT_CREDS);
@@ -176,10 +196,9 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     public abstract void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener,
-            final ActionFilterChain chain);
+                                     final ActionFilterChain chain);
 
 
-    
     protected static <T> T getFromContextOrHeader(final String key, final ThreadContext threadContext, final T defaultValue) {
 
         if (threadContext.getTransient(key) != null) {
@@ -201,7 +220,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         searchRequest.preference(request.preference());
         searchRequest.indices(request.indices());
         searchRequest.types(request.type());
-        searchRequest.source(SearchSourceBuilder.searchSource().query( new IdsQueryBuilder().types(request.type()).addIds(request.id())));
+        searchRequest.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().types(request.type()).addIds(request.id())));
         return searchRequest;
 
     }
@@ -211,7 +230,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         final MultiSearchRequest msearch = new MultiSearchRequest();
         //msearch.copyContextFrom(multiGetRequest);
 
-        for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext();) {
+        for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext(); ) {
             final Item item = iterator.next();
 
             final SearchRequest st = new SearchRequest();
@@ -270,7 +289,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         final List<String> ci = new ArrayList<String>();
         final List<String> aliases = new ArrayList<String>();
-        final List<String> types = new ArrayList<String>();        
+        final List<String> types = new ArrayList<String>();
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
 
         final boolean allowedForAllIndices = !SecurityUtil.isWildcardMatch(action, "*put*", false)
@@ -295,39 +314,33 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             if (!allowedForAllIndices && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
+                auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
                 throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
             }
 
         }
 
+
         if (request instanceof CompositeIndicesRequest) {
-            throw new ForbiddenException("We have not yet implemented CompositeIndicesRequest Support");
-//            final CompositeIndicesRequest irc = (CompositeIndicesRequest) request;
-//            final List irs = irc.subRequests();
-//            for (final Iterator iterator = irs.iterator(); iterator.hasNext();) {
-//                final IndicesRequest ir = (IndicesRequest) iterator.next();
-//                addType(ir, types, action);
-//                log.trace("C Indices {}", Arrays.toString(ir.indices()));
-//                log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
-//                log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
-//
-//                ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-//                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
-//                if (!allowedForAllIndices
-//                        && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
-//                    log.error("Attempt from " + request.remoteAddress() + " to _all indices for " + action + "and " + user);
-//                    auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request);
-//
-//                    throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-//                }
-//
-//            }
+            final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
+            log.trace("Indices {}", cirDetails.getIndices().toString());
+            ci.addAll(resolveAliases(cirDetails.getIndices()));
+            aliases.addAll(getOnlyAliases(cirDetails.getIndices()));
+
+            if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
+                log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+                auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
+
+                //listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
+                throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+            }
+
+
         }
 
         if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
             log.error("Attempt from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
-            auditListener.onMissingPrivileges(user.getName(), request);
+            auditListener.onMissingPrivileges(user.getName(), request, threadContext);
             throw new ForbiddenException("Only allowed from localhost (loopback)");
         }
 
@@ -348,9 +361,11 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         }
 
-        try { 
+        try {
             final TokenEvaluator.Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
-            threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
+            if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
+                threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
+            }
             return eval;
         } catch (MalformedConfigurationException ex) {
             log.warn("Error in configuration");
@@ -359,14 +374,13 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     //works also with alias of an alias!
-    protected List<String> resolveAliases(final List<String> indices) {
+    protected List<String> resolveAliases(final Collection<String> indices) {
 
         final List<String> result = new ArrayList<String>();
 
         final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
 
-        for (int i = 0; i < indices.size(); i++) {
-            final String index = indices.get(i);
+        for (String index : indices) {
 
             final AliasOrIndex indexAliases = aliases.get(index);
 
@@ -380,7 +394,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
 
-            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext();) {
+            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
                 final Tuple<String, AliasMetaData> entry = iterator.next();
                 result.add(entry.v1());
             }
@@ -391,14 +405,13 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
     }
 
-    protected List<String> getOnlyAliases(final List<String> indices) {
+    protected List<String> getOnlyAliases(final Collection<String> indices) {
 
         final List<String> result = new ArrayList<String>();
 
         final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
 
-        for (int i = 0; i < indices.size(); i++) {
-            final String index = indices.get(i);
+        for (String index : indices) {
 
             final AliasOrIndex indexAliases = aliases.get(index);
 

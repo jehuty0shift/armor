@@ -18,7 +18,7 @@
 
 package com.petalmd.armor.audit;
 
-import com.google.common.collect.Iterables;
+import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
@@ -28,6 +28,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
@@ -35,6 +36,7 @@ import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ESStoreAuditListener implements AuditListener {
 
@@ -53,38 +55,42 @@ public class ESStoreAuditListener implements AuditListener {
     }
 
     @Override
-    public void onFailedLogin(final String username, final RestRequest request) {
+    public void onFailedLogin(final String username, final RestRequest request, final ThreadContext threadContext) {
 
         final AuditMessage msg = new AuditMessage(username, "failed_login", request);
-        index(msg);
+        index(msg, threadContext);
 
     }
 
     @Override
-    public void onMissingPrivileges(final String username, final RestRequest request) {
+    public void onMissingPrivileges(final String username, final RestRequest request, final ThreadContext threadContext) {
 
         final AuditMessage msg = new AuditMessage(username, "missing_privileges", request);
-        index(msg);
+        index(msg, threadContext);
 
     }
 
     @Override
-    public void onFailedLogin(final String username, final TransportRequest request) {
+    public void onFailedLogin(final String username, final TransportRequest request, ThreadContext threadContext) {
 
         final AuditMessage msg = new AuditMessage(username, "failed_login", request);
-        index(msg);
+        index(msg, threadContext);
 
     }
 
     @Override
-    public void onMissingPrivileges(final String username, final TransportRequest request) {
+    public void onMissingPrivileges(final String username, final TransportRequest request, final ThreadContext threadContext) {
 
         final AuditMessage msg = new AuditMessage(username, "missing_privileges", request);
-        index(msg);
+        index(msg, threadContext);
 
     }
 
-    protected void index(final AuditMessage msg) {
+    protected void index(final AuditMessage msg, ThreadContext threadContext) {
+        AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
+        if(isRequestExternal != null) {
+            isRequestExternal.set(false);
+        }
         client.prepareIndex(securityConfigurationIndex, "audit").setSource(msg.auditInfo).execute(new ActionListener<IndexResponse>() {
 
             @Override
@@ -98,6 +104,9 @@ public class ESStoreAuditListener implements AuditListener {
                 log.error("Unable to write audit log due to {}", e, e.toString());
             }
         });
+        if(isRequestExternal != null) {
+            isRequestExternal.set(true);
+        }
     }
 
     private class AuditMessage {

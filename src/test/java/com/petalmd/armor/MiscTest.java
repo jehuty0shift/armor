@@ -81,8 +81,7 @@ public class MiscTest extends AbstractUnitTest {
                 .putArray("armor.actionrequestfilter.names", "allowHealth")
                 .putArray("armor.actionrequestfilter.allowHealth.allowed_actions", "cluster:monitor/health")
                 .put("armor.allow_kibana_actions", false)
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "root")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "true")
@@ -114,10 +113,9 @@ public class MiscTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.jacksonm", "root")
-                .put("armor.authentication.settingsdb.user.jacksonm", "secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
+                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
                 .put("armor.authentication.authorizer.cache.enable", "true")
                 .put("armor.authentication.authentication_backend.impl",
                         "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
