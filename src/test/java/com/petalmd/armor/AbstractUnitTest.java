@@ -52,12 +52,16 @@ import org.apache.logging.log4j.Logger;
 import org.apache.mina.util.AvailablePortFinder;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
@@ -263,6 +267,7 @@ public abstract class AbstractUnitTest {
         List<Class<? extends Plugin>> list = new ArrayList<>();
         list.add(ArmorPlugin.class);
         list.add(Netty4Plugin.class);
+        list.add(ReindexPlugin.class);
         return new ArmorNode(settings, list);
     }
 
@@ -596,6 +601,18 @@ public abstract class AbstractUnitTest {
     protected final void setupTestDataWithFilteredAlias(final String armorConfig) throws Exception {
         setupTestData(armorConfig);
 
+        CreateIndexRequestBuilder indexBuilder = esNode1.client().admin().indices().prepareCreate("financial");
+        indexBuilder.addMapping("sensitivestuff","{\"mappings\" : " +
+                        "{ \"sensitivestuff\" : " +
+                        "    { \"properties\":" +
+                        "        {\"user\": " +
+                        "             {\"type\" : \"keyword\" }" +
+                        "        }" +
+                        "     }" +
+                        "}" +
+                        "}", XContentType.JSON);
+        CreateIndexResponse response = indexBuilder.get();
+        Assert.assertTrue(response.isAcknowledged());
         executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
         executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);
 

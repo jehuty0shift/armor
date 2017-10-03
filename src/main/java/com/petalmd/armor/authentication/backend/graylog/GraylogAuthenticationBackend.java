@@ -54,7 +54,7 @@ implements NonCachingAuthenticationBackend {
         String username = credentials.getUsername();
         String password = credentials.getPassword() != null && credentials.getPassword().length > 0 ? new String(credentials.getPassword()) : "";
         try {
-            HttpResponse jsonResponse = Unirest.get((String)(this.graylogAPIEndpoint + "/roles")).basicAuth(username, password).asJson();
+            HttpResponse jsonResponse = Unirest.get(this.graylogAPIEndpoint + "/roles").basicAuth(username, password).asJson();
             if (jsonResponse.getStatus() == 401) {
                 throw new AuthException("Unauthorized by Graylog");
             }
@@ -70,7 +70,7 @@ implements NonCachingAuthenticationBackend {
             this.log.debug("receive status " + jsonResponse.getStatus() + ". Identification of user failed with: " + jsonResponse.toString(), new Object[0]);
         }
         catch (UnirestException ex) {
-            this.log.warn("Unirest Exception", (Throwable)ex, new Object[0]);
+            this.log.warn("Unirest Exception", ex, new Object[0]);
         }
         throw new AuthException("Unable to retrieve graylog User");
     }

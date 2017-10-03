@@ -66,7 +66,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
     }
 
     public static LdapConnection getConnection(final Settings settings) throws KeyStoreException, NoSuchAlgorithmException,
-            CertificateException, FileNotFoundException, IOException, LdapException {
+            CertificateException, IOException, LdapException {
         final boolean useSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED, false);
         final boolean useStartSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED, false);
         final LdapConnectionConfig config = new LdapConnectionConfig();

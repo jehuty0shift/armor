@@ -206,7 +206,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         }
 
         if (threadContext.getHeader(key) != null) {
-            return (T) SecurityUtil.decryptAnDeserializeObject((String) threadContext.getHeader(key), ArmorService.getSecretKey());
+            return (T) SecurityUtil.decryptAnDeserializeObject(threadContext.getHeader(key), ArmorService.getSecretKey());
         }
 
         return defaultValue;

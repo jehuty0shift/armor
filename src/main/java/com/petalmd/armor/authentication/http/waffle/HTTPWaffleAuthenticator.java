@@ -70,7 +70,7 @@ public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
 
         if (authorizationHeader.isNull()) {
 
-            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Access denied");
+            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "NTLM");
             channel.sendResponse(wwwAuthenticateResponse);
@@ -96,7 +96,7 @@ public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
         log.trace("token buffer: {} byte(s)", Integer.valueOf(tokenBuffer.length));
         final IWindowsSecurityContext securityContext = authProvider.acceptSecurityToken(connectionId, tokenBuffer, securityPackage);
 
-        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED,"Access denied");
+        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED,"{\"error\" : \"Unauthorized\"}");
 
         final byte[] continueTokenBytes = securityContext.getToken();
         if (continueTokenBytes != null && continueTokenBytes.length > 0) {

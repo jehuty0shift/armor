@@ -15,6 +15,7 @@ import java.util.Map;
 /**
  * Created by bdiasse on 20/02/17.
  */
+
 public class SearchTests extends AbstractScenarioTest {
 
 

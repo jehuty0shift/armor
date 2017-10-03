@@ -119,7 +119,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                     if (outToken == null) {
                         log.trace("Ticket validation not successful");
-                        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access denied");
+                        final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
                         wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                         channel.sendResponse(wwwAuthenticateResponse);
                         return null;
@@ -129,7 +129,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                 } catch (final GSSException e) {
                     log.trace("Ticket validation not successful due to {}", e);
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access denied");
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                     channel.sendResponse(wwwAuthenticateResponse);
                     return null;
@@ -140,7 +140,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                     } else {
                         log.error("Service login not successful due to {}", e.toString(), e);
                     }
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
                     channel.sendResponse(wwwAuthenticateResponse);
                     return null;
@@ -163,14 +163,14 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                 if (principal == null) {
 
-                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
+                    final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
                     wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate " + DatatypeConverter.printBase64Binary(outToken));
                     channel.sendResponse(wwwAuthenticateResponse);
                     throw new AuthException("Cannot authenticate");
                 }
 
                 //TODO FUTURE as privileged action?
-                final User authenticatedUser = backend.authenticate(new AuthCredentials(((SimpleUserPrincipal) principal).getName(),
+                final User authenticatedUser = backend.authenticate(new AuthCredentials(principal.getName(),
                         gssContext));
                 authorizator.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName(), gssContext));
                 //TODO: delete ?
@@ -185,7 +185,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
         } else {
             log.trace("No 'Authorization' header, send 401 and 'WWW-Authenticate Negotiate'");
 
-            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "access_denied");
+            final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
             channel.sendResponse(wwwAuthenticateResponse);
             return null;

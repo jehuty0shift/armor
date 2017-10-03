@@ -17,6 +17,7 @@
  */
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.google.common.collect.ImmutableMap;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
@@ -35,21 +36,18 @@ import org.junit.Test;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.searchbox.cluster.NodesStats;
+import org.junit.runner.RunWith;
 
+@RunWith(RandomizedRunner.class)
 public class MiscTest extends AbstractUnitTest {
-
-    @Test
-    public void checkDLSFLS() throws Exception {
-        Assert.assertTrue(ArmorPlugin.DLS_SUPPORTED);
-    }
 
     @Test
     public void unauthenticatedTest() throws Exception {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.restactionfilter.names", "readonly")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "*")
+                .putArray("armor.actionrequestfilter.names", "allow_all")
+                .putArray("armor.actionrequestfilter.allow_all.allowed_actions", "*")
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.HTTPUnauthenticatedAuthenticator")
                 .put("armor.authentication.authentication_backend.impl",
@@ -155,7 +153,11 @@ public class MiscTest extends AbstractUnitTest {
 
         final Settings settings = Settings.builder()
                 .putArray("armor.actionrequestfilter.names", "reindex","forbidden")
-                .putArray("armor.actionrequestfilter.reindex.allowed_actions", "indices:data/read/*", "indices:data/write/reindex", "indices:data/write/bulk*")
+                .putArray("armor.actionrequestfilter.reindex.allowed_actions",
+                        "indices:data/read/*",
+                        "indices:data/write/reindex", //main action
+                        "indices:data/write/bulk*", //bulk is needed due to reindex client
+                        "indices:admin/mapping/put") //mapping is needed to update mapping to ES 5.6 new mapping
                 .putArray("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true)
                 .put(authSettings).build();

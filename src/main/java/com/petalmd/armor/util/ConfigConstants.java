@@ -80,6 +80,7 @@ public final class ConfigConstants {
     public static final String ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES = "armor.http.xforwardedfor.trustedproxies";
     public static final String ARMOR_KEY_PATH = "armor.key_path";
     public static final String ARMOR_OBFUSCATION_FILTER_ENABLED = "armor.obfuscation.filter.enabled";
+    public static final String ARMOR_OBFUSCATION_FILTERS = "armor.obfuscation.filter.";
     public static final String ARMOR_RESTACTIONFILTER = "armor.restactionfilter.names";
     public static final String ARMOR_REWRITE_GET_AS_SEARCH = "armor.rewrite_get_as_search";
     public static final String ARMOR_SSL_TRANSPORT_HTTP_ENABLED = "armor.ssl.transport.http.enabled";

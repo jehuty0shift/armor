@@ -39,8 +39,8 @@ public class SfSpNegoTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.restactionfilter.names", "readonly")
-                .putArray("armor.restactionfilter.readonly.allowed_actions", "RestSearchAction")
+                .putArray("armor.actionrequestfilter.names", "readonly")
+                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search")
 
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.spnego.HTTPSpnegoAuthenticator")

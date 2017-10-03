@@ -151,7 +151,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         final String[] indices = new String[] { "internal" };
 
         final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
-                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "index:data/read/search")
+                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
         startES(settings);

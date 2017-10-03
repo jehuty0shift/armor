@@ -111,11 +111,7 @@ public class AuthorizationHeader {
         }
 
         final byte[] tokenBytes = getTokenBytes();
-        if (!SPNegoMessage.isSPNegoMessage(tokenBytes)) {
-            return false;
-        }
-
-        return true;
+        return SPNegoMessage.isSPNegoMessage(tokenBytes);
     }
 
     /**

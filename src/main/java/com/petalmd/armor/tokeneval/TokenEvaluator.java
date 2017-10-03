@@ -479,12 +479,9 @@ public class TokenEvaluator {
         @JsonIgnore
         public boolean isDefault() {
 
-            if (isNullEmtyStar(hosts) && isNullEmtyStar(users) && isNullEmtyStar(roles) && isNullEmtyStar(indices)
-                    && isNullEmtyStar(aliases)) {
-                return true;
-            }
+            return isNullEmtyStar(hosts) && isNullEmtyStar(users) && isNullEmtyStar(roles) && isNullEmtyStar(indices)
+                    && isNullEmtyStar(aliases);
 
-            return false;
         }
 
         public final String get__Comment__() {
@@ -560,11 +557,7 @@ public class TokenEvaluator {
     }
 
     private static boolean isNullEmtyStar(final Set<String> set) {
-        if (set == null || set.isEmpty() || set.contains("*")) {
-            return true;
-        }
-
-        return false;
+        return set == null || set.isEmpty() || set.contains("*");
 
     }
 

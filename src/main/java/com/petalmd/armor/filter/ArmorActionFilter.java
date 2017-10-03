@@ -106,31 +106,31 @@ public class ArmorActionFilter implements ActionFilter {
     }
 
     private void copyContextToHeader(Map<String, Object> contextMap) {
-        if (ArmorPlugin.DLS_SUPPORTED) {
-
-            ThreadContext threadContext = threadpool.getThreadContext();
-
-            final Iterator<String> it = contextMap.keySet().iterator();
-
-
-            while (it.hasNext()) {
-                final String key = it.next();
-
-                if (key.toString().startsWith("armor")) {
-
-                    if (threadContext.getHeader(key) != null) {
-                        continue;
-                    }
-
-                    threadContext.putHeader(key.toString(),
-                            SecurityUtil.encryptAndSerializeObject((Serializable) contextMap.get(key), ArmorService.getSecretKey()));
-                    log.trace("Copy from context to header {}", key);
-
-                }
-
-            }
-
-        }
+//        if (ArmorPlugin.DLS_SUPPORTED) {
+//
+//            ThreadContext threadContext = threadpool.getThreadContext();
+//
+//            final Iterator<String> it = contextMap.keySet().iterator();
+//
+//
+//            while (it.hasNext()) {
+//                final String key = it.next();
+//
+//                if (key.toString().startsWith("armor")) {
+//
+//                    if (threadContext.getHeader(key) != null) {
+//                        continue;
+//                    }
+//
+//                    threadContext.putHeader(key.toString(),
+//                            SecurityUtil.encryptAndSerializeObject((Serializable) contextMap.get(key), ArmorService.getSecretKey()));
+//                    log.trace("Copy from context to header {}", key);
+//
+//                }
+//
+//            }
+//
+//        }
     }
 
     private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain)

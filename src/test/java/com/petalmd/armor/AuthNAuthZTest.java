@@ -21,7 +21,15 @@ package com.petalmd.armor;
 import java.util.Arrays;
 import java.util.Collection;
 
+import com.carrotsearch.randomizedtesting.RandomizedRunner;
+import com.carrotsearch.randomizedtesting.Randomness;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.nitorcreations.junit.runners.parameterized.ParameterizedSuite;
+import com.nitorcreations.junit.runners.parameterized.ParameterizedSuiteBuilder;
+import com.nitorcreations.junit.runners.parameterized.WrappedRunWith;
+import com.nitorcreations.junit.runners.parameterized.WrappingParameterizedRunner;
 import org.elasticsearch.common.settings.Settings;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -30,22 +38,103 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
+import org.junit.runners.Suite;
 
-@RunWith(Parameterized.class)
+@RunWith(RandomizedRunner.class)
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class AuthNAuthZTest extends AbstractScenarioTest {
 
-    @Parameter
     public boolean cacheEnabled;
 
-    @Parameter(value = 1)
     public boolean wrongPwd;
 
-    @Parameters
-    public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] { { true, true }, { false, false }, { false, true }, { true, false } });
+
+
+    @Test
+    public void testLdapAuth_TT() throws Exception{
+        cacheEnabled = true;
+        wrongPwd = true;
+        testLdapAuth();
     }
 
     @Test
+    public void testLdapAuth_TF() throws Exception{
+        cacheEnabled = true;
+        wrongPwd = false;
+        testLdapAuth();
+    }
+
+
+    @Test
+    public void testLdapAuth_FF() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = false;
+        testLdapAuth();
+    }
+
+    @Test
+    public void testLdapAuth_FT() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = true;
+        testLdapAuth();
+    }
+
+    @Test
+    public void testProxyAuth_TT() throws Exception {
+        cacheEnabled = true;
+        wrongPwd = true;
+        testProxyAuth();
+    }
+
+    @Test
+    public void testProxyAuth_TF() throws Exception {
+        cacheEnabled = true;
+        wrongPwd = false;
+        testProxyAuth();
+    }
+
+    @Test
+    public void testProxyAuth_FF() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = false;
+        testProxyAuth();
+    }
+
+    @Test
+    public void testProxyAuth_FT() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = true;
+        testProxyAuth();
+    }
+
+    @Test
+    public void testSpnegoAuth_TT() throws Exception {
+        cacheEnabled = true;
+        wrongPwd = true;
+        testSpnegoAuth();
+    }
+
+    @Test
+    public void testSpnegoAuth_TF() throws Exception {
+        cacheEnabled = true;
+        wrongPwd = false;
+        testSpnegoAuth();
+    }
+
+    @Test
+    public void testSpnegoAuth_FF() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = false;
+        testSpnegoAuth();
+    }
+
+    @Test
+    public void testSpnegoAuth_FT() throws Exception {
+        cacheEnabled = false;
+        wrongPwd = true;
+        testSpnegoAuth();
+    }
+
     public void testLdapAuth() throws Exception {
         //Basic/Ldap/Ldap
         startLDAPServer();
@@ -67,7 +156,6 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
         searchOnlyAllowed(settings, wrongPwd);
     }
 
-    @Test
     public void testProxyAuth() throws Exception {
         //Proxy/Always/Ldap
         startLDAPServer();
@@ -91,7 +179,7 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
         searchOnlyAllowed(settings, wrongPwd);
     }
 
-    @Test
+
     public void testSpnegoAuth() throws Exception {
         //SPNEGO/Always/Ldap
         useSpnego = true;

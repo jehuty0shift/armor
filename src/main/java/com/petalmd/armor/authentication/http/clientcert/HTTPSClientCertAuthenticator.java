@@ -53,7 +53,7 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
 
         sun.security.x509.X500Name x500Principal = null;
         try {
-            x500Principal = (sun.security.x509.X500Name) threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL);
+            x500Principal = threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL);
             dn = String.valueOf(x500Principal);
         } catch (final Exception e) {
             log.error("Invalid request or invalid principal. Pls. check settings, this authenticater works only with https/ssl", e);

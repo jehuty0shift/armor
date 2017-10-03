@@ -39,7 +39,7 @@ public class EvaluatorTest {
     public void testEval() throws IOException, MalformedConfigurationException {
         final TokenEvaluator te = new TokenEvaluator(new BytesArray(loadFile("ac_rules_6.json")));
         try {
-            te.getEvaluator(Lists.<String> newArrayList(), Lists.<String> newArrayList(), Lists.<String> newArrayList(),
+            te.getEvaluator(Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList(),
                     InetAddress.getLocalHost(), new User("test"));
             Assert.fail();
         } catch (final MalformedConfigurationException e) {
@@ -53,15 +53,15 @@ public class EvaluatorTest {
     public void testEval2() throws IOException, MalformedConfigurationException {
         final TokenEvaluator te = new TokenEvaluator(new BytesArray(loadFile("ac_rules_1.json")));
 
-        Evaluator eval = te.getEvaluator(Lists.<String> newArrayList("public"), Lists.<String> newArrayList(),
-                Lists.<String> newArrayList(), InetAddress.getLocalHost(), new User("test"));
+        Evaluator eval = te.getEvaluator(Lists.newArrayList("public"), Lists.newArrayList(),
+                Lists.newArrayList(), InetAddress.getLocalHost(), new User("test"));
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
         Assert.assertEquals(FilterAction.BYPASS, eval.evaluateFilter("XX", "XX"));
 
         try {
-            eval = te.getEvaluator(Lists.<String> newArrayList("xxx"), Lists.<String> newArrayList("internal"),
-                    Lists.<String> newArrayList(), InetAddress.getLocalHost(), new User("test"));
+            eval = te.getEvaluator(Lists.newArrayList("xxx"), Lists.newArrayList("internal"),
+                    Lists.newArrayList(), InetAddress.getLocalHost(), new User("test"));
             Assert.fail();
         } catch (final MalformedConfigurationException e) {
             //expected
@@ -70,7 +70,7 @@ public class EvaluatorTest {
         final User user = new User("jacksonm");
         user.addRole("ceo");
 
-        eval = te.getEvaluator(Lists.<String> newArrayList("xxx"), Lists.<String> newArrayList("internal"), Lists.<String> newArrayList(),
+        eval = te.getEvaluator(Lists.newArrayList("xxx"), Lists.newArrayList("internal"), Lists.newArrayList(),
                 InetAddress.getLocalHost(), user);
         Assert.assertFalse(eval.getBypassAll());
         Assert.assertTrue(eval.getExecuteAll());
@@ -82,25 +82,25 @@ public class EvaluatorTest {
     public void testEval3() throws IOException, MalformedConfigurationException {
         final TokenEvaluator te = new TokenEvaluator(new BytesArray(loadFile("ac_rules_4.json")));
 
-        Evaluator eval = te.getEvaluator(Lists.<String> newArrayList("public"), Lists.<String> newArrayList(),
-                Lists.<String> newArrayList(), InetAddress.getLocalHost(), new User("test"));
+        Evaluator eval = te.getEvaluator(Lists.newArrayList("public"), Lists.newArrayList(),
+                Lists.newArrayList(), InetAddress.getLocalHost(), new User("test"));
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
         Assert.assertEquals(FilterAction.BYPASS, eval.evaluateFilter("XX", "XX"));
 
-        eval = te.getEvaluator(Lists.<String> newArrayList("eight"), Lists.<String> newArrayList(), Lists.<String> newArrayList(),
+        eval = te.getEvaluator(Lists.newArrayList("eight"), Lists.newArrayList(), Lists.newArrayList(),
                 InetAddress.getByName("8.8.8.8"), new User("test"));
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
         Assert.assertEquals(FilterAction.BYPASS, eval.evaluateFilter("XX", "XX"));
 
-        eval = te.getEvaluator(Lists.<String> newArrayList(), Lists.<String> newArrayList("internal"), Lists.<String> newArrayList(),
+        eval = te.getEvaluator(Lists.newArrayList(), Lists.newArrayList("internal"), Lists.newArrayList(),
                 InetAddress.getByName("127.0.0.1"), new User("test"));
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
         Assert.assertEquals(FilterAction.BYPASS, eval.evaluateFilter("XX", "XX"));
 
-        eval = te.getEvaluator(Lists.<String> newArrayList(), Lists.<String> newArrayList("internal"), Lists.<String> newArrayList("xxx"),
+        eval = te.getEvaluator(Lists.newArrayList(), Lists.newArrayList("internal"), Lists.newArrayList("xxx"),
                 InetAddress.getByName("8.8.8.8"), new User("test"));
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
@@ -111,7 +111,7 @@ public class EvaluatorTest {
         final User user = new User("jacksonm");
         user.addRole("ceo");
 
-        eval = te.getEvaluator(Lists.<String> newArrayList(), Lists.<String> newArrayList("internal"), Lists.<String> newArrayList("xxx"),
+        eval = te.getEvaluator(Lists.newArrayList(), Lists.newArrayList("internal"), Lists.newArrayList("xxx"),
                 InetAddress.getByName("8.8.8.8"), user);
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
@@ -128,8 +128,8 @@ public class EvaluatorTest {
         user.addRole("ceo");
         user.addRole("finance");
 
-        final Evaluator eval = te.getEvaluator(Lists.<String> newArrayList("ceodata"), Lists.<String> newArrayList(),
-                Lists.<String> newArrayList(), InetAddress.getByName("8.8.8.8"), user);
+        final Evaluator eval = te.getEvaluator(Lists.newArrayList("ceodata"), Lists.newArrayList(),
+                Lists.newArrayList(), InetAddress.getByName("8.8.8.8"), user);
         Assert.assertTrue(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
 
@@ -142,8 +142,8 @@ public class EvaluatorTest {
         final User user = new User("jacksonm");
         user.addRole("finance");
 
-        final Evaluator eval = te.getEvaluator(Lists.<String> newArrayList("ceodata"), Lists.<String> newArrayList(),
-                Lists.<String> newArrayList(), InetAddress.getByName("8.8.8.8"), user);
+        final Evaluator eval = te.getEvaluator(Lists.newArrayList("ceodata"), Lists.newArrayList(),
+                Lists.newArrayList(), InetAddress.getByName("8.8.8.8"), user);
         Assert.assertFalse(eval.getBypassAll());
         Assert.assertFalse(eval.getExecuteAll());
         Assert.assertEquals(FilterAction.EXECUTE, eval.evaluateFilter("dlsfilter", "filter_sensitive_from_ceodata"));

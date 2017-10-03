@@ -39,27 +39,27 @@ implements NonCachingAuthenticationBackend {
                 continue;
             }
             catch (ClassNotFoundException ex) {
-                this.log.warn("Class " + backendArray + "has not been found ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Class " + backendArray + "has not been found ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (NoSuchMethodException ex) {
-                this.log.warn("Couldn't find suitable constructor for " + backend + " ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Couldn't find suitable constructor for " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (InstantiationException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (IllegalAccessException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (IllegalArgumentException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (InvocationTargetException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", (Throwable)ex, new Object[0]);
+                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
             }
         }
     }
@@ -89,7 +89,7 @@ implements NonCachingAuthenticationBackend {
                 return user;
             }
             catch (AuthException ex) {
-                this.log.debug("This backend has not been able to authenticate the user: " + backend.getClass().getName(), (Throwable)ex, new Object[0]);
+                this.log.debug("This backend has not been able to authenticate the user: " + backend.getClass().getName(), ex, new Object[0]);
                 exceptions.add(ex);
                 continue;
             }

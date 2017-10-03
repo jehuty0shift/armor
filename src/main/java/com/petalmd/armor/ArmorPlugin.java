@@ -82,7 +82,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
     private final boolean enabled;
     private final boolean clientBool;
     private final Settings settings;
-    public static boolean DLS_SUPPORTED = true; //implemented as filters now
 
     private ArmorService armorService;
     private ArmorRestShield armorRestShield;
@@ -138,7 +137,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND);
             Class authenticationBackendClass;
-            authenticationBackendClass = Class.forName(className);
+            authenticationBackendClass = className==null?null:Class.forName(className);
             if (authenticationBackendClass != null && NonCachingAuthenticationBackend.class.isAssignableFrom(authenticationBackendClass)) {
                 authenticationBackend = (AuthenticationBackend) authenticationBackendClass.getConstructor(Settings.class).newInstance(settings);
             } else {
@@ -157,8 +156,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR);
             Class authorizerClass;
-            authorizerClass = Class.forName(className);
-            if (authorizerClass != null && NonCachingAuthenticationBackend.class.isAssignableFrom(authorizerClass)) {
+            authorizerClass = className==null?null:Class.forName(className);
+            if (authorizerClass != null && NonCachingAuthorizator.class.isAssignableFrom(authorizerClass)) {
                 authorizator = (Authorizator) authorizerClass.getConstructor(Settings.class).newInstance(settings);
             } else {
                 authorizator = defaultNonCachingAuthorizatorClass.getConstructor(Settings.class).newInstance(settings);
@@ -352,6 +351,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEY_PATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //armor filters
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -361,6 +362,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         //settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         //settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH,true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
@@ -406,6 +408,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         //ldap backend
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES,false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS,Setting.Property.NodeScope));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -417,9 +420,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
-
-
-        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLEATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_USERROLENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
 

@@ -23,11 +23,11 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
 public interface AuditListener {
-    default void onFailedLogin(String username, RestRequest request, ThreadContext threadContext){};
+    default void onFailedLogin(String username, RestRequest request, ThreadContext threadContext){}
 
-    default void onMissingPrivileges(String username, RestRequest request, ThreadContext threadContext){};
+    default void onMissingPrivileges(String username, RestRequest request, ThreadContext threadContext){}
 
-    default void onFailedLogin(String username, TransportRequest request, ThreadContext threadContext){};
+    default void onFailedLogin(String username, TransportRequest request, ThreadContext threadContext){}
 
-    default void onMissingPrivileges(String username, TransportRequest request, ThreadContext threadContext){};
+    default void onMissingPrivileges(String username, TransportRequest request, ThreadContext threadContext){}
 }
