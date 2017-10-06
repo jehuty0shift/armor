@@ -69,13 +69,19 @@ public class SettingsBasedAuthorizator implements NonCachingAuthorizator {
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds) throws AuthException {
 
-        final String[] roles = null;
-
         for (AuthCredentials authCredentials : authCredsList) {
             if (authCredentials.getUsername().equals(user.getName())) {
                 user.addRoles(authCredentials.getRoles());
             }
         }
+
+        final String[] roles = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES+user.getName());
+        if (roles != null) {
+            for(String role : roles) {
+                user.addRole(role);
+            }
+        }
+
 
         if (optionalAuthCreds != null) {
             optionalAuthCreds.clear();

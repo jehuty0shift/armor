@@ -18,6 +18,7 @@
 
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,6 +32,7 @@ import com.petalmd.armor.authorization.GuavaCachingAuthorizator;
 import com.petalmd.armor.authorization.ldap.LDAPAuthorizator;
 import com.petalmd.armor.util.SecurityUtil;
 
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class LdapBackendTest extends AbstractUnitTest {
 
     @Test

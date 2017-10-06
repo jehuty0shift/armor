@@ -15,6 +15,7 @@
  */
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -37,6 +38,7 @@ import java.util.Set;
  * Created by jehuty0shift on 13/03/17.
  * @author jehuty0shift
  */
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ObfFilterTest extends AbstractScenarioTest {
 
     @Test

@@ -18,13 +18,14 @@
 
 package com.petalmd.armor.tokeneval;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
-import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 
@@ -40,11 +41,11 @@ public class TokenEvaluator {
     protected ACRules acRules = null;
 
     static {
-        mapper.configure(DeserializationConfig.Feature.READ_ENUMS_USING_TO_STRING, true);
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_NULL_FOR_PRIMITIVES, true);
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_NUMBERS_FOR_ENUMS, true);
-        mapper.configure(DeserializationConfig.Feature.FAIL_ON_UNKNOWN_PROPERTIES, true);
-        mapper.configure(DeserializationConfig.Feature.CAN_OVERRIDE_ACCESS_MODIFIERS, false);
+        mapper.configure(DeserializationFeature.READ_ENUMS_USING_TO_STRING, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS, true);
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+        mapper.configure(MapperFeature.CAN_OVERRIDE_ACCESS_MODIFIERS, false);
     }
 
     public enum FilterAction {

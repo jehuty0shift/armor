@@ -35,8 +35,7 @@ public class AuthCacheTest extends AbstractUnitTest {
     public void testAuthentication() throws Exception {
 
         final Settings settings = Settings.builder()
-                .put("armor.authentication.settingsdb.user.spock", "vulcan")
-                .put("armor.authentication.settingsdb.user.picard", "secret")
+                .putArray("armor.authentication.settingsdb.usercreds","spock:vulcan", "picard:secret")
                 .build();
 
         GuavaCachingAuthenticationBackend cache = new GuavaCachingAuthenticationBackend(new SettingsBasedAuthenticationBackend(settings), null);
@@ -78,8 +77,8 @@ public class AuthCacheTest extends AbstractUnitTest {
 
         final Settings settings = Settings.builder()
                 .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
-                .put("armor.authentication.settingsdb.user.spock", "vulcan")
-                .put("armor.authentication.settingsdb.user.picard", "secret").build();
+                .putArray("armor.authentication.settingsdb.usercreds", "spock:vulcan","picard:secret")
+                .build();
 
 
         GuavaCachingAuthenticationBackend authCache = new GuavaCachingAuthenticationBackend(new SettingsBasedAuthenticationBackend(settings), null);

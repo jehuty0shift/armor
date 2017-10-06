@@ -184,7 +184,7 @@ public abstract class AbstractUnitTest {
     protected Settings getAuthSettings(final boolean wrongPassword, final String... roles) {
         return cacheEnabled(false)
                 //.putArray("armor.authentication.authorization.settingsdb.roles." + username, roles)
-                .putArray("armor.authentication.settingsdb.usercreds", username+"@"+ Strings.join(roles,",")+":"+password+(wrongPassword ? "-wrong" : ""))
+                .putArray("armor.authentication.settingsdb.usercreds", username + "@" + Strings.join(roles, ",") + ":" + password + (wrongPassword ? "-wrong" : ""))
 //                .put("armor.authentication.settingsdb.user." + username, password + (wrongPassword ? "-wrong" : ""))
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
@@ -193,11 +193,11 @@ public abstract class AbstractUnitTest {
     }
 
     private Settings.Builder getDefaultSettingsBuilder(final int nodenum, final int nodePort, final int httpPort, final boolean dataNode,
-            final boolean masterNode) {
+                                                       final boolean masterNode) {
 
         return Settings.builder().put("node.name", "armor_testnode_" + nodenum)//.put("node.data", dataNode)
                 .put("node.master", masterNode).put("cluster.name", this.clustername)
-                .put("node.max_local_storage_nodes",3)
+                .put("node.max_local_storage_nodes", 3)
                 .put("path.home", ".").put("path.data", "data/data")//.put("index.store.fs.memory.enabled", "true")
                 .put("path.logs", "data/logs").put("path.conf", "data/config")
                 //.put("path.plugins", "data/plugins").put("plugin.types", ArmorPlugin.class.getName())
@@ -228,14 +228,14 @@ public abstract class AbstractUnitTest {
 
     public static String getNonLocalhostAddress() {
         try {
-            for (final Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+            for (final Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
                 final NetworkInterface intf = en.nextElement();
 
                 if (intf.isLoopback() || !intf.isUp()) {
                     continue;
                 }
 
-                for (final Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                for (final Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
 
                     final InetAddress ia = enumIpAddr.nextElement();
 
@@ -298,17 +298,17 @@ public abstract class AbstractUnitTest {
                 settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build());
         esNode2 = NodeWithArmor(
                 getDefaultSettingsBuilder(2, elasticsearchNodePort2, elasticsearchHttpPort2, true, true).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build());
+                        settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build());
         esNode3 = NodeWithArmor(
                 getDefaultSettingsBuilder(3, elasticsearchNodePort3, elasticsearchHttpPort3, true, false).put(
-                settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build());
+                        settings == null ? Settings.Builder.EMPTY_SETTINGS : settings).build());
 
         esNode1.start();
         esNode2.start();
         esNode3.start();
 
         log.info("started ES Clusters on HTTP ports :" + elasticsearchHttpPort1 + ", " + elasticsearchHttpPort2 + ", " + elasticsearchHttpPort3);
-        
+
         waitForGreenClusterState(esNode1.client());
     }
 
@@ -364,12 +364,12 @@ public abstract class AbstractUnitTest {
     }
 
     protected final Tuple<JestResult, HttpResponse> executeIndex(final String file, final String index, final String type, final String id,
-            final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                                 final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
         try {
             final Tuple<JestResult, HttpResponse> restu = client.executeE(new Index.Builder(loadFile(file)).index(index).type(type).id(id)
-                    .refresh(true).setHeader(headers).setParameter("timeout","1m").build());
+                    .refresh(true).setHeader(headers).setParameter("timeout", "1m").build());
 
             final JestResult res = restu.v1();
 
@@ -391,7 +391,7 @@ public abstract class AbstractUnitTest {
     }
 
     protected final Tuple<JestResult, HttpResponse> executeIndexAsString(final String string, final String index, final String type,
-            final String id, final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                                         final String id, final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
@@ -419,7 +419,7 @@ public abstract class AbstractUnitTest {
     }
 
     protected final Tuple<JestResult, HttpResponse> executeSearch(final String file, final String[] indices, final String[] types,
-            final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                                  final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
@@ -443,7 +443,7 @@ public abstract class AbstractUnitTest {
     }
 
     protected final Tuple<JestResult, HttpResponse> executeSearchWithScroll(final String file, final String[] indices, final String[] types,
-                                                                  final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final Map<String, String> scrollParameters) throws Exception {
+                                                                            final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final Map<String, String> scrollParameters) throws Exception {
 
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
@@ -451,8 +451,8 @@ public abstract class AbstractUnitTest {
                 .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
                 .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers);
 
-        for (Map.Entry<String,String> parameter : scrollParameters.entrySet()) {
-            searchB.setParameter(parameter.getKey(),parameter.getValue());
+        for (Map.Entry<String, String> parameter : scrollParameters.entrySet()) {
+            searchB.setParameter(parameter.getKey(), parameter.getValue());
         }
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(searchB.build());
@@ -472,9 +472,8 @@ public abstract class AbstractUnitTest {
     }
 
 
-
     protected final Tuple<JestResult, HttpResponse> executeGet(final String index, final String type, final String id,
-            final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                               final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
@@ -518,7 +517,7 @@ public abstract class AbstractUnitTest {
         if (useSpnego) {
             //SPNEGO/Kerberos setup
             log.debug("SPNEGO activated");
-            final AuthSchemeProvider nsf = new SPNegoSchemeFactory(true,false);//  new NegotiateSchemeProvider();
+            final AuthSchemeProvider nsf = new SPNegoSchemeFactory(true, false);//  new NegotiateSchemeProvider();
             final Credentials jaasCreds = new JaasCredentials();
             credsProvider.setCredentials(new AuthScope(null, -1, null, AuthSchemes.SPNEGO), jaasCreds);
             credsProvider.setCredentials(new AuthScope(null, -1, null, AuthSchemes.NTLM), new NTCredentials("Guest", "Guest", "Guest",
@@ -542,7 +541,7 @@ public abstract class AbstractUnitTest {
             keyStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks")), "changeit".toCharArray());
 
             final SSLContext sslContext = SSLContexts.custom().loadKeyMaterial(keyStore, "changeit".toCharArray())
-                    .loadTrustMaterial(myTrustStore,null).build();
+                    .loadTrustMaterial(myTrustStore, null).build();
 
             String[] protocols = null;
 
@@ -599,26 +598,40 @@ public abstract class AbstractUnitTest {
     }
 
     protected final void setupTestDataWithFilteredAlias(final String armorConfig) throws Exception {
-        setupTestData(armorConfig);
 
-        CreateIndexRequestBuilder indexBuilder = esNode1.client().admin().indices().prepareCreate("financial");
-        indexBuilder.addMapping("sensitivestuff","{\"mappings\" : " +
-                        "{ \"sensitivestuff\" : " +
-                        "    { \"properties\":" +
+        CreateIndexRequestBuilder indexFinancialBuilder = esNode1.client().admin().indices().prepareCreate("financial");
+        indexFinancialBuilder.addMapping("sensitivestuff",
+                "    { \"properties\":" +
                         "        {\"user\": " +
                         "             {\"type\" : \"keyword\" }" +
-                        "        }" +
-                        "     }" +
-                        "}" +
-                        "}", XContentType.JSON);
-        CreateIndexResponse response = indexBuilder.get();
-        Assert.assertTrue(response.isAcknowledged());
+                        "        ," +
+                        "         \"structure\":" +
+                        "             {\"properties\" : " +
+                        "                  { \"thesubfield2\" : { \"type\" : \"keyword\" } } } }" +
+                        "     }"
+                , XContentType.JSON);
+        CreateIndexResponse responseFinancial = indexFinancialBuilder.get();
+        CreateIndexRequestBuilder indexCeoBuilder = esNode1.client().admin().indices().prepareCreate("ceo");
+        indexCeoBuilder.addMapping("sensitivestuff",
+                "    { \"properties\":" +
+                        "        {\"user\": " +
+                        "             {\"type\" : \"keyword\" }" +
+                        "        ," +
+                        "         \"structure\" :" +
+                        "             {\"properties\" : " +
+                        "                  { \"thesubfield2\" : { \"type\" : \"keyword\" } } } }" +
+                        "     }"
+                , XContentType.JSON);
+        CreateIndexResponse responseCeo = indexCeoBuilder.get();
+        Assert.assertTrue(responseFinancial.isAcknowledged());
+        Assert.assertTrue(responseCeo.isAcknowledged());
+        setupTestData(armorConfig);
         executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
         executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);
 
         esNode1.client().admin().indices()
                 .prepareAliases()
-                .addAlias(new String[]{"financial", "ceo"}, "filtered","{" +
+                .addAlias(new String[]{"financial", "ceo"}, "filtered", "{" +
                         "          \"term\" : {" +
                         "            \"user\" : \"umberto\"" +
                         "          }" +

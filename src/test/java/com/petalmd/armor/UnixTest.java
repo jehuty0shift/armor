@@ -34,7 +34,7 @@ public class UnixTest extends AbstractScenarioTest {
                 .builder()
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.waffle.HTTPWaffleAuthenticator")
-                        .put("armor.authentication.authorizer", "com.petalmd.armor.authorization.waffle.WaffleAuthorizator")
+                        .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.waffle.WaffleAuthorizator")
                         .put("armor.authentication.authentication_backend.impl",
                                 "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend").build();
 
@@ -42,11 +42,6 @@ public class UnixTest extends AbstractScenarioTest {
         password = "Guest";
 
         searchOnlyAllowed(settings, true);
-    }
-
-    @Test
-    public void isRootTest() throws Exception {
-        Assert.assertFalse(SecurityUtil.isRootUser());
     }
 
 }

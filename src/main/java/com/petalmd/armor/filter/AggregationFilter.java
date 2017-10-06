@@ -1,5 +1,7 @@
 package com.petalmd.armor.filter;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
@@ -14,20 +16,29 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.cluster.ClusterModule;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.elasticsearch.index.query.QueryParseContext;
+import org.elasticsearch.search.SearchModule;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
-import org.elasticsearch.search.aggregations.bucket.significant.SignificantTermsAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.rescore.RescoreBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Created by bdiasse on 20/02/17.
@@ -36,15 +47,15 @@ public class AggregationFilter extends AbstractActionFilter {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final boolean enabled;
-
+    private NamedXContentRegistry xContentRegistry;
     private static final String MIN_DOC_COUNT_KEY = "min_doc_count";
 
 
     @Inject
-    public AggregationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService ) {
+    public AggregationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService, final NamedXContentRegistry xContentRegistry) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, false);
-
+        this.xContentRegistry = xContentRegistry;
     }
 
 
@@ -104,80 +115,115 @@ public class AggregationFilter extends AbstractActionFilter {
             SearchSourceBuilder searchSourceBuilder;
             searchSourceBuilder = sr.source();
             AggregatorFactories.Builder aggregations = searchSourceBuilder.aggregations();
-            List<AggregationBuilder> aggBuilders = aggregations.getAggregatorFactories();
-            for (AggregationBuilder aggBuilder : aggBuilders) {
-                switch (aggBuilder.getType()) {
-                    case "terms":
-                        TermsAggregationBuilder termsAggs = (TermsAggregationBuilder) aggBuilder;
-                        termsAggs.minDocCount(1);
-                        break;
-                    case "significant_terms":
-                        SignificantTermsAggregationBuilder sigTermsAggsBuilder = (SignificantTermsAggregationBuilder) aggBuilder;
-                        sigTermsAggsBuilder.minDocCount(1);
-                        break;
-                    default:
-                        break;
+            if(aggregations == null){
+                return;
+            }
+            XContentBuilder jsonContent = JsonXContent.contentBuilder();
+            jsonContent.generator();
+            jsonContent = aggregations.toXContent(jsonContent,null);
+            jsonContent.close();
+            String aggregationString = jsonContent.string();
+            ObjectMapper mapper = new ObjectMapper();
+            TypeReference<HashMap<String,Object>> typeRef = new TypeReference<HashMap<String,Object>>(){};
+            HashMap<String,Object> aggregationMap = mapper.readValue(aggregationString,(TypeReference)typeRef);
+            replaceMinDocsCount(aggregationMap);
+            XContentParser aggParser = JsonXContent.contentBuilder().generator().contentType().xContent().createParser(xContentRegistry,mapper.writeValueAsBytes(aggregationMap));
+            QueryParseContext qpc = new QueryParseContext(aggParser);
+            //this is done to skip the START_OBJECT FIELD in the aggregation builder.
+            qpc.parser().nextToken();
+            AggregatorFactories.Builder newAggsBuilder = AggregatorFactories.parseAggregators(qpc);
+            SearchSourceBuilder rewrittenBuilder = copySearchSourceBuilder(searchSourceBuilder);
+            for (AggregationBuilder aggBuilder : newAggsBuilder.getAggregatorFactories()) {
+                rewrittenBuilder.aggregation(aggBuilder);
+            }
+            sr.source(rewrittenBuilder);
+            log.info(searchSourceBuilder.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ElasticsearchParseException("Unable to filter min_docs_count", e);
+        }
+    }
+
+    private void replaceMinDocsCount(Map<String, Object> aggTree) {
+        if (aggTree == null) {
+            return;
+        }
+        Iterator<Map.Entry<String, Object>> it = aggTree.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Object> entry = it.next();
+            if (entry.getKey().equals("terms") || entry.getKey().equals("significant_terms")) {
+                if (entry.getValue() instanceof Map) {
+                    Map<String, Object> termsAggs = (Map<String, Object>) entry.getValue();
+                    if (termsAggs != null && termsAggs.containsKey(MIN_DOC_COUNT_KEY) && termsAggs.get(MIN_DOC_COUNT_KEY) instanceof Integer && (Integer) termsAggs.get(MIN_DOC_COUNT_KEY) == 0) {
+                        termsAggs.put(MIN_DOC_COUNT_KEY, 1);
+                        continue;
+                    }
                 }
             }
-//            for (int i = 0; i < 2; i++) {
-//                final SourceLookup sl = new SourceLookup();
-//                if (i == 0) {
-//                    source = sr.source();
-//                } else {
-//                    source = sr.extraSource();
-//                }
-//                if (source != null && source.length() > 0) {
-//                    sl.setSource(source);
-//                    if (sl.isEmpty()) { //WARNING : this also initialize the sourceLookup for following sl.source() call, so DO NOT REMOVE.
-//                        continue;
-//                    }
-//                    Map<String, Object> sourceMap = sl.source();
-//                    if (sourceMap.containsKey("aggregations")) {
-//                        Map<String, Object> aggregations = (Map<String, Object>) sourceMap.get("aggregations");
-//                        replaceMinDocsCount(aggregations);
-//                        sourceMap.put("aggregations", aggregations);
-//                    }
-//                    if (sourceMap.containsKey("aggs")) {
-//                        Map<String, Object> aggs = (Map<String, Object>) sourceMap.get("aggs");
-//                        replaceMinDocsCount(aggs);
-//                        sourceMap.put("aggs", aggs);
-//                    }
-//                    if (i == 0) {
-//                        sr.source(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-//                    } else {
-//                        sr.extraSource(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-//                    }
-//                }
-//            }
-
-            } catch(Exception e){
-                e.printStackTrace();
-                throw new ElasticsearchParseException("Unable to filter min_docs_count", e);
+            if (entry.getValue() instanceof Map) {
+                replaceMinDocsCount((Map<String, Object>) entry.getValue());
             }
-
-
         }
+    }
 
-//    private void replaceMinDocsCount(Map<String, Object> aggTree) {
-//        if (aggTree == null) {
-//            return;
-//        }
-//        Iterator<Map.Entry<String, Object>> it = aggTree.entrySet().iterator();
-//        while (it.hasNext()) {
-//            Map.Entry<String, Object> entry = it.next();
-//            if (entry.getKey().equals("terms") || entry.getKey().equals("significant_terms")) {
-//                if (entry.getValue() instanceof Map) {
-//                    Map<String, Object> termsAggs = (Map<String, Object>) entry.getValue();
-//                    if (termsAggs != null && termsAggs.containsKey(MIN_DOC_COUNT_KEY) && termsAggs.get(MIN_DOC_COUNT_KEY) instanceof Integer && (Integer) termsAggs.get(MIN_DOC_COUNT_KEY) == 0) {
-//                        termsAggs.put(MIN_DOC_COUNT_KEY, 1);
-//                        continue;
-//                    }
-//                }
-//            }
-//            if (entry.getValue() instanceof Map) {
-//                replaceMinDocsCount((Map<String, Object>) entry.getValue());
-//            }
-//        }
-//    }
+
+    private SearchSourceBuilder copySearchSourceBuilder(SearchSourceBuilder sBuilder) {
+        SearchSourceBuilder rewrittenBuilder = new SearchSourceBuilder();
+
+        rewrittenBuilder.explain(sBuilder.explain());
+        if (sBuilder.ext() != null) {
+            rewrittenBuilder.ext(sBuilder.ext());
+        }
+        rewrittenBuilder.fetchSource(sBuilder.fetchSource());
+        if(sBuilder.docValueFields() != null) {
+            for (String docValueField : sBuilder.docValueFields()) {
+                rewrittenBuilder.docValueField(docValueField);
+            }
+        }
+        rewrittenBuilder.storedFields(sBuilder.storedFields());
+        if(sBuilder.from() >= 0) {
+            rewrittenBuilder.from(sBuilder.from());
+        }
+        rewrittenBuilder.highlighter(sBuilder.highlighter());
+        if (sBuilder.indexBoosts() != null ) {
+            for (SearchSourceBuilder.IndexBoost indexBoost : sBuilder.indexBoosts()) {
+                rewrittenBuilder.indexBoost(indexBoost.getIndex(), indexBoost.getBoost());
+            }
+        }
+        if(sBuilder.minScore() != null) {
+            rewrittenBuilder.minScore(sBuilder.minScore());
+        }
+        rewrittenBuilder.postFilter(sBuilder.postFilter());
+        rewrittenBuilder.profile(sBuilder.profile());
+        rewrittenBuilder.query(sBuilder.query());
+        if(sBuilder.rescores() != null) {
+            for (RescoreBuilder rb : sBuilder.rescores()) {
+                rewrittenBuilder.addRescorer(rb);
+            }
+        }
+        if (sBuilder.scriptFields() != null) {
+            for (SearchSourceBuilder.ScriptField sf : sBuilder.scriptFields()) {
+                rewrittenBuilder.scriptField(sf.fieldName(), sf.script(), sf.ignoreFailure());
+            }
+        }
+        if(sBuilder.searchAfter() != null) {
+            rewrittenBuilder.searchAfter(sBuilder.searchAfter());
+        }
+        rewrittenBuilder.slice(sBuilder.slice());
+        rewrittenBuilder.size(sBuilder.size());
+        if (sBuilder.sorts() != null) {
+            for (SortBuilder sb : sBuilder.sorts()) {
+                rewrittenBuilder.sort(sb);
+            }
+        }
+        rewrittenBuilder.stats(sBuilder.stats());
+        rewrittenBuilder.suggest(sBuilder.suggest());
+        rewrittenBuilder.terminateAfter(sBuilder.terminateAfter());
+        rewrittenBuilder.timeout(sBuilder.timeout());
+        rewrittenBuilder.trackScores(sBuilder.trackScores());
+        rewrittenBuilder.version(sBuilder.version());
+        rewrittenBuilder.collapse(sBuilder.collapse());
+        return rewrittenBuilder;
+    }
 
 }

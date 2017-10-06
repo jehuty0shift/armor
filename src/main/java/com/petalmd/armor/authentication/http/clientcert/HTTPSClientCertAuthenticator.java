@@ -24,6 +24,7 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
+import com.petalmd.armor.http.netty.SSLPrincipalExtractor;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
@@ -33,6 +34,9 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+
+import javax.security.cert.X509Certificate;
+import java.security.Principal;
 
 public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
 
@@ -51,12 +55,13 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
 
         String dn = null;
 
-        sun.security.x509.X500Name x500Principal = null;
+        Principal x509Principal = null;
         try {
-            x500Principal = threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL);
-            dn = String.valueOf(x500Principal);
+            x509Principal = SSLPrincipalExtractor.extractPrincipalfromRequest(request, threadContext);
+            dn = String.valueOf(x509Principal.getName());
         } catch (final Exception e) {
-            log.error("Invalid request or invalid principal. Pls. check settings, this authenticater works only with https/ssl", e);
+            log.error("Invalid request or invalid principal. Pls. check settings, this authenticator works only with https/ssl", e);
+            throw new AuthException("No x500 principal found in request",e);
         }
 
         if (dn == null || dn.isEmpty() || dn.equals("null")) {
@@ -72,8 +77,8 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
             userName = dn.substring(start, dn.indexOf(",", start));
         }
 
-        final User authenticatedUser = backend.authenticate(new AuthCredentials(userName, x500Principal));
-        authorizator.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName(), x500Principal));
+        final User authenticatedUser = backend.authenticate(new AuthCredentials(userName, x509Principal));
+        authorizator.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName(), x509Principal));
 
         log.debug("User '{}' is authenticated", authenticatedUser);
 

@@ -1,5 +1,6 @@
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.gson.internal.LinkedTreeMap;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
@@ -15,7 +16,7 @@ import java.util.Map;
 /**
  * Created by bdiasse on 20/02/17.
  */
-
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SearchTests extends AbstractScenarioTest {
 
 

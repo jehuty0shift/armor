@@ -64,8 +64,6 @@ public class ArmorActionFilter implements ActionFilter {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final AuditListener auditListener;
-    protected final Authorizator authorizator = null;
-    protected final AuthenticationBackend authenticationBackend = null;
     protected final Settings settings;
     private final ThreadPool threadpool;
     protected final ClusterService clusterService;
@@ -358,43 +356,7 @@ public class ArmorActionFilter implements ActionFilter {
                 listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
                 throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
             }
-
-            //TODO : Delete ?
-//            if ("restactionfilter".equals(ft)) {
-//                final String simpleClassName = request.getFromContext("armor." + ft + "." + fn + ".class_name", null);
-//
-//                final List<String> allowedActions = request.getFromContext("armor." + ft + "." + fn + ".allowed_actions",
-//                        Collections.EMPTY_LIST);
-//                final List<String> forbiddenActions = request.getFromContext("armor." + ft + "." + fn + ".forbidden_actions",
-//                        Collections.EMPTY_LIST);
-//
-//                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
-//                    final String forbiddenAction = iterator.next();
-//                    if (SecurityUtil.isWildcardMatch(simpleClassName, forbiddenAction, false)) {
-//                        throw new RuntimeException("[" + ft + "." + fn + "] Forbidden action " + simpleClassName + " . Allowed actions: "
-//                                + allowedActions);
-//
-//                    }
-//                }
-//
-//                boolean passall = false;
-//
-//                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
-//                    final String allowedAction = iterator.next();
-//                    if (SecurityUtil.isWildcardMatch(simpleClassName, allowedAction, false)) {
-//                        passall = true;
-//                        break;
-//                    }
-//                }
-//
-//                if (!passall) {
-//                    throw new ForbiddenException("Forbidden action {} . Allowed actions: {}", simpleClassName, allowedActions);
-//                }
-//
-//            }
-
         }
-
         chain.proceed(task, action, request, listener);
 
     }

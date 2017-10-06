@@ -22,6 +22,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
@@ -49,6 +50,16 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
     @Override
     public ChannelHandler configureServerChannelHandler() {
         return new SSLHttpChannelHandler(this,this.settings,this.detailedErrorsEnabled,threadPool);
+    }
+
+    @Override
+    protected void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        if (this.lifecycle.started()) {
+            logger.error("Unexpected error with ArmorSSLNettyHttpServer", cause);
+            ctx.channel().close();
+            return;
+        }
+        super.exceptionCaught(ctx,cause);
     }
 
     protected static class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {

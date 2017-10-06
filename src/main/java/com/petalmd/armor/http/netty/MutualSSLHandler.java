@@ -22,6 +22,7 @@ import com.petalmd.armor.util.ArmorConstants;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.ReferenceCountUtil;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import java.security.Principal;
@@ -35,11 +36,18 @@ public class MutualSSLHandler extends SimpleChannelInboundHandler<Object> {
         this.threadContext = threadContext;
     }
 
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
-        final SslHandler sslHandler = (SslHandler) ctx.channel().pipeline().get("ssl_http");
-        final Principal principal = sslHandler.engine().getSession().getPeerCertificateChain()[0].getSubjectDN();
-        threadContext.putTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL,principal);
+//        Object transientObj = threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL);
+//        if (transientObj == null) {
+//            final SslHandler sslHandler = (SslHandler) ctx.channel().pipeline().get("ssl_http");
+//            final Principal principal = sslHandler.engine().getSession().getPeerCertificateChain()[0].getSubjectDN();
+//
+//            threadContext.putTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL, principal);
+//        }
+        ReferenceCountUtil.retain(msg);
+        ctx.fireChannelRead(msg);
     }
 
 }

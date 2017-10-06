@@ -33,6 +33,7 @@ import com.petalmd.armor.filter.*;
 import com.petalmd.armor.http.DefaultSessionStore;
 import com.petalmd.armor.http.NullSessionStore;
 import com.petalmd.armor.http.SessionStore;
+import com.petalmd.armor.http.netty.SSLNettyHttpServerTransport;
 import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
@@ -48,10 +49,15 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.*;
+import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
@@ -71,7 +77,7 @@ import java.util.function.UnaryOperator;
 //TODO FUTURE special handling scroll searches
 //TODO FUTURE negative rules/users in acrules
 //TODO update some settings during runtime
-public final class ArmorPlugin extends Plugin implements ActionPlugin {
+public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
     private static final String ARMOR_DEBUG = "armor.debug";
     private static final String CLIENT_TYPE = "client.type";
@@ -137,7 +143,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND);
             Class authenticationBackendClass;
-            authenticationBackendClass = className==null?null:Class.forName(className);
+            authenticationBackendClass = className == null ? null : Class.forName(className);
             if (authenticationBackendClass != null && NonCachingAuthenticationBackend.class.isAssignableFrom(authenticationBackendClass)) {
                 authenticationBackend = (AuthenticationBackend) authenticationBackendClass.getConstructor(Settings.class).newInstance(settings);
             } else {
@@ -156,7 +162,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR);
             Class authorizerClass;
-            authorizerClass = className==null?null:Class.forName(className);
+            authorizerClass = className == null ? null : Class.forName(className);
             if (authorizerClass != null && NonCachingAuthorizator.class.isAssignableFrom(authorizerClass)) {
                 authorizator = (Authorizator) authorizerClass.getConstructor(Settings.class).newInstance(settings);
             } else {
@@ -175,7 +181,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         try {
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR);
             Class httpAuthenticatorClass;
-            httpAuthenticatorClass = className==null?null:Class.forName(className);
+            httpAuthenticatorClass = className == null ? null : Class.forName(className);
             if (httpAuthenticatorClass != null && HTTPAuthenticator.class.isAssignableFrom(httpAuthenticatorClass)) {
                 httpAuthenticator = (HTTPAuthenticator) httpAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
             } else {
@@ -230,6 +236,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
         actionFilters.add(ArmorActionFilter.class);
         actionFilters.add(ObfuscationFilter.class);
+        actionFilters.add(AggregationFilter.class);
         actionFilters.add(RequestActionFilter.class);
         actionFilters.add(ActionCacheFilter.class);
         actionFilters.add(DLSActionFilter.class);
@@ -268,7 +275,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
     public UnaryOperator<RestHandler> getRestHandlerWrapper(ThreadContext threadContext) {
         return (rh) -> armorRestShield.shield(rh);
     }
-
 
 
     //    public void onModule(RestModule module) {
@@ -340,37 +346,37 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         //Generic Armor settings
         settings.add(Setting.simpleString(ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDITLOG_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDITLOG_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEY_PATH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //armor filters
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         //settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         //settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH,true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS,Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
 
         //ssl
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -381,7 +387,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
 
         //armor authentication
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_HTTP_AUTHENTICATOR, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
 
@@ -391,10 +397,11 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
 
 
         //multi backend
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //settings backend
-        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList(),Function.identity(),Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES, Setting.Property.NodeScope));
 
         //KRB5
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_KRB5_CONFIG_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -406,17 +413,17 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //ldap backend
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS,Setting.Property.NodeScope));
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS, Setting.Property.NodeScope));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLENAME, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -428,6 +435,12 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin {
 
 
         return settings;
+    }
+
+
+    @Override
+    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NamedXContentRegistry xContentRegistry, NetworkService networkService, HttpServerTransport.Dispatcher dispatcher) {
+        return Collections.singletonMap("armor_ssl_netty4",() -> new SSLNettyHttpServerTransport(settings,networkService,bigArrays,threadPool,xContentRegistry,dispatcher));
     }
 
     @Override

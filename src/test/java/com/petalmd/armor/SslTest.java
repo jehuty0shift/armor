@@ -20,6 +20,7 @@ package com.petalmd.armor;
 
 import javax.net.ssl.SSLHandshakeException;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.apache.http.NoHttpResponseException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Rule;
@@ -28,6 +29,7 @@ import org.junit.rules.ExpectedException;
 
 import com.petalmd.armor.util.SecurityUtil;
 
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SslTest extends AbstractScenarioTest {
 
     @Rule
@@ -40,6 +42,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
+                .put("http.type","armor_ssl_netty4")
                 .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
@@ -68,6 +71,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
+                .put("http.type","armor_ssl_netty4")
                 .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
@@ -95,6 +99,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
+                .put("http.type","armor_ssl_netty4")
                 .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
@@ -114,30 +119,6 @@ public class SslTest extends AbstractScenarioTest {
         searchOnlyAllowed(settings, false);
     }
 
-    @Test
-    public void testNodeSSL() throws Exception {
-
-        final Settings settings = Settings
-                .builder()
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
-                .put("armor.authentication.authorizer.impl",
-                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
-                        .put("armor.authentication.authorizer.cache.enable", "false")
-                        .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
-                                .put("armor.authentication.authentication_backend.cache.enable", "false")
-                                .put("armor.ssl.transport.node.enabled", true)
-                .put("armor.ssl.transport.node.enforce_clientauth", true)
-                                .put("armor.ssl.transport.node.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
-                                .put("armor.ssl.transport.node.truststore_filepath",
-                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks"))
-                                .put("armor.ssl.transport.node.encforce_hostname_verification", false).build();
-
-        username = "jacksonm";
-        password = "secret";
-
-        searchOnlyAllowed(settings, false);
-    }
 
     @Test
     public void mutualSSLAuthentication() throws Exception {
@@ -146,6 +127,7 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
+                .put("http.type","armor_ssl_netty4")
                 .put("armor.authentication.http_authenticator.impl",
                     "com.petalmd.armor.authentication.http.clientcert.HTTPSClientCertAuthenticator")
                 .putArray("armor.authentication.authorization.settingsdb.roles.localhost", "ceo")

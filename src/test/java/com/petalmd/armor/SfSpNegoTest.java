@@ -20,6 +20,7 @@ package com.petalmd.armor;
 
 import java.net.URL;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import net.sourceforge.spnego.SpnegoHttpURLConnection;
 
 import org.elasticsearch.common.settings.Settings;
@@ -29,6 +30,7 @@ import org.junit.Test;
 import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
 
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SfSpNegoTest extends AbstractUnitTest {
 
     @Test

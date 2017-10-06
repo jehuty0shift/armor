@@ -19,6 +19,9 @@
 package com.petalmd.armor.util;
 
 import com.google.common.io.BaseEncoding;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.CookieDecoder;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.apache.commons.io.IOUtils;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.logging.log4j.Logger;
@@ -39,21 +42,19 @@ import javax.net.ssl.SSLEngine;
 import java.io.*;
 import java.net.*;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SecurityUtil {
 
     private static final Logger log = ESLoggerFactory.getLogger(SecurityUtil.class);
-    private static final String[] PREFERRED_SSL_CIPHERS = { "TLS_RSA_WITH_AES_128_CBC_SHA256", "TLS_RSA_WITH_AES_128_CBC_SHA",
+    private static final String[] PREFERRED_SSL_CIPHERS = {"TLS_RSA_WITH_AES_128_CBC_SHA256", "TLS_RSA_WITH_AES_128_CBC_SHA",
             "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
             "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
-            "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256" };
-    private static final String[] PREFERRED_SSL_PROTOCOLS = { "TLSv1", "TLSv1.1", "TLSv1.2" };
+            "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"};
+    private static final String[] PREFERRED_SSL_PROTOCOLS = {"TLSv1", "TLSv1.1", "TLSv1.2"};
 
     public static String[] ENABLED_SSL_PROTOCOLS = null;
     public static String[] ENABLED_SSL_CIPHERS = null;
@@ -259,24 +260,23 @@ public class SecurityUtil {
 
     public static String getArmorSessionIdFromCookie(final RestRequest request) {
 
-//        final String cookies = request.header("Cookie");
-//
-//        if (cookies != null) {
-//
-//            final Set<Cookie> cookiesAsSet = new CookieDecoder().decode(cookies);
-//
-//            log.trace("Cookies {}", cookiesAsSet);
-//
-//            for (final Iterator iterator = cookiesAsSet.iterator(); iterator.hasNext();) {
-//                final Cookie cookie = (Cookie) iterator.next();
-//                if ("es_armor_session".equals(cookie.getName())) {
-//                    return cookie.getValue();
-//                }
-//            }
-//
-//        }
-        throw new UnsupportedOperationException("Not implemented yet");
+        final String cookies = request.header("Cookie");
 
+        if (cookies != null) {
+
+            final Set<Cookie> cookiesAsSet = ServerCookieDecoder.STRICT.decode(cookies);
+
+            log.trace("Cookies {}", cookiesAsSet);
+
+            for (final Iterator iterator = cookiesAsSet.iterator(); iterator.hasNext(); ) {
+                final Cookie cookie = (Cookie) iterator.next();
+                if ("es_armor_session".equals(cookie.name())) {
+                    return cookie.value();
+                }
+            }
+
+        }
+        return null;
     }
 
     public static String encryptAndSerializeObject(final Serializable object, final SecretKey key) {

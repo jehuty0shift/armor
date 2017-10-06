@@ -260,7 +260,7 @@ public class FLSActionFilter extends AbstractActionFilter {
             //fields parameter
             FetchSourceContext fetchSourceContext = source.fetchSource();
             if (fetchSourceContext == null) {
-                source.fetchSource(new FetchSourceContext(true, null, sourceExcludes.toArray(new String[sourceExcludes.size()])));
+                source.fetchSource(new FetchSourceContext(true, sourceIncludes.toArray(new String[sourceIncludes.size()]), sourceExcludes.toArray(new String[sourceExcludes.size()])));
             } else {
                 if (fetchSourceContext.fetchSource() == true || (fetchSourceContext.includes() != null && fetchSourceContext.includes().length > 0)) {
                     final String[] fields = fetchSourceContext.includes();
