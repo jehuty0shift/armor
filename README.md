@@ -1,4 +1,4 @@
-# A.R.M.O.R Security Plugin for ES 2.4.1
+# A.R.M.O.R Security Plugin for ES 5.6.3
 Elasticsearch security for free.
 
 ARMOR is a free and open source plugin for Elasticsearch which provides security features.
@@ -76,14 +76,14 @@ Install it like any other Elasticsearch plugin:
 (On Centos, you can find the `bin/plugin` at `/usr/share/elasticsearch`)
 
 ```
-# ES 2.4.1
-$ bin/plugin -i com.petalmd/armor/2.4.1
+# ES 5.6.1
+$ bin/plugin -i com.petalmd/armor/5.6.1
 ```
 
 Prerequisites:
 
-* Java 7 or 8 (recommended)
-* Elasticsearch 2.4.1
+* Java 8
+* Elasticsearch 5.6.1
 
 Build it yourself:
 * Install maven 3.1+
@@ -97,7 +97,7 @@ Build it yourself:
 ### Logging
 Configured in elasticsearch's logging.yml. Nothing special. To enable debug just add
 
-``logger.com.petaldevelopment: DEBUG``
+``logger.com.petalmd: DEBUG``
 
 
 ### Keys
@@ -327,7 +327,8 @@ You can circumvent this by using aliases.
 See the documentation for [Kibana 4.2](/docs/kibana.md)
 
 ## Roadmap
-TODO
+ - Automatic multi index filters
+ - Fields obfusctaion for filtered aliases. 
 
 ## Community
 Contributions, questions, and comments are all welcomed and encouraged!

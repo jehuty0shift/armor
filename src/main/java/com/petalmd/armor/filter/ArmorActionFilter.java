@@ -17,12 +17,9 @@
  */
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.ArmorPlugin;
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
@@ -38,7 +35,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.client.Client;
@@ -54,7 +50,6 @@ import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.util.*;
@@ -281,6 +276,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             }
 
+
             eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
 
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
@@ -443,11 +439,11 @@ public class ArmorActionFilter implements ActionFilter {
 
             if (!indexAliases.isAlias()) {
                 result.add(index);
-                log.trace("{} is an concrete index", index);
+                log.trace("{} is a concrete index", index);
                 continue;
             }
 
-            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices());
+            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices().toString());
 
             final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
 

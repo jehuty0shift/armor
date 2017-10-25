@@ -1,5 +1,6 @@
 package com.petalmd.armor.filter;
 
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
@@ -11,6 +12,7 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
@@ -26,6 +28,8 @@ public class RequestItemDetails {
 
     private final Set<String> indices;
     private final Set<String> types;
+    protected static final Logger log = ESLoggerFactory.getLogger(RequestItemDetails.class);
+
 
     private RequestItemDetails(Set<String> indices, Set<String> types) {
         this.indices = indices;
@@ -58,6 +62,7 @@ public class RequestItemDetails {
             indices.add(ir.index());
             types.add(ir.type());
         } else if (cir instanceof BulkRequest) {
+            log.debug("composite is BulkRequest");
             BulkRequest br = (BulkRequest) cir;
             for(DocWriteRequest dwr : br.requests()) {
                 indices.add(dwr.index());
@@ -69,6 +74,7 @@ public class RequestItemDetails {
             }
         } else if (cir instanceof MultiSearchRequest) {
             MultiSearchRequest msr = (MultiSearchRequest) cir;
+            log.debug("composite is MultiSearchRequest");
             for (SearchRequest sr : msr.requests()) {
                 indices.addAll(Arrays.asList(sr.indices()));
                 if(sr.types() != null && sr.types().length > 0) {
@@ -78,6 +84,7 @@ public class RequestItemDetails {
                 }
             }
         } else if (cir instanceof ReindexRequest) {
+            log.debug("composite is ReindexRequest");
             ReindexRequest rr = (ReindexRequest) cir;
             IndexRequest iR = rr.getDestination();
             indices.addAll(Arrays.asList(iR.indices()));
@@ -87,6 +94,7 @@ public class RequestItemDetails {
             indices.addAll(Arrays.asList(sr.indices()));
             types.addAll(Arrays.asList(sr.types()));
         } else if (cir instanceof MultiTermVectorsRequest) {
+            log.debug("composite is MultiTermVector");
             MultiTermVectorsRequest mtvr = (MultiTermVectorsRequest) cir;
             for (TermVectorsRequest tvr : mtvr.getRequests()) {
                 indices.addAll(Arrays.asList(tvr.indices()));
@@ -97,14 +105,17 @@ public class RequestItemDetails {
                 }
             }
         } else if (cir instanceof DeleteRequest) {
+            log.debug("composite is DeleteRequest");
             DeleteRequest dr = (DeleteRequest) cir;
             indices.addAll(Arrays.asList(dr.indices()));
             types.add(dr.type());
         } else if (cir instanceof UpdateByQueryRequest) {
+            log.debug("composite is UpdateByQueryRequest");
             UpdateByQueryRequest ubqr = (UpdateByQueryRequest) cir;
             indices.addAll(Arrays.asList(ubqr.getSearchRequest().indices()));
             types.addAll(Arrays.asList(ubqr.getSearchRequest().types()));
         } else if (cir instanceof MultiGetRequest) {
+            log.debug("composite is MultiGetRequest");
             MultiGetRequest mgr = (MultiGetRequest) cir;
             for (MultiGetRequest.Item item : mgr.getItems()) {
                 indices.addAll(Arrays.asList(item.indices()));
@@ -126,6 +137,10 @@ public class RequestItemDetails {
             indices.clear();
             indices.add("_all");
         }
+
+        log.debug("final indices list is: " +indices.toString());
+        log.debug("final types list is: " + types.toString());
+
         return new RequestItemDetails(indices, types);
     }
 

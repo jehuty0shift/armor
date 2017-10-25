@@ -36,6 +36,8 @@ import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -111,35 +113,44 @@ public class AggregationFilter extends AbstractActionFilter {
 
     private void filterSearchRequest(SearchRequest sr) {
         try {
-            log.debug("applying SearchRequest");
-            SearchSourceBuilder searchSourceBuilder;
-            searchSourceBuilder = sr.source();
-            AggregatorFactories.Builder aggregations = searchSourceBuilder.aggregations();
-            if(aggregations == null){
-                return;
-            }
-            XContentBuilder jsonContent = JsonXContent.contentBuilder();
-            jsonContent.generator();
-            jsonContent = aggregations.toXContent(jsonContent,null);
-            jsonContent.close();
-            String aggregationString = jsonContent.string();
-            ObjectMapper mapper = new ObjectMapper();
-            TypeReference<HashMap<String,Object>> typeRef = new TypeReference<HashMap<String,Object>>(){};
-            HashMap<String,Object> aggregationMap = mapper.readValue(aggregationString,(TypeReference)typeRef);
-            replaceMinDocsCount(aggregationMap);
-            XContentParser aggParser = JsonXContent.contentBuilder().generator().contentType().xContent().createParser(xContentRegistry,mapper.writeValueAsBytes(aggregationMap));
-            QueryParseContext qpc = new QueryParseContext(aggParser);
-            //this is done to skip the START_OBJECT FIELD in the aggregation builder.
-            qpc.parser().nextToken();
-            AggregatorFactories.Builder newAggsBuilder = AggregatorFactories.parseAggregators(qpc);
-            SearchSourceBuilder rewrittenBuilder = copySearchSourceBuilder(searchSourceBuilder);
-            for (AggregationBuilder aggBuilder : newAggsBuilder.getAggregatorFactories()) {
-                rewrittenBuilder.aggregation(aggBuilder);
-            }
-            sr.source(rewrittenBuilder);
-            log.info(searchSourceBuilder.toString());
+
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
+                                              @Override
+                                              public Void run() throws Exception {
+                                                  log.debug("applying SearchRequest");
+                                                  SearchSourceBuilder searchSourceBuilder;
+                                                  searchSourceBuilder = sr.source();
+                                                  AggregatorFactories.Builder aggregations = searchSourceBuilder.aggregations();
+                                                  if (aggregations == null) {
+                                                      return null;
+                                                  }
+                                                  XContentBuilder jsonContent = JsonXContent.contentBuilder();
+                                                  jsonContent.generator();
+                                                  jsonContent = aggregations.toXContent(jsonContent, null);
+                                                  jsonContent.close();
+                                                  String aggregationString = jsonContent.string();
+                                                  ObjectMapper mapper = new ObjectMapper();
+                                                  TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {
+                                                  };
+                                                  HashMap<String, Object> aggregationMap = mapper.readValue(aggregationString, (TypeReference) typeRef);
+                                                  replaceMinDocsCount(aggregationMap);
+                                                  XContentParser aggParser = JsonXContent.contentBuilder().generator().contentType().xContent().createParser(xContentRegistry, mapper.writeValueAsBytes(aggregationMap));
+                                                  QueryParseContext qpc = new QueryParseContext(aggParser);
+                                                  //this is done to skip the START_OBJECT FIELD in the aggregation builder.
+                                                  qpc.parser().nextToken();
+                                                  AggregatorFactories.Builder newAggsBuilder = AggregatorFactories.parseAggregators(qpc);
+                                                  SearchSourceBuilder rewrittenBuilder = copySearchSourceBuilder(searchSourceBuilder);
+                                                  for (AggregationBuilder aggBuilder : newAggsBuilder.getAggregatorFactories()) {
+                                                      rewrittenBuilder.aggregation(aggBuilder);
+                                                  }
+                                                  sr.source(rewrittenBuilder);
+                                                  log.info(searchSourceBuilder.toString());
+                                                  return null;
+                                              }
+                                          }
+            );
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Unable to filter min_docs_count", e);
             throw new ElasticsearchParseException("Unable to filter min_docs_count", e);
         }
     }
@@ -175,28 +186,28 @@ public class AggregationFilter extends AbstractActionFilter {
             rewrittenBuilder.ext(sBuilder.ext());
         }
         rewrittenBuilder.fetchSource(sBuilder.fetchSource());
-        if(sBuilder.docValueFields() != null) {
+        if (sBuilder.docValueFields() != null) {
             for (String docValueField : sBuilder.docValueFields()) {
                 rewrittenBuilder.docValueField(docValueField);
             }
         }
         rewrittenBuilder.storedFields(sBuilder.storedFields());
-        if(sBuilder.from() >= 0) {
+        if (sBuilder.from() >= 0) {
             rewrittenBuilder.from(sBuilder.from());
         }
         rewrittenBuilder.highlighter(sBuilder.highlighter());
-        if (sBuilder.indexBoosts() != null ) {
+        if (sBuilder.indexBoosts() != null) {
             for (SearchSourceBuilder.IndexBoost indexBoost : sBuilder.indexBoosts()) {
                 rewrittenBuilder.indexBoost(indexBoost.getIndex(), indexBoost.getBoost());
             }
         }
-        if(sBuilder.minScore() != null) {
+        if (sBuilder.minScore() != null) {
             rewrittenBuilder.minScore(sBuilder.minScore());
         }
         rewrittenBuilder.postFilter(sBuilder.postFilter());
         rewrittenBuilder.profile(sBuilder.profile());
         rewrittenBuilder.query(sBuilder.query());
-        if(sBuilder.rescores() != null) {
+        if (sBuilder.rescores() != null) {
             for (RescoreBuilder rb : sBuilder.rescores()) {
                 rewrittenBuilder.addRescorer(rb);
             }
@@ -206,7 +217,7 @@ public class AggregationFilter extends AbstractActionFilter {
                 rewrittenBuilder.scriptField(sf.fieldName(), sf.script(), sf.ignoreFailure());
             }
         }
-        if(sBuilder.searchAfter() != null) {
+        if (sBuilder.searchAfter() != null) {
             rewrittenBuilder.searchAfter(sBuilder.searchAfter());
         }
         rewrittenBuilder.slice(sBuilder.slice());

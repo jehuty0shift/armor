@@ -277,68 +277,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     }
 
 
-    //    public void onModule(RestModule module) {
-//        if (enabled && !client) {
-//            module.addRestAction(ArmorInfoAction.class);
-//        }
-//    }
-
-//    public void onModule(TransportModule transportModule) {
-//        //Inject transport module only if Armor plugin is enabled
-//        if (enabled) {
-//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
-//                transportModule.setTransport(client ? com.petalmd.armor.transport.SSLClientNettyTransport.class : com.petalmd.armor.transport.SSLNettyTransport.class, this.name());
-//            } else if (!client) {
-//                transportModule.setTransport(ArmorNettyTransport.class, this.name());
-//            }
-//        }
-//    }
-
-//    public void onModule(HttpServerModule httpServerModue) {
-//        if (enabled && !client) {
-//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false)) {
-//                httpServerModue.setHttpServerTransport(SSLNettyHttpServerTransport.class, this.name());
-//            }
-//        }
-//    }
-
-//    public void onModule(ActionModule module) {
-//        if (enabled && !client) {
-//            module.registerFilter(ArmorActionFilter.class);
-//            module.registerFilter(RequestActionFilter.class);
-//            module.registerFilter(AggregationFilter.class);
-//            module.registerFilter(ActionCacheFilter.class);
-//            module.registerFilter(ObfuscationFilter.class);
-//            module.registerFilter(DLSActionFilter.class);
-//            module.registerFilter(FLSActionFilter.class);
-//        }
-//    }
-
-//    public void onModule(IndicesModule module) {
-//        module.registerQueryParser(ArmorWrapperQueryParser.class);
-//    }
-
-//    @SuppressWarnings("rawtypes")
-//    @Override
-//    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
-//        if (enabled && !client) {
-//            return ImmutableList.<Class<? extends LifecycleComponent>>of(ArmorService.class, ArmorConfigService.class);
-//        }
-//        return ImmutableList.of();
-//    }
-//
-//    @SuppressWarnings("rawtypes")
-//    @Override
-//    public Collection<Module> nodeModules() {
-//        if (enabled && !client) {
-//            Collection<Module> modules = new ArrayList<>();
-//            modules.add(new AuthModule(settings));
-//            return modules;
-//        }
-//        return ImmutableList.of();
-//    }
-
-
     @Override
     public List<Setting<?>> getSettings() {
         List<Setting<?>> settings = new ArrayList<>();
@@ -360,13 +298,13 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
+
         //armor filters
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-        //settings.add(Setting.listSetting(ConfigConstants.ARMOR_DLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-        //settings.add(Setting.listSetting(ConfigConstants.ARMOR_FLSFILTER,Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH, true, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -398,6 +336,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //multi backend
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //settings backend
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -446,20 +385,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public Settings additionalSettings() {
         return Settings.Builder.EMPTY_SETTINGS;
-//        if (enabled) {
-//            checkSSLConfig();
-//            final Settings.Builder builder = Settings.builder();
-//            if (settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false)) {
-//                builder.put(ArmorPlugin.TRANSPORT_TYPE, client ? SSLClientNettyTransport.class : SSLNettyTransport.class);
-//            } else if (!client) {
-//                builder.put(ArmorPlugin.TRANSPORT_TYPE, ArmorNettyTransport.class);
-//            }
-//
-//
-//            return builder.build();
-//        } else {
-//            return Settings.Builder.EMPTY_SETTINGS;
-//        }
     }
 
     private void checkSSLConfig() {

@@ -19,6 +19,7 @@
 package com.petalmd.armor.tokeneval;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +32,9 @@ import org.elasticsearch.common.logging.ESLoggerFactory;
 
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.util.*;
 
 public class TokenEvaluator {
@@ -104,7 +108,13 @@ public class TokenEvaluator {
     protected void initializeACRulesIfNeeded() throws MalformedConfigurationException {
         if (acRules == null) {
             try {
-                acRules = mapper.readValue(xSecurityConfiguration.toBytesRef().bytes, ACRules.class);
+                acRules = AccessController.doPrivileged(new PrivilegedExceptionAction<ACRules>() {
+
+                    @Override
+                    public ACRules run() throws Exception {
+                        return mapper.readValue(xSecurityConfiguration.toBytesRef().bytes, ACRules.class);
+                    }
+                });
             } catch (final Exception e) {
                 throw new MalformedConfigurationException(e);
             }
@@ -171,7 +181,8 @@ public class TokenEvaluator {
         }
 
         int rulenum = 1;
-        ruleloop: for (final ACRule p : acRules.acl) {
+        ruleloop:
+        for (final ACRule p : acRules.acl) {
 
             if (p.isDefault()) {
                 continue;
@@ -295,7 +306,7 @@ public class TokenEvaluator {
                         log.debug("    Alias " + requestedAlias + " has a matching pattern");
                         continue aliasloop;
                     } else {
-                        log.debug("    --> Alias " + requestedAlias + " does not have a matching pattern, skip this rule");
+                        log.debug("    --> Alias " + requestedAlias + " does not have a matching pattern, will check indices");
                         //allAliasesMatch = false;
                         continue ruleloop;
                     }

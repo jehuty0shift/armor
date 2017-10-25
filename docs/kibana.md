@@ -8,26 +8,26 @@ A kibana user must be created with full access to `.kiabana` and don't need acce
 Configuration:
 
 ```YAML
-# Users
-armor.authentication.settingsdb.digest: SHA512
-armor.authentication.settingsdb.user.kibana: ABCD1234...
-armor.authentication.settingsdb.user.julien: ABCD1234...
+# Users and creds with roles 
+# The format is the following ["username@role1,role2,role3:password"]
 
-# Roles
-armor.authentication.authorization.settingsdb.roles.kibana: ["kibana"]
-armor.authentication.authorization.settingsdb.roles.julien: ["kibana", "stats_ro"]
+armor.authentication.settingsdb.digest: SHA512
+armor.authentication.settingsdb.usercreds: ["kibana@kibana:ABCD1234","julien@kibana,stats_ro:ABCD1234"]...
+
 ```
 
-If you set armor.allow\_kibana\_actions at false and still want to use kibana, you will have to create a filter to authorize the 2 following actions
+If you set armor.allow\_kibana\_actions at false and still want to use kibana, you will have to create a filter to authorize the following actions:
+ -cluster:monitor/main
  -cluster:monitor/health
  -cluster:monitor/nodes/info
- -indices:data/read/field\_stats
- -
+ -cluster:monitor/state
+ -cluster:monitor/nodes/info
 
 ```YAML
 armor.actionrequestfilter.names: ["defaultfilter", "readwrite"]
 
 armor.actionrequestfilter.defaultfilter.allowed_actions: [
+ "cluster:monitor/main",
  "cluster:monitor/health",
  "cluster:monitor/nodes/info",
  "indices:data/read/field\_stats"
@@ -75,6 +75,6 @@ Once a user would like to use Kibana, Kibana will ask for a user/pass and will f
 # used by the Kibana server to perform maintence on the kibana_index at statup. Your Kibana
 # users will still need to authenticate with Elasticsearch (which is proxied thorugh
 # the Kibana server)
-kibana_elasticsearch_username: kibana_es_user
-kibana_elasticsearch_password: kibana_es_pass
+elasticsearch.username: kibana_es_user
+elasticsearch.password: kibana_es_pass
 ```

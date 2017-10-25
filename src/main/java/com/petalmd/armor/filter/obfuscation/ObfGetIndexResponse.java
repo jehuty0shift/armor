@@ -114,9 +114,9 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
         } else {
             indices = new String[0];
         }
-
-        log.debug("we got indices :" + indices.toString());
-
+        if (log.isDebugEnabled()) {
+            log.debug("we got indices :" + Arrays.asList(indices).toString());
+        }
         //Aliases can be obfuscated
         if (!obfuscateAllAliases) {
             ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesObfuscated = ImmutableOpenMap.builder();
