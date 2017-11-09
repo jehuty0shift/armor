@@ -18,7 +18,10 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.common.collect.ImmutableMap;
+import com.petalmd.armor.authentication.AuthCredentials;
+import com.petalmd.armor.authentication.backend.graylog.GraylogAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
@@ -39,6 +42,7 @@ import io.searchbox.cluster.NodesStats;
 import org.junit.runner.RunWith;
 
 @RunWith(RandomizedRunner.class)
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class MiscTest extends AbstractUnitTest {
 
     @Test

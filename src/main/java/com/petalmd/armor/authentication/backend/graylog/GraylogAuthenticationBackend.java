@@ -67,10 +67,10 @@ implements NonCachingAuthenticationBackend {
             if (jsonResponse.getStatus() == 200) {
                 return new User("admin");
             }
-            this.log.debug("receive status " + jsonResponse.getStatus() + ". Identification of user failed with: " + jsonResponse.toString(), new Object[0]);
+            this.log.debug("receive status " + jsonResponse.getStatus() + ". Identification of user failed with: " + jsonResponse.toString());
         }
         catch (UnirestException ex) {
-            this.log.warn("Unirest Exception", ex, new Object[0]);
+            this.log.warn("Unirest Exception " + ex.getMessage(), ex);
         }
         throw new AuthException("Unable to retrieve graylog User");
     }

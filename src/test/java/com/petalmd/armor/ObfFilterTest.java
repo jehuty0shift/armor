@@ -122,4 +122,42 @@ public class ObfFilterTest extends AbstractScenarioTest {
     }
 
 
+    @Test
+    public void GetClusterStateTest() throws Exception {
+
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "clusterstate")
+                .putArray("armor.actionrequestfilter.clusterstate.allowed_actions", "cluster:monitor/state")
+                .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
+                .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
+                .put(authSettings).build();
+
+        startES(settings);
+        setupTestData("ac_rules_2.json");
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
+            @Override
+            public String getRestMethodName() {
+                return "GET";
+            }
+
+            @Override
+            public String getURI() {
+                return "/_cluster/state";
+            }
+
+        });
+
+
+        assert(restu.v1().isSucceeded());
+
+
+    }
+
 }

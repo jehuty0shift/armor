@@ -18,6 +18,7 @@ package com.petalmd.armor.filter.obfuscation;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
+import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
@@ -44,6 +45,7 @@ public class ObfFilterFactory {
         hubMap = new HashMap<>();
         hubMap.put(NodesInfoAction.NAME, ObfNodesInfoResponse.class);
         hubMap.put(GetIndexAction.NAME, ObfGetIndexResponse.class);
+        hubMap.put(ClusterStateAction.NAME,ObfClusterStateResponse.class);
         if (log.isDebugEnabled()) {
             for (Map.Entry<String, Class> entry : hubMap.entrySet()) {
                 log.debug("ObfuscationFilter will obfuscate " + entry.getKey() + " with" + entry.getValue().getName());

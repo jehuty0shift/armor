@@ -144,7 +144,9 @@ public class AggregationFilter extends AbstractActionFilter {
                                                       rewrittenBuilder.aggregation(aggBuilder);
                                                   }
                                                   sr.source(rewrittenBuilder);
-                                                  log.info(searchSourceBuilder.toString());
+                                                  if(log.isTraceEnabled()) {
+                                                      log.trace(searchSourceBuilder.toString());
+                                                  }
                                                   return null;
                                               }
                                           }
