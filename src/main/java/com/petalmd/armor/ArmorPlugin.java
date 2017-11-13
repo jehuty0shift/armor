@@ -355,6 +355,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS, Setting.Property.NodeScope));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, Setting.Property.NodeScope, Setting.Property.Filtered));
