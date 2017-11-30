@@ -66,9 +66,7 @@ public final class AuthCredentials {
         this.username = username;
         //make defensive copy
         this.password = password == null ? null : Arrays.copyOf(password, password.length);
-        password = null;
         this.nativeCredentials = nativeCredentials;
-        nativeCredentials = null;
         hashCode = hashCodeInternal();
     }
 

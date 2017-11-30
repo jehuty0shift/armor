@@ -27,9 +27,7 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.common.settings.Settings;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticationBackend {
 
@@ -40,6 +38,14 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
         this.settings = settings;
         authCredsList = new ArrayList<>();
         String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
+        Map<String,String> userGroupSettings = settings.getByPrefix(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USER).getAsMap();
+        Settings roleGroupSettings = settings.getByPrefix(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES);
+        for (Map.Entry<String,String> userCred : userGroupSettings.entrySet()) {
+            String username = userCred.getKey();
+            String password = userCred.getValue();
+            String[] roles = roleGroupSettings.getAsArray(username,new String[]{});
+            authCredsList.add(new AuthCredentials(username,Arrays.asList(roles),password.toCharArray()));
+        }
         for (String userCred : userCreds) {
             String user = null;
             List<String> roles = null;
@@ -86,7 +92,7 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
 
             if (digest != null) {
 
-                digest = digest.toLowerCase();
+                digest = digest.toLowerCase(Locale.ENGLISH);
 
                 switch (digest) {
 

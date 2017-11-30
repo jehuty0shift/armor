@@ -17,11 +17,8 @@
  */
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.LdapUser;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
@@ -31,6 +28,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -43,18 +41,16 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ExistsQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
@@ -62,13 +58,14 @@ import java.util.Map.Entry;
 public class DLSActionFilter extends AbstractActionFilter {
 
     private final String filterType = "dlsfilter";
+    private final Logger log = ESLoggerFactory.getLogger(DLSActionFilter.class);
     private final Map<String, List<String>> filterMap = new HashMap<String, List<String>>();
     private final Client client;
     protected final boolean rewriteGetAsSearch;
 
     @Inject
     public DLSActionFilter(final Settings settings, final Client client, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.client = client;
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_DLSFILTER);
@@ -119,7 +116,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                 log.trace("armor." + filterType + "." + filterName + ".filters {}", filters);
             }
             final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-            final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
+            final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
             final TokenEvaluator.Evaluator evaluator;
 
@@ -144,12 +141,12 @@ public class DLSActionFilter extends AbstractActionFilter {
 
             if (user == null) {
 
-                if (authHeader == null || !(authHeader instanceof String)) {
+                if (authHeader == null) {
                     log.error("not authenticated");
                     throw new ElasticsearchException("not authenticated");
                 }
 
-                final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, ArmorService.getSecretKey());
+                final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
 
                 if (decrypted == null || !(decrypted instanceof String) || !decrypted.equals("authorized")) {
                     log.error("bad authenticated");
@@ -183,11 +180,8 @@ public class DLSActionFilter extends AbstractActionFilter {
                 if (rewriteGetAsSearch && request instanceof GetRequest) {
                     log.debug("Rewrite GetRequest as SearchRequest");
                     SearchRequest sr = toSearchRequest((GetRequest) request);
-                    if (addFiltersToSearchRequest(sr, user, fn) != null) {
-                        this.doGetFromSearchRequest((GetRequest) request, sr, listener, client);
-                    } else {
-                        log.warn("Error during the parsing of the SearchRequest, aborting the request");
-                    }
+                    addFiltersToSearchRequest(sr, user, fn);
+                    doGetFromSearchRequest((GetRequest) request, sr, listener, client);
                     return;
                 }
 
@@ -196,10 +190,7 @@ public class DLSActionFilter extends AbstractActionFilter {
                     MultiGetRequest multiGetRequest = (MultiGetRequest) request;
                     MultiSearchRequest mSRequest = toMultiSearchRequest(multiGetRequest);
                     for (SearchRequest sr : mSRequest.requests()) {
-                        if (addFiltersToSearchRequest(sr, user, fn) == null) {
-                            log.warn("Couldn't parse this request in MultiSearch Request, aborting the Request");
-                            return;
-                        }
+                        addFiltersToSearchRequest(sr, user, fn);
                     }
                     this.doGetFromSearchRequest((MultiGetRequest) request, mSRequest, listener, client);
                     return;
@@ -207,19 +198,13 @@ public class DLSActionFilter extends AbstractActionFilter {
 
                 if (request instanceof SearchRequest) {
                     log.debug("Search Request Rewrite");
-                    if (addFiltersToSearchRequest((SearchRequest) request, user, fn) == null) {
-                        log.warn("couldn't rewrite the search, Aborting the request");
-                        return;
-                    }
+                    addFiltersToSearchRequest((SearchRequest) request, user, fn);
                 }
 
                 if (request instanceof MultiSearchRequest) {
                     log.debug("MultiSearchRequestRewrite");
                     for (SearchRequest sr : ((MultiSearchRequest) request).requests()) {
-                        if (addFiltersToSearchRequest(sr, user, fn) == null) {
-                            log.warn("Couldn't parse this multiSearchRequest, aborting the request");
-                            return;
-                        }
+                        addFiltersToSearchRequest(sr, user, fn);
                     }
                 }
             }
@@ -398,7 +383,8 @@ public class DLSActionFilter extends AbstractActionFilter {
                     qliste.add(new BoolQueryBuilder().filter(existQueryBuilder));
                 }
             }
-
+            break;
+            default:
             break;
         }
 
@@ -412,49 +398,17 @@ public class DLSActionFilter extends AbstractActionFilter {
             sourceQueryBuilder.filter(dlsBoolQuery);
             sourceQueryBuilder.must(sr.source().query());
             sr.source().query(sourceQueryBuilder);
-//            for (int i = 0; i < 2; i++) {
-//                final SourceLookup sl = new SourceLookup();
-//                if (i == 0) {
-//                    srSource = sr.source();
-//                } else {
-//                    srSource = sr.extraSource();
-//                }
-//                if (srSource != null) {
-//                    sl.setSource(srSource);
-//                    if (sl.isEmpty()) { //WARNING : this also initialize the sourceLookup for following sl.soure() call, so DO NOT REMOVE.
-//                        continue;
-//                    }
-//                    try {
-//                        final BoolQueryBuilder sourceQueryBuilder = new BoolQueryBuilder();
-//                        final Map<String, Object> query = (Map<String, Object>) (sl.extractValue("query"));
-//                        sourceQueryBuilder.filter(dlsBoolQuery);
-//                        sourceQueryBuilder.must(new ArmorWrapperQueryBuilder(query));
-//                        String queryString = sourceQueryBuilder.toString();
-//                        log.debug("final query of ExtraSource is :\n" + queryString);
-//                        Map<String, Object> fullQueryMap = XContentHelper.convertToMap(sourceQueryBuilder.buildAsBytes(XContentType.JSON), false).v2();
-//                        Map<String, Object> sourceMap = sl.source();
-//                        sourceMap.put("query", fullQueryMap);
-//                        if (i == 0) {
-//                            sr.source(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-//                        } else {
-//                            sr.extraSource(XContentFactory.jsonBuilder().map(sourceMap).bytes());
-//                        }
-//                    } catch (Exception e) {
-//                        String source = sl.toString();
-//                        log.warn("Error during extract of query in the source, aborting the request." + source);
-//                        return null;
-//                    }
-//                }
-//            }
         }
         if (log.isDebugEnabled()) {
+            BytesStreamOutput sourceStream = new BytesStreamOutput();
+
             try {
-                BytesStreamOutput sourceStream = new BytesStreamOutput();
                 sr.source().writeTo(sourceStream);
-                sourceStream.close();
                 log.debug("Search request is now : \n" + sourceStream.bytes().utf8ToString());
             } catch (IOException e) {
-
+                throw new IllegalStateException(e);
+            } finally {
+                sourceStream.close();
             }
         }
 

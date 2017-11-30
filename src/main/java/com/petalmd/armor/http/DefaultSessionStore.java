@@ -34,7 +34,7 @@ public class DefaultSessionStore implements SessionStore {
     public DefaultSessionStore() {
 
         final Timer timer = new Timer();
-        timer.schedule(new DestroyAllOldSessionsTask(), 60 * 1000, 60 * 1000);
+        timer.schedule(new DestroyAllOldSessionsTask(), 60 * 1000L, 60 * 1000L);
         //timer.schedule(new DestroyAllSessionsTask(), 3600 * 1000, 10 * 1000);
     }
 
@@ -73,7 +73,7 @@ public class DefaultSessionStore implements SessionStore {
         for (final Iterator<Entry<String, Session>> iterator = store.entrySet().iterator(); iterator.hasNext();) {
             final Entry<String, Session> entry = iterator.next();
 
-            if (entry.getValue().getCreated().before(new Date(System.currentTimeMillis() - (1000 * seconds)))) {
+            if (entry.getValue().getCreated().before(new Date(System.currentTimeMillis() - (1000L * seconds)))) {
                 store.remove(entry.getKey());
                 i++;
             }

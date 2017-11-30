@@ -83,7 +83,7 @@ public class TokenEvaluator {
                 shouldAddEntities = true;
             }
             //check roles
-            if (shouldAddEntities == false && user.getRoles() != null && !user.getRoles().isEmpty() && acl.getRoles() != null) {
+            if (shouldAddEntities == false && !user.getRoles().isEmpty() && acl.getRoles() != null) {
                 for (String role : acl.getRoles()) {
                     if (user.getRoles().contains(role)) {
                         //one role found is enough

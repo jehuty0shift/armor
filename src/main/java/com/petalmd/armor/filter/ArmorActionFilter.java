@@ -50,8 +50,11 @@ import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -62,6 +65,7 @@ public class ArmorActionFilter implements ActionFilter {
     protected final Settings settings;
     private final ThreadPool threadpool;
     protected final ClusterService clusterService;
+    protected final ArmorService armorService;
     protected final Client client;
     protected final ArmorConfigService armorConfigService;
 
@@ -72,6 +76,7 @@ public class ArmorActionFilter implements ActionFilter {
         this.settings = settings;
         this.clusterService = clusterService;
         this.client = client;
+        this.armorService = armorService;
         this.armorConfigService = armorConfigService;
         this.threadpool = threadpool;
     }
@@ -98,34 +103,6 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    private void copyContextToHeader(Map<String, Object> contextMap) {
-//        if (ArmorPlugin.DLS_SUPPORTED) {
-//
-//            ThreadContext threadContext = threadpool.getThreadContext();
-//
-//            final Iterator<String> it = contextMap.keySet().iterator();
-//
-//
-//            while (it.hasNext()) {
-//                final String key = it.next();
-//
-//                if (key.toString().startsWith("armor")) {
-//
-//                    if (threadContext.getHeader(key) != null) {
-//                        continue;
-//                    }
-//
-//                    threadContext.putHeader(key.toString(),
-//                            SecurityUtil.encryptAndSerializeObject((Serializable) contextMap.get(key), ArmorService.getSecretKey()));
-//                    log.trace("Copy from context to header {}", key);
-//
-//                }
-//
-//            }
-//
-//        }
-    }
-
     private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain)
             throws Exception {
         //proceeding for kibana field stats requests
@@ -133,9 +110,6 @@ public class ArmorActionFilter implements ActionFilter {
             chain.proceed(task, action, request, listener);
             return;
         }
-
-        //copyContextToHeader(request);
-
 
         log.trace("action {} ({}) from {}", action, request.getClass(), request.remoteAddress() == null ? "INTRANODE" : request
                 .remoteAddress().toString());
@@ -169,13 +143,15 @@ public class ArmorActionFilter implements ActionFilter {
             if (authHeader == null || !(authHeader instanceof String)) {
                 log.error("not authenticated");
                 listener.onFailure(new AuthException("not authenticated"));
+                return;
             }
 
-            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, ArmorService.getSecretKey());
+            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
 
             if (decrypted == null || !(decrypted instanceof String) || !decrypted.equals("authorized")) {
                 log.error("bad authenticated");
                 listener.onFailure(new AuthException("bad authenticated"));
+                return;
             }
 
 
@@ -216,9 +192,11 @@ public class ArmorActionFilter implements ActionFilter {
             if (request instanceof IndicesRequest) {
                 final IndicesRequest ir = (IndicesRequest) request;
                 addType(ir, types, action);
-                log.trace("Indices {}", Arrays.toString(ir.indices()));
-                log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
-                log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
+                if (log.isTraceEnabled()) {
+                    log.trace("Indices {}", Arrays.toString(ir.indices()));
+                    log.trace("Indices opts allowNoIndices {}", ir.indicesOptions().allowNoIndices());
+                    log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
+                }
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
                     replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
                 } else {
@@ -229,7 +207,7 @@ public class ArmorActionFilter implements ActionFilter {
 
                 if (!allowedForAllIndices && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                    auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
+                    auditListener.onMissingPrivileges(user.getName(), request, threadContext);
 
                     listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
                     throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -245,7 +223,7 @@ public class ArmorActionFilter implements ActionFilter {
 
                 if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                    auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
+                    auditListener.onMissingPrivileges(user.getName(), request, threadContext);
 
                     listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
                     throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -331,7 +309,7 @@ public class ArmorActionFilter implements ActionFilter {
                     if (SecurityUtil.isWildcardMatch(action, forbiddenAction, false)) {
 
                         log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, forbiddenAction);
-                        auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
+                        auditListener.onMissingPrivileges(user.getName(), request, threadContext);
                         listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction));
                         throw new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction);
                     }
@@ -348,7 +326,7 @@ public class ArmorActionFilter implements ActionFilter {
 
                 log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, "DEFAULT");
 
-                auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
+                auditListener.onMissingPrivileges(user.getName(), request, threadContext);
                 listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
                 throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
             }
@@ -362,7 +340,9 @@ public class ArmorActionFilter implements ActionFilter {
         List<String> irIndices = Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
-        log.debug("replace index for " + ir.indices());
+        if(log.isDebugEnabled()) {
+            log.debug("replace index for {}", String.valueOf(ir.indices()));
+        }
         if (irIndices.size() == 0 || irIndices.contains("_all")) {
             log.debug("request target _all indices, we replace it with rulesEntities items");
             newIndices.addAll(rulesEntities.getIndices());
@@ -416,7 +396,7 @@ public class ArmorActionFilter implements ActionFilter {
         aliases.addAll(getOnlyAliases(otherIndicesOrAliases));
 
         if (!newIndices.isEmpty()) {
-            log.debug("replacing indices " + ir.indices() + " by " + newIndices.toString());
+            log.debug("replacing indices " + String.valueOf(ir.indices()) + " by " + String.valueOf(newIndices));
             IndicesRequest.Replaceable irNew = (IndicesRequest.Replaceable) ir;
             irNew.indices(newIndices.toArray(new String[newIndices.size()]));
         }
@@ -483,22 +463,28 @@ public class ArmorActionFilter implements ActionFilter {
 
     private void addType(final IndicesRequest request, final List<String> typesl, final String action) {
 
-        try {
-            final Method method = request.getClass().getDeclaredMethod("type");
-            method.setAccessible(true);
-            final String type = (String) method.invoke(request);
-            typesl.add(type);
-        } catch (final Exception e) {
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             try {
-                final Method method = request.getClass().getDeclaredMethod("types");
+                final Method method = request.getClass().getDeclaredMethod("type");
                 method.setAccessible(true);
-                final String[] types = (String[]) method.invoke(request);
-                typesl.addAll(Arrays.asList(types));
-            } catch (final Exception e1) {
-                log.debug("Cannot determine types for {} ({}) due to type[s]() method not found", action, request.getClass());
-            }
-        }
+                final String type = (String) method.invoke(request);
+                typesl.add(type);
+            } catch (NoSuchMethodException | SecurityException | IllegalAccessException |
+                    IllegalArgumentException | InvocationTargetException e) {
+                try {
+                    final Method method = request.getClass().getDeclaredMethod("types");
+                    method.setAccessible(true);
+                    final String[] types = (String[]) method.invoke(request);
+                    typesl.addAll(Arrays.asList(types));
+                } catch (final NoSuchMethodException | SecurityException | IllegalAccessException |
+                        IllegalArgumentException | InvocationTargetException e1) {
+                    log.debug("Cannot determine types for {} ({}) due to type[s]() method not found", action, request.getClass());
+                }
 
+            } finally {
+                return null;
+            }
+        });
     }
 
 }

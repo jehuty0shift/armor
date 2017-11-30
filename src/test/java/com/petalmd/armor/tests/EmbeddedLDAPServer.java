@@ -129,7 +129,7 @@ public class EmbeddedLDAPServer {
 
         ldapServer.setKeystoreFile(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks").getAbsolutePath());
         ldapServer.setCertificatePassword("changeit");
-        ldapServer.setEnabledCipherSuites(Arrays.asList(SecurityUtil.ENABLED_SSL_CIPHERS));
+        ldapServer.setEnabledCipherSuites(Arrays.asList(SecurityUtil.getEnabledSslCiphers()));
 
         if (ldapServer.isStarted()) {
             throw new IllegalStateException("Service already running");

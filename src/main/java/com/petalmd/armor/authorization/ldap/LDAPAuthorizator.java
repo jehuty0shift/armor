@@ -31,6 +31,7 @@ import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.ldap.client.api.LdapConnection;
@@ -75,15 +76,19 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             //## Truststore ##
             final KeyStore ts = KeyStore.getInstance(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE,
                     "JKS"));
-            ts.load(new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
-                    null))), settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
-                    .toCharArray());
-
+            FileInputStream trustStoreFile = new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
+                    null)));
+            try {
+                ts.load(trustStoreFile, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
+                        .toCharArray());
+            } finally {
+                trustStoreFile.close();
+            }
             final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(ts);
 
             config.setSslProtocol("TLS");
-            config.setEnabledCipherSuites(SecurityUtil.ENABLED_SSL_CIPHERS);
+            config.setEnabledCipherSuites(SecurityUtil.getEnabledSslCiphers());
             config.setTrustManagers(tmf.getTrustManagers());
         }
 
@@ -118,7 +123,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                     break;
                 }
 
-            } catch (final Exception e) {
+            } catch (final NumberFormatException e) {
                 continue;
             }
         }
@@ -299,7 +304,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 }
             }
 
-        } catch (final Exception e) {
+        } catch (LdapException | CursorException| AuthException e) {
             log.error(e.toString(), e);
             throw new AuthException(e);
         } finally {

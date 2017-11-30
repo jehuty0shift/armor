@@ -175,7 +175,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                         // Construct a MappingMetadata with the type.
                         MappingMetaData metadataObf = new MappingMetaData(typeMapping.key, typeMappingMapObf);
                         mappingObfuscated.put(typeMapping.key, metadataObf);
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         log.error("Error during obfuscation",e);
                         e.printStackTrace();
                     }
@@ -214,12 +214,14 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
         BytesStreamOutput bSO = new BytesStreamOutput();
         try {
             writeTo(bSO);
-            bSO.close();
             response.readFrom(bSO.bytes().streamInput());
             return response;
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.error("Couldn't modify Response",e);
             return null;
+        } finally {
+            //only to enforce best practices.
+            bSO.close();
         }
     }
 

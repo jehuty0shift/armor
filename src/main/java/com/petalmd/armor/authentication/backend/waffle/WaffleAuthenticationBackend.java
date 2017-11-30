@@ -38,14 +38,12 @@ import com.petalmd.armor.util.ConfigConstants;
 public class WaffleAuthenticationBackend implements AuthenticationBackend {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    private final Settings settings;
     protected final boolean stripDomain;
 
     private final IWindowsAuthProvider authProvider;
 
     @Inject
     public WaffleAuthenticationBackend(final Settings settings, final IWindowsAuthProvider authProvider) {
-        this.settings = settings;
 
         this.authProvider = authProvider;
         stripDomain = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_WAFFLE_STRIP_DOMAIN, true);
@@ -59,7 +57,7 @@ public class WaffleAuthenticationBackend implements AuthenticationBackend {
     @Override
     public User authenticate(final AuthCredentials credentials) throws AuthException {
         //TODO FUTURE check login waffle
-        final String[] domainUsername = credentials.getUsername().split("\\");
+        final String[] domainUsername = credentials.getUsername().split("\\\\");
 
         try {
             final IWindowsIdentity identity = authProvider.logonDomainUser(domainUsername[1], domainUsername[0],
@@ -79,6 +77,7 @@ public class WaffleAuthenticationBackend implements AuthenticationBackend {
             }
             return new User(authenticatedUser);
         } catch (final Exception e) {
+            log.error("Error during Authentication",e);
             throw new AuthException(e);
         } finally {
             credentials.clear();

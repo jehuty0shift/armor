@@ -16,7 +16,10 @@ import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -146,23 +149,30 @@ public class RequestItemDetails {
 
     private static void addType(final IndicesRequest request, final Set<java.lang.String> types) {
 
-        try {
-            final Method method = request.getClass().getDeclaredMethod("type");
-            method.setAccessible(true);
-            final String type = (String) method.invoke(request);
-            types.add(type);
-        } catch (final Exception e) {
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             try {
-                final Method method = request.getClass().getDeclaredMethod("types");
+                final Method method = request.getClass().getDeclaredMethod("type");
                 method.setAccessible(true);
-                final String[] typesArray = (String[]) method.invoke(request);
-                types.addAll(Arrays.asList(typesArray));
-            } catch (final Exception e1) {
-                //couldn't add type, so we add all types  : *
-                types.clear();
-                types.add("*");
+                final String type = (String) method.invoke(request);
+                types.add(type);
+            } catch (NoSuchMethodException | SecurityException | IllegalAccessException |
+                    IllegalArgumentException | InvocationTargetException e) {
+                try {
+                    final Method method = request.getClass().getDeclaredMethod("types");
+                    method.setAccessible(true);
+                    final String[] typesA = (String[]) method.invoke(request);
+                    types.addAll(Arrays.asList(typesA));
+                } catch (final NoSuchMethodException | SecurityException | IllegalAccessException |
+                        IllegalArgumentException | InvocationTargetException e1) {
+                    types.clear();
+                    types.add("*");
+                    log.debug("Cannot determine types for({}) due to type[s]() method not found", request.getClass());
+                }
+
+            } finally {
+                return null;
             }
-        }
+        });
 
     }
 

@@ -67,6 +67,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -153,7 +154,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE, true)) {
                 authenticationBackend = new GuavaCachingAuthenticationBackend((NonCachingAuthenticationBackend) authenticationBackend, settings);
             }
-        } catch (Exception e) {
+        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the AuthenticationBackend Class ! ! ", e);
         }
         componentsList.add(authenticationBackend);
@@ -172,7 +173,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE, true)) {
                 authorizator = new GuavaCachingAuthorizator((NonCachingAuthorizator) authorizator, settings);
             }
-        } catch (Exception e) {
+        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the Authorizator Class ! ! ", e);
         }
         componentsList.add(authorizator);
@@ -188,8 +189,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
                 httpAuthenticator = defaultHTTPAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
             }
 
-
-        } catch (Exception e) {
+        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the HTTP Authenticator Class ! ! ", e);
         }
         componentsList.add(httpAuthenticator);
@@ -339,6 +339,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //settings backend
+        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USER, Setting.Property.NodeScope));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES, Setting.Property.NodeScope));
 

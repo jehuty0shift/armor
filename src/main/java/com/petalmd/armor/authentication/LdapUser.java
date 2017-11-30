@@ -27,6 +27,7 @@ import org.apache.directory.api.ldap.model.entry.Entry;
 
 public class LdapUser extends User {
 
+    private static final long serialVersionUID = 1L;
     private final Entry userEntry;
     private final Set<Entry> roleEntries = new HashSet<Entry>();
 
@@ -53,9 +54,30 @@ public class LdapUser extends User {
 
     @Override
     public void copyRolesFrom(final User user) {
+        if(user instanceof LdapUser) {
+            this.addRoleEntries(((LdapUser) user).getRoleEntries());
+            super.copyRolesFrom(user);
+        }
+    }
 
-        this.addRoleEntries(((LdapUser) user).getRoleEntries());
 
-        super.copyRolesFrom(user);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+
+        LdapUser ldapUser = (LdapUser) o;
+
+        if (userEntry != null ? !userEntry.equals(ldapUser.userEntry) : ldapUser.userEntry != null) return false;
+        return roleEntries != null ? roleEntries.equals(ldapUser.roleEntries) : ldapUser.roleEntries == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + (userEntry != null ? userEntry.hashCode() : 0);
+        result = 31 * result + (roleEntries != null ? roleEntries.hashCode() : 0);
+        return result;
     }
 }

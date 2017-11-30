@@ -35,11 +35,10 @@ public class HTTPUnauthenticatedAuthenticator implements HTTPAuthenticator {
 
     private static final String UNAUTHENTICATED_USER = "armor_unauthenticated_user";
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    private final Settings settings;
 
     @Inject
     public HTTPUnauthenticatedAuthenticator(final Settings settings) {
-        this.settings = settings;
+
     }
 
     @Override

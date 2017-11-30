@@ -55,7 +55,7 @@ public class AggregationFilter extends AbstractActionFilter {
 
     @Inject
     public AggregationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService, final NamedXContentRegistry xContentRegistry) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, false);
         this.xContentRegistry = xContentRegistry;
     }
@@ -71,18 +71,18 @@ public class AggregationFilter extends AbstractActionFilter {
         final ThreadContext threadContext = threadpool.getThreadContext();
 
         final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-        final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
+        final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
         log.trace("user {}", user);
 
         if (user == null) {
 
-            if (authHeader == null || !(authHeader instanceof String)) {
+            if (authHeader == null) {
                 log.error("not authenticated");
                 throw new ElasticsearchException("not authenticated");
             }
 
-            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, ArmorService.getSecretKey());
+            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
 
             if (decrypted == null || !(decrypted instanceof String) || !decrypted.equals("authorized")) {
                 log.error("bad authenticated");
@@ -125,7 +125,6 @@ public class AggregationFilter extends AbstractActionFilter {
                                                       return null;
                                                   }
                                                   XContentBuilder jsonContent = JsonXContent.contentBuilder();
-                                                  jsonContent.generator();
                                                   jsonContent = aggregations.toXContent(jsonContent, null);
                                                   jsonContent.close();
                                                   String aggregationString = jsonContent.string();

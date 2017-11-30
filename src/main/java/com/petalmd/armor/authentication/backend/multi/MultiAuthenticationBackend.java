@@ -20,17 +20,14 @@ import java.util.List;
 
 public class MultiAuthenticationBackend
 implements NonCachingAuthenticationBackend {
-    private final Settings settings;
     private final List<NonCachingAuthenticationBackend> nonCachingAuthBackends;
-    protected final Logger log;
+    protected static final Logger log = ESLoggerFactory.getLogger(MultiAuthenticationBackend.class);
 
     @Inject
     public MultiAuthenticationBackend(Settings settings) {
-        String[] backendArray;
-        this.log = ESLoggerFactory.getLogger(this.getClass());
-        this.settings = settings;
+
         this.nonCachingAuthBackends = new ArrayList<NonCachingAuthenticationBackend>();
-        for (String backend : backendArray = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST)) {
+        for (String backend : settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST,new String[0])) {
             try {
                 Class clazz = Class.forName(backend);
                 Constructor ctor = clazz.getDeclaredConstructor(Settings.class);
@@ -39,7 +36,7 @@ implements NonCachingAuthenticationBackend {
                 continue;
             }
             catch (ClassNotFoundException ex) {
-                this.log.warn("Class " + backendArray + "has not been found ! Skipping this class", ex, new Object[0]);
+                this.log.warn("Class " + backend + "has not been found ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (NoSuchMethodException ex) {

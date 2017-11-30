@@ -37,6 +37,7 @@ import org.elasticsearch.rest.RestRequest;
 
 import javax.security.cert.X509Certificate;
 import java.security.Principal;
+import java.util.Locale;
 
 public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
 
@@ -64,13 +65,13 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
             throw new AuthException("No x500 principal found in request",e);
         }
 
-        if (dn == null || dn.isEmpty() || dn.equals("null")) {
+        if (dn.isEmpty() || dn.equals("null")) {
             throw new AuthException("No x500 principal found in request");
         }
 
         final String userAttribute = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME, "cn")
-                .toLowerCase();
-        final int index = dn.toLowerCase().indexOf(userAttribute + "=");
+                .toLowerCase(Locale.ENGLISH);
+        final int index = dn.toLowerCase(Locale.ENGLISH).indexOf(userAttribute + "=");
         String userName = dn;
         if (index > -1) {
             final int start = index + userAttribute.length() + 1;

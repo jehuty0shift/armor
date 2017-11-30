@@ -46,7 +46,7 @@ public class RequestActionFilter extends AbstractActionFilter {
 
     @Inject
     public RequestActionFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService,armorService, armorConfigService, armorService.getAuditListener(), threadPool);
 
         final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
         for (final String filterName : arFilters) {

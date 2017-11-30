@@ -159,8 +159,6 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
-        Assert.assertNotNull(user);
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
 
     @Test(expected = AuthException.class)
@@ -174,8 +172,6 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm",
                 "secret-wrong".toCharArray()));
-        Assert.assertNotNull(user);
-        Assert.assertEquals("cn=Michael Jackson,ou=people,o=TEST", user.getName());
     }
 
     @Test

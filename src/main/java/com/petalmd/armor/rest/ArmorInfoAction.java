@@ -23,6 +23,7 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
@@ -45,14 +46,14 @@ import com.petalmd.armor.util.SecurityUtil;
 
 public class ArmorInfoAction extends BaseRestHandler {
 
-    private final ArmorService service;
+    private final Settings settings;
 
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
                            final ArmorService service) {
         super(settings);
         controller.registerHandler(GET, "/_armor", this);
-        this.service = service;
+        this.settings = settings;
     }
 
     @Override
@@ -67,33 +68,19 @@ public class ArmorInfoAction extends BaseRestHandler {
                 final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
                 final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
-//                final Authorizator authorizator = service.getAuthorizator();
-//                final AuthenticationBackend authenticationBackend = service.getAuthenticationBackend();
-//                final HTTPAuthenticator httpAuthenticator = service.getHttpAuthenticator();
-
                 BytesRestResponse response;
                 final XContentBuilder builder = restChannel.newBuilder();
 
                 try {
 
                     //TODO : To Delete ? Authentication is done in REST Wrapper
-//
-//                    final User authenticatedUser = httpAuthenticator.authenticate(request, restChannel, authenticationBackend, authorizator);
-//
-//                    if (authenticatedUser == null) {
-//
-//                    }
 
                     builder.startObject();
 
                     builder.field("armor.status", "running");
-//                    builder.field("armor.dls.supported", ArmorPlugin.DLS_SUPPORTED);
-//                    builder.field("armor.fls.supported", ArmorPlugin.DLS_SUPPORTED);
+                    builder.field("armor.enabled",settings.get(ConfigConstants.ARMOR_ENABLED));
                     builder.field("armor.isloopback", isLoopback);
                     builder.field("armor.resolvedaddress", resolvedAddress);
-//                    builder.field("armor.authenticated_user", authenticatedUser.getName());
-
-//                    builder.field("armor.roles", authenticatedUser.getRoles());
 
                     builder.endObject();
 
@@ -104,8 +91,6 @@ public class ArmorInfoAction extends BaseRestHandler {
                     builder.endObject();
                     response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 }
-
-                final BytesRestResponse finalResponse = response;
                 restChannel.sendResponse(response);
             }
         };

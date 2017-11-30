@@ -36,14 +36,12 @@ import java.util.List;
 
 public class MultiBackendAuthorizator
 implements NonCachingAuthorizator {
-    private final Settings settings;
     private final List<NonCachingAuthorizator> nonCachingAuthBackends;
     private final Logger log = ESLoggerFactory.getLogger(MultiBackendAuthorizator.class);
 
     @Inject
     public MultiBackendAuthorizator(Settings settings) {
         String[] backendArray;
-        this.settings = settings;
         this.nonCachingAuthBackends = new ArrayList<NonCachingAuthorizator>();
         for (String backend : backendArray = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST)) {
             try {
@@ -54,7 +52,7 @@ implements NonCachingAuthorizator {
                 continue;
             }
             catch (ClassNotFoundException ex) {
-                this.log.warn("Class " + backendArray + "has not been found ! Skipping this class", ex, new Object[0]);
+                this.log.warn("Class " + backend + "has not been found ! Skipping this class", ex, new Object[0]);
                 continue;
             }
             catch (NoSuchMethodException ex) {

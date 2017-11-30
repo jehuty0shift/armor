@@ -548,11 +548,11 @@ public abstract class AbstractUnitTest {
             if (enableSSLv3Only) {
                 protocols = new String[]{"SSLv3"};
             } else {
-                protocols = SecurityUtil.ENABLED_SSL_PROTOCOLS;
+                protocols = SecurityUtil.getEnabledSslProtocols();
             }
 
             final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols,
-                    SecurityUtil.ENABLED_SSL_CIPHERS, NoopHostnameVerifier.INSTANCE);
+                    SecurityUtil.getEnabledSslCiphers(), NoopHostnameVerifier.INSTANCE);
 
             hcb.setSSLSocketFactory(sslsf);
 

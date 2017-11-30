@@ -62,20 +62,23 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import javax.xml.bind.DatatypeConverter;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractActionFilter implements ActionFilter {
 
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    private final Logger log = ESLoggerFactory.getLogger(this.getClass());
     protected final Settings settings;
     protected final AuthenticationBackend backend;
-    private final boolean allowAllFromLoopback;
     protected final AuditListener auditListener;
     protected final Authorizator authorizator;
+    protected final ArmorService armorService;
     protected final ClusterService clusterService;
     protected final ArmorConfigService armorConfigService;
     protected final ThreadPool threadpool;
@@ -86,15 +89,15 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     protected AbstractActionFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
-                                   final ClusterService clusterService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
+                                   final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
         this.settings = settings;
         this.authorizator = authorizator;
         this.backend = backend;
         this.clusterService = clusterService;
+        this.armorService = armorService;
         this.armorConfigService = armorConfigService;
         this.auditListener = auditListener;
         this.threadpool = threadpool;
-        allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
     }
 
     @Override
@@ -141,11 +144,11 @@ public abstract class AbstractActionFilter implements ActionFilter {
             return;
         }
 
-        final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
+        final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
         boolean interNodeAuthenticated = false;
 
-        if (authHeader != null && authHeader instanceof String) {
-            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, ArmorService.getSecretKey());
+        if (authHeader != null) {
+            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
 
             if (decrypted != null && (decrypted instanceof String) && decrypted.equals("authorized")) {
                 interNodeAuthenticated = true;
@@ -162,9 +165,9 @@ public abstract class AbstractActionFilter implements ActionFilter {
             log.debug("Request is external, evaluating filters.");
         }
 
-        final Object transportCreds = threadContext.getHeader(ArmorConstants.ARMOR_TRANSPORT_CREDS);
+        final String transportCreds = threadContext.getHeader(ArmorConstants.ARMOR_TRANSPORT_CREDS);
         User authenticatedTransportUser = null;
-        if (transportCreds != null && transportCreds instanceof String
+        if (transportCreds != null
                 && settings.getAsBoolean(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, false)) {
 
             try {
@@ -199,14 +202,14 @@ public abstract class AbstractActionFilter implements ActionFilter {
                                      final ActionFilterChain chain);
 
 
-    protected static <T> T getFromContextOrHeader(final String key, final ThreadContext threadContext, final T defaultValue) {
+    protected <T> T getFromContextOrHeader(final String key, final ThreadContext threadContext, final T defaultValue) {
 
         if (threadContext.getTransient(key) != null) {
             return threadContext.getTransient(key);
         }
 
         if (threadContext.getHeader(key) != null) {
-            return (T) SecurityUtil.decryptAnDeserializeObject(threadContext.getHeader(key), ArmorService.getSecretKey());
+            return (T) SecurityUtil.decryptAnDeserializeObject(threadContext.getHeader(key), armorService.getSecretKey());
         }
 
         return defaultValue;
@@ -247,42 +250,61 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     protected void doGetFromSearchRequest(final GetRequest getRequest, final SearchRequest searchRequest, final ActionListener listener, final Client client) {
-        client.search(searchRequest, new DelegatingActionListener<SearchResponse, GetResponse>(listener) {
-            @Override
-            public GetResponse getDelegatedFromInstigator(final SearchResponse searchResponse) {
-
-                if (searchResponse.getHits().getTotalHits() <= 0) {
-                    return new GetResponse(new GetResult(getRequest.index(), getRequest.type(), getRequest.id(), getRequest.version(), false, null,
-                            null));
-                } else if (searchResponse.getHits().getTotalHits() > 1) {
-                    throw new RuntimeException("cannot happen");
-                } else {
-                    final SearchHit sh = searchResponse.getHits().getHits()[0];
-                    return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
-                }
-
-            }
-        });
+        client.search(searchRequest, new SearchDelegatingActionListener(listener, getRequest));
     }
 
-    protected void doGetFromSearchRequest(final MultiGetRequest getRequest, final MultiSearchRequest searchRequest, final ActionListener listener, final Client client) {
-        client.multiSearch(searchRequest, new DelegatingActionListener<MultiSearchResponse, GetResponse>(listener) {
-            @Override
-            public GetResponse getDelegatedFromInstigator(final MultiSearchResponse searchResponse) {
+    static class SearchDelegatingActionListener extends DelegatingActionListener<SearchResponse, GetResponse> {
 
-                if (searchResponse.getResponses() == null || searchResponse.getResponses().length <= 0) {
-                    final Item item = getRequest.getItems().get(0);
-                    return new GetResponse(new GetResult(item.index(), item.type(), item.id(), item.version(), false, null, null));
-                } else if (searchResponse.getResponses().length > 1) {
-                    throw new RuntimeException("cannot happen");
-                } else {
-                    final org.elasticsearch.action.search.MultiSearchResponse.Item item = searchResponse.getResponses()[0];
-                    final SearchHit sh = item.getResponse().getHits().getHits()[0];
-                    return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
-                }
+        final GetRequest getRequest;
 
+        public SearchDelegatingActionListener(ActionListener<GetResponse> listener, final GetRequest getRequest) {
+            super(listener);
+            this.getRequest = getRequest;
+        }
+
+        @Override
+        public GetResponse getDelegatedFromInstigator(final SearchResponse searchResponse) {
+
+            if (searchResponse.getHits().getTotalHits() <= 0) {
+                return new GetResponse(new GetResult(getRequest.index(), getRequest.type(), getRequest.id(), getRequest.version(), false, null,
+                        null));
+            } else if (searchResponse.getHits().getTotalHits() > 1) {
+                throw new RuntimeException("cannot happen");
+            } else {
+                final SearchHit sh = searchResponse.getHits().getHits()[0];
+                return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
             }
-        });
+        }
+    }
+
+
+    protected void doGetFromSearchRequest(final MultiGetRequest getRequest, final MultiSearchRequest searchRequest, final ActionListener listener, final Client client) {
+        client.multiSearch(searchRequest, new MultiSearchDelegatingActionListener(listener, getRequest));
+    }
+
+    static class MultiSearchDelegatingActionListener extends DelegatingActionListener<MultiSearchResponse, GetResponse> {
+
+        final MultiGetRequest getRequest;
+
+        public MultiSearchDelegatingActionListener(ActionListener<GetResponse> listener, MultiGetRequest getRequest) {
+            super(listener);
+            this.getRequest = getRequest;
+        }
+
+        @Override
+        public GetResponse getDelegatedFromInstigator(final MultiSearchResponse searchResponse) {
+
+            if (searchResponse.getResponses() == null || searchResponse.getResponses().length <= 0) {
+                final Item item = getRequest.getItems().get(0);
+                return new GetResponse(new GetResult(item.index(), item.type(), item.id(), item.version(), false, null, null));
+            } else if (searchResponse.getResponses().length > 1) {
+                throw new RuntimeException("cannot happen");
+            } else {
+                final org.elasticsearch.action.search.MultiSearchResponse.Item item = searchResponse.getResponses()[0];
+                final SearchHit sh = item.getResponse().getHits().getHits()[0];
+                return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
+            }
+        }
     }
 
     protected TokenEvaluator.Evaluator getEvaluator(final ActionRequest request, final String action, final User user, final ThreadContext threadContext) {
@@ -426,23 +448,28 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
     protected void addType(final IndicesRequest request, final List<String> typesl, final String action) {
 
-        try {
-            final Method method = request.getClass().getDeclaredMethod("type");
-            method.setAccessible(true);
-            final String type = (String) method.invoke(request);
-            typesl.add(type);
-        } catch (final Exception e) {
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             try {
-                final Method method = request.getClass().getDeclaredMethod("types");
+                final Method method = request.getClass().getDeclaredMethod("type");
                 method.setAccessible(true);
-                final String[] types = (String[]) method.invoke(request);
-                typesl.addAll(Arrays.asList(types));
-            } catch (final Exception e1) {
-                log.debug("Cannot determine types for {} ({}) due to type[s]() method not found", action, request.getClass());
+                final String type = (String) method.invoke(request);
+                typesl.add(type);
+            } catch (NoSuchMethodException | SecurityException | IllegalAccessException |
+                    IllegalArgumentException | InvocationTargetException e) {
+                try {
+                    final Method method = request.getClass().getDeclaredMethod("types");
+                    method.setAccessible(true);
+                    final String[] types = (String[]) method.invoke(request);
+                    typesl.addAll(Arrays.asList(types));
+                } catch (final NoSuchMethodException | SecurityException | IllegalAccessException |
+                        IllegalArgumentException | InvocationTargetException e1) {
+                    log.debug("Cannot determine types for {} ({}) due to type[s]() method not found", action, request.getClass());
+                }
+
+            } finally {
+                return null;
             }
-
-        }
-
+        });
     }
 
 }

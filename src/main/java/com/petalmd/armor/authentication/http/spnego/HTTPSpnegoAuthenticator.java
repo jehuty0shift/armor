@@ -49,17 +49,16 @@ import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Locale;
 
 public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    private final Settings settings;
     private final String loginContextName;
     private final boolean strip;
 
     @Inject
     public HTTPSpnegoAuthenticator(final Settings settings) {
-        this.settings = settings;
 
         System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
 
@@ -84,7 +83,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
         if (authorizationHeader != null) {
 
-            if (!authorizationHeader.trim().toLowerCase().startsWith("negotiate ")) {
+            if (!authorizationHeader.trim().toLowerCase(Locale.ENGLISH).startsWith("negotiate ")) {
                 throw new AuthException("Bad 'Authorization' header");
             } else {
 
@@ -107,12 +106,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                     final GSSManager manager = GSSManager.getInstance();
                     final int credentialLifetime = GSSCredential.INDEFINITE_LIFETIME;
 
-                    final PrivilegedExceptionAction<GSSCredential> action = new PrivilegedExceptionAction<GSSCredential>() {
-                        @Override
-                        public GSSCredential run() throws GSSException {
-                            return manager.createCredential(null, credentialLifetime, new Oid("1.3.6.1.5.5.2"), GSSCredential.ACCEPT_ONLY);
-                        }
-                    };
+                    final PrivilegedExceptionAction<GSSCredential> action = () -> manager.createCredential(null, credentialLifetime, new Oid("1.3.6.1.5.5.2"), GSSCredential.ACCEPT_ONLY);
                     gssContext = manager.createContext(Subject.doAs(subject, action));
 
                     outToken = Subject.doAs(lc.getSubject(), new AcceptAction(gssContext, decodedNegotiateHeader));
@@ -246,7 +240,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
             if (gssName != null) {
                 String name = gssName.toString();
 
-                if (strip && name != null) {
+                if (strip) {
                     final int i = name.indexOf('@');
                     if (i > 0) {
                         // Zero so we don;t leave a zero length name

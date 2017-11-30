@@ -23,7 +23,9 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.CookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.apache.commons.io.IOUtils;
+import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.exception.InvalidConnectionException;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -34,13 +36,14 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import javax.crypto.Cipher;
-import javax.crypto.SealedObject;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.net.*;
+import java.security.InvalidKeyException;
+import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -56,8 +59,8 @@ public class SecurityUtil {
             "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256"};
     private static final String[] PREFERRED_SSL_PROTOCOLS = {"TLSv1", "TLSv1.1", "TLSv1.2"};
 
-    public static String[] ENABLED_SSL_PROTOCOLS = null;
-    public static String[] ENABLED_SSL_CIPHERS = null;
+    private static String[] ENABLED_SSL_PROTOCOLS = null;
+    private static String[] ENABLED_SSL_CIPHERS = null;
 
     private SecurityUtil() {
 
@@ -105,7 +108,7 @@ public class SecurityUtil {
             log.debug("Usable SSL/TLS protocols: {}", supportedProtocols);
             log.debug("Usable SSL/TLS cipher suites: {}", supportedCipherSuites);
 
-        } catch (final Exception e) {
+        } catch (final NoSuchAlgorithmException | KeyManagementException e) {
             log.error("Error while evaluating supported crypto", e);
         }
     }
@@ -192,29 +195,6 @@ public class SecurityUtil {
         return false;
     }
 
-    public static void send(final RestChannel channel, final RestStatus status, final String arg) {
-        try {
-
-            final XContentBuilder builder = channel.newBuilder();
-
-            builder.startObject();
-            builder.field("status", status.getStatus());
-
-            if (arg != null && !arg.isEmpty()) {
-                builder.field("message", arg);
-            }
-
-            builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
-        } catch (final Exception e) {
-            log.error("Failed to send a response.", e);
-            try {
-                channel.sendResponse(new BytesRestResponse(channel, e));
-            } catch (final IOException e1) {
-                log.error("Failed to send a failure response.", e1);
-            }
-        }
-    }
 
     public static boolean isWildcardMatch(final String toCheckForMatch, final String pattern, final boolean alsoViceVersa) {
 
@@ -246,14 +226,14 @@ public class SecurityUtil {
 
         try {
             connection.unBind();
-        } catch (final Exception e) {
-            //ignore
+        } catch (final LdapException e) {
+            log.warn(e);
         }
 
         try {
             connection.close();
-        } catch (final Exception e) {
-            //ignore
+        } catch (final IOException e) {
+            log.warn(e);
         }
 
     }
@@ -270,7 +250,7 @@ public class SecurityUtil {
 
             for (final Iterator iterator = cookiesAsSet.iterator(); iterator.hasNext(); ) {
                 final Cookie cookie = (Cookie) iterator.next();
-                if ("es_armor_session".equals(cookie.name())) {
+                if (ArmorConstants.ARMOR_ES_ARMOR_SESSION.equals(cookie.name())) {
                     return cookie.value();
                 }
             }
@@ -294,9 +274,12 @@ public class SecurityUtil {
             out.writeObject(sealedobject);
             final byte[] bytes = bos.toByteArray();
             return BaseEncoding.base64().encode(bytes);
-        } catch (final Exception e) {
-            log.error(e.toString(), e);
-            throw new ElasticsearchException(e.toString());
+        } catch (final NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
+            log.error(" error in cryptography configuration", e);
+            throw new ElasticsearchException(e);
+        } catch (final IOException | IllegalBlockSizeException e){
+            log.error(" error during deserialization", e);
+            throw new ElasticsearchException(e);
         }
     }
 
@@ -312,10 +295,19 @@ public class SecurityUtil {
             final ObjectInputStream in = new ObjectInputStream(bis);
             final SealedObject ud = (SealedObject) in.readObject();
             return (Serializable) ud.getObject(key);
-        } catch (final Exception e) {
+        } catch (final IOException | ClassNotFoundException | NoSuchAlgorithmException | InvalidKeyException e) {
             log.error(e.toString(), e);
             throw new ElasticsearchException(e.toString());
         }
+    }
+
+
+    public static String[] getEnabledSslCiphers(){
+        return Arrays.copyOf(ENABLED_SSL_CIPHERS,ENABLED_SSL_CIPHERS.length);
+    }
+
+    public static String[] getEnabledSslProtocols(){
+        return Arrays.copyOf(ENABLED_SSL_PROTOCOLS,ENABLED_SSL_PROTOCOLS.length);
     }
 
     private static boolean isWindowsAdmin() {
@@ -330,37 +322,11 @@ public class SecurityUtil {
                 }
             }
             return false;
-        } catch (final Exception e) {
+        } catch (final InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
             return false;
         }
     }
 
-    public static boolean isRootUser() {
-
-        boolean isRoot = false;
-
-        int exitValue = -1;
-        String result = null;
-
-        try {
-            final Process p = Runtime.getRuntime().exec("id -u");
-            result = IOUtils.toString(p.getInputStream());
-            exitValue = p.waitFor();
-            p.destroy();
-        } catch (final Exception e) {
-            //ignore
-        }
-
-        if (exitValue == 0 && result != null) {
-            isRoot = "0".equals(result.trim());
-        }
-
-        if (!isRoot) {
-            return isWindowsAdmin();
-        } else {
-            return true;
-        }
-    }
 
     public static InetAddress getProxyResolvedHostAddressFromRequest(final RestRequest request, final Settings settings)
             throws UnknownHostException {
@@ -418,7 +384,7 @@ public class SecurityUtil {
 
         }
 
-        if (raddr == null || raddr.isEmpty()) {
+        if (raddr.isEmpty()) {
             throw new UnknownHostException("Host is <null> or <empty>");
         }
 

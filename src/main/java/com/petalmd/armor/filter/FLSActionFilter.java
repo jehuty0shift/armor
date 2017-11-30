@@ -25,6 +25,7 @@ import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -37,6 +38,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -51,13 +53,14 @@ import java.util.Map.Entry;
 public class FLSActionFilter extends AbstractActionFilter {
 
     private final String filterType = "flsfilter";
+    private final Logger log = ESLoggerFactory.getLogger(FLSActionFilter.class);
     private final Map<String, Tuple<List<String>, List<String>>> filterMap = new HashMap<String, Tuple<List<String>, List<String>>>();
     private final Client client;
     protected final boolean rewriteGetAsSearch;
 
     @Inject
     public FLSActionFilter(final Settings settings, final Client client, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
 
         this.client = client;
 
@@ -113,7 +116,7 @@ public class FLSActionFilter extends AbstractActionFilter {
 
         }
         final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-        final Object authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
+        final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
         final TokenEvaluator.Evaluator evaluator;
 
@@ -139,12 +142,12 @@ public class FLSActionFilter extends AbstractActionFilter {
 
         if (user == null) {
 
-            if (authHeader == null || !(authHeader instanceof String)) {
+            if (authHeader == null) {
                 log.error("not authenticated");
                 throw new ElasticsearchException("not authenticated");
             }
 
-            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, ArmorService.getSecretKey());
+            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
 
             if (decrypted == null || !(decrypted instanceof String) || !decrypted.equals("authorized")) {
                 log.error("bad authenticated");

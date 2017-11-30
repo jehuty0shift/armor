@@ -43,13 +43,7 @@ public final class GuavaCachingAuthenticationBackend implements AuthenticationBa
         this.settings = settings;
         this.backend = backend;
 
-        final CacheLoader<AuthCredentials, User> loader = new CacheLoader<AuthCredentials, User>() {
-
-            @Override
-            public User load(final AuthCredentials userPass) throws AuthException {
-                return backend.authenticate(userPass);
-            }
-        };
+        final CacheLoader<AuthCredentials, User> loader = new AuthCacheLoader(backend);
 
         cache = CacheBuilder.newBuilder().expireAfterWrite(24, TimeUnit.HOURS).recordStats().build(loader);
     }
@@ -80,4 +74,21 @@ public final class GuavaCachingAuthenticationBackend implements AuthenticationBa
     public long getRequestCount() {
     	return cache.stats().requestCount();
     }
+
+    static class AuthCacheLoader extends CacheLoader<AuthCredentials, User>  {
+
+        final NonCachingAuthenticationBackend backend;
+
+        AuthCacheLoader(NonCachingAuthenticationBackend backend) {
+            super();
+            this.backend = backend;
+        }
+
+        @Override
+        public User load(final AuthCredentials userPass) throws AuthException {
+            return backend.authenticate(userPass);
+        }
+
+    }
+
 }

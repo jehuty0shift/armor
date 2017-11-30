@@ -46,17 +46,16 @@ import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ArmorService extends AbstractLifecycleComponent {
 
     //private final String securityConfigurationIndex;
     private final Settings settings;
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    private Method method;
-    private Method searchServiceSetCallbackMethod;
     private final AuditListener auditListener;
     private final ClusterService clusterService;
-    private static SecretKey secretKey;
+    private static AtomicReference<SecretKey> secretKey = new AtomicReference<>();
     private final Authorizator authorizator;
     private final AuthenticationBackend authenticationBackend;
     private final HTTPAuthenticator httpAuthenticator;
@@ -84,20 +83,6 @@ public class ArmorService extends AbstractLifecycleComponent {
             sm.checkPermission(new SpecialPermission());
         }
 
-//        try {
-//            AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
-//                @Override
-//                public Boolean run() throws Exception {
-//                    method = RestController.class.getDeclaredMethod("getHandler", RestRequest.class);
-//                    method.setAccessible(true);
-//
-//                    return true;
-//                }
-//            });
-//        } catch (final Exception e) {
-//            log.error(e.toString(), e);
-//            throw new ElasticsearchException(e.toString());
-//        }
 
         final String keyPath = settings.get(ConfigConstants.ARMOR_KEY_PATH,".");
 //        AccessController.checkPermission(new FilePermission(keyPath+File.separator+"armor_node_key.key", "write"));
@@ -133,26 +118,13 @@ public class ArmorService extends AbstractLifecycleComponent {
             throw new ElasticsearchException(e.toString());
         }
 
-        /*final String scriptingStatus = settings.get(ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING,
-                ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT);
-
-        if (scriptingStatus.equalsIgnoreCase(ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT)) {
-            log.warn("{} has the default value {}, consider setting it to false if not needed",
-                    ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING, scriptingStatus);
-        }
-
-        if (scriptingStatus.equalsIgnoreCase("true")) {
-            log.error("{} is configured insecure, consider setting it to false or " + ScriptService.DISABLE_DYNAMIC_SCRIPTING_DEFAULT,
-                    ScriptService.DISABLE_DYNAMIC_SCRIPTING_SETTING);
-        }*/
-
-        ArmorService.secretKey = sc;
+        ArmorService.secretKey.set(sc);
     }
 
     public ClusterService getClusterService() { return clusterService; }
 
     public static SecretKey getSecretKey() {
-        return secretKey;
+        return secretKey.get();
     }
 
     public SessionStore getSessionStore() {

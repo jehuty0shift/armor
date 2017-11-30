@@ -36,6 +36,8 @@ import org.elasticsearch.rest.RestStatus;
 
 import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Locale;
 
 //TODO FUTURE allow only if protocol==https
 public class HTTPBasicAuthenticator implements HTTPAuthenticator {
@@ -56,11 +58,11 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
 
         if (authorizationHeader != null) {
 
-            if (!authorizationHeader.trim().toLowerCase().startsWith("basic ")) {
+            if (!authorizationHeader.trim().toLowerCase(Locale.ENGLISH).startsWith("basic ")) {
                 throw new AuthException("Bad 'Authorization' header");
             } else {
 
-                String decodedBasicHeader = new String(DatatypeConverter.parseBase64Binary(authorizationHeader.split(" ")[1]),
+                final String decodedBasicHeader = new String(DatatypeConverter.parseBase64Binary(authorizationHeader.split(" ")[1]),
                         StandardCharsets.US_ASCII);
 
                 final String[] decodedBasicHeaderParts = decodedBasicHeader.split(":");
@@ -75,10 +77,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
                     char[] password = decodedBasicHeaderParts[1].toCharArray();
 
                     final User authenticatedUser = backend.authenticate(new AuthCredentials(username, password));
-
-                    password = null;
-                    decodedBasicHeader = null;
-                    authorizationHeader = null;
+                    Arrays.fill(password,'\0');
 
                     authorizator.fillRoles(authenticatedUser, new AuthCredentials(authenticatedUser.getName(), null));
 

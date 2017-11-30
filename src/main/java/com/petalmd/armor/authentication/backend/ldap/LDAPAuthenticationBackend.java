@@ -26,8 +26,11 @@ import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.authorization.ldap.LDAPAuthorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
+import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +43,7 @@ import org.elasticsearch.common.settings.Settings;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
-public class LDAPAuthenticationBackend implements NonCachingAuthenticationBackend {
+public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBackend {
 
     protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
     private final Settings settings;
@@ -132,7 +135,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
             return new LdapUser(username, entry);
 
-        } catch (final Exception e) {
+        } catch (final LdapException  | CursorException e) {
             log.error(e.toString(), e);
             throw new AuthException(e);
         } finally {

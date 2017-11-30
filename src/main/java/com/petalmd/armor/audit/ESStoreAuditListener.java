@@ -57,7 +57,7 @@ public class ESStoreAuditListener implements AuditListener {
     @Override
     public void onFailedLogin(final String username, final RestRequest request, final ThreadContext threadContext) {
 
-        final AuditMessage msg = new AuditMessage(username, "failed_login", request);
+        final AuditMessage msg = new AuditMessage(username, "failed_login", request, settings);
         index(msg, threadContext);
 
     }
@@ -65,7 +65,7 @@ public class ESStoreAuditListener implements AuditListener {
     @Override
     public void onMissingPrivileges(final String username, final RestRequest request, final ThreadContext threadContext) {
 
-        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request);
+        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request, settings);
         index(msg, threadContext);
 
     }
@@ -109,7 +109,7 @@ public class ESStoreAuditListener implements AuditListener {
         }
     }
 
-    private class AuditMessage {
+    private static class AuditMessage {
         final Map<String, Object> auditInfo = new HashMap<String, Object>();
 
         private AuditMessage(final String username, final String message, final TransportRequest request) {
@@ -124,7 +124,7 @@ public class ESStoreAuditListener implements AuditListener {
 
         }
 
-        private AuditMessage(final String username, final String message, final RestRequest request) {
+        private AuditMessage(final String username, final String message, final RestRequest request, final Settings settings) {
             auditInfo.put("audit_user", username);
             auditInfo.put("audit_message", message);
             auditInfo.put("audit_date", new Date().toString());

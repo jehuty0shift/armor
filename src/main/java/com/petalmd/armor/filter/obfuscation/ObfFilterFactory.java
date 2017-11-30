@@ -24,6 +24,7 @@ import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,7 +63,7 @@ public class ObfFilterFactory {
             ObfResponse obfResponse = (ObfResponse) ct.newInstance(orig, settings);
             return obfResponse.getActionResponse();
 
-        } catch (Exception e) {
+        } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             log.error("Could not create obfuscated response", e);
             return null;
         }

@@ -47,7 +47,7 @@ public class ObfuscationFilter extends AbstractActionFilter {
 
     @Inject
     public ObfuscationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService,armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, false);
         if (enabled) {
             factory = new ObfFilterFactory(settings);

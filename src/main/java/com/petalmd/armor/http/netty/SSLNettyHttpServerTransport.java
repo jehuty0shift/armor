@@ -38,6 +38,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import javax.net.ssl.*;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.security.KeyStore;
 
 public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
@@ -100,14 +101,23 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
             if (enforceClientAuth) {
 
                 final KeyStore ts = KeyStore.getInstance(truststoreType);
-                ts.load(new FileInputStream(new File(truststoreFilePath)), truststorePassword.toCharArray());
+                try (FileInputStream fIS = new FileInputStream(new File(truststoreFilePath))) {
 
+                    FileInputStream trustStoreFile = fIS;
+                    ts.load(trustStoreFile, truststorePassword.toCharArray());
+                } catch (IOException ex) {
+                    log.warn("Problem during SSL Truststore initialization ",ex);
+                }
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ts);
             }
 
             final KeyStore ks = KeyStore.getInstance(keystoreType);
-            ks.load(new FileInputStream(new File(keystoreFilePath)), keystorePassword.toCharArray());
+            try (FileInputStream fIS = new FileInputStream(new File(keystoreFilePath))) {
+                ks.load(fIS, keystorePassword.toCharArray());
+            } catch (IOException ex) {
+                log.warn("Problem during SSL Truststore initialization ",ex);
+            }
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(ks, keystorePassword.toCharArray());
@@ -116,8 +126,8 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
             serverContext.init(kmf.getKeyManagers(), tmf == null ? null : tmf.getTrustManagers(), null);
             final SSLEngine engine = serverContext.createSSLEngine();
             final SSLParameters sslParams = new SSLParameters();
-            sslParams.setCipherSuites(SecurityUtil.ENABLED_SSL_CIPHERS);
-            sslParams.setProtocols(SecurityUtil.ENABLED_SSL_PROTOCOLS);
+            sslParams.setCipherSuites(SecurityUtil.getEnabledSslCiphers());
+            sslParams.setProtocols(SecurityUtil.getEnabledSslProtocols());
             sslParams.setNeedClientAuth(enforceClientAuth);
             engine.setSSLParameters(sslParams);
             engine.setUseClientMode(false);

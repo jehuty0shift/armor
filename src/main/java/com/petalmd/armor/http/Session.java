@@ -45,7 +45,7 @@ public class Session implements Serializable {
     }
 
     public Date getCreated() {
-        return created;
+        return new Date(created.toInstant().getEpochSecond());
     }
 
     public String getId() {

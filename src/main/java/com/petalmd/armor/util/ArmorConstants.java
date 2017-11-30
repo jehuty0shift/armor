@@ -17,6 +17,8 @@ public final class ArmorConstants {
     public static final String ARMOR_IS_LOOPBACK = "armor_is_loopback";
     public static final String ARMOR_SSL_CERT_PRINCIPAL = "armor_ssl_cert_principal";
     public static final String ARMOR_REQUEST_IS_EXTERNAL = "armor_request_is_external";
+    //Session
+    public static final String ARMOR_ES_ARMOR_SESSION = "es_armor_session";
 
 
 }

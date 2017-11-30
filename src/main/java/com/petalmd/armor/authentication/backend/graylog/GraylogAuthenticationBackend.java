@@ -31,22 +31,22 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 
 public class GraylogAuthenticationBackend
 implements NonCachingAuthenticationBackend {
-    private final Settings settings;
-    private final Logger log;
+    private static final Logger log = ESLoggerFactory.getLogger(GraylogAuthenticationBackend.class);
     private String graylogAPIEndpoint;
 
     @Inject
     public GraylogAuthenticationBackend(Settings settings) {
-        this.log = ESLoggerFactory.getLogger(this.getClass());
-        this.settings = settings;
         this.graylogAPIEndpoint = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT);
         if (this.graylogAPIEndpoint == null) {
             this.graylogAPIEndpoint = "http://localhost:12900";
         }
-        this.log.info("using following endpoint for Graylog Authentication : " + this.graylogAPIEndpoint, new Object[0]);
+        log.info("using following endpoint for Graylog Authentication : " + this.graylogAPIEndpoint, new Object[0]);
+        int routesNeeded = Netty4HttpServerTransport.SETTING_HTTP_WORKER_COUNT.get(settings);
+        Unirest.setConcurrency(routesNeeded>200?routesNeeded:200, routesNeeded/2);
     }
 
     @Override
@@ -61,16 +61,16 @@ implements NonCachingAuthenticationBackend {
             if (jsonResponse.getStatus() == 403) {
                 String message = ((JsonNode)jsonResponse.getBody()).getObject().getString("message");
                 String graylogUsername = message.split("\\[")[1].split("\\]")[0];
-                this.log.debug("identified the User : " + graylogUsername, new Object[0]);
+                log.debug("identified the User : " + graylogUsername, new Object[0]);
                 return new User(graylogUsername);
             }
             if (jsonResponse.getStatus() == 200) {
                 return new User("admin");
             }
-            this.log.debug("receive status " + jsonResponse.getStatus() + ". Identification of user failed with: " + jsonResponse.toString());
+            log.debug("receive status " + jsonResponse.getStatus() + ". Identification of user failed with: " + jsonResponse.toString());
         }
         catch (UnirestException ex) {
-            this.log.warn("Unirest Exception " + ex.getMessage(), ex);
+            log.warn("Unirest Exception " + ex.getMessage(), ex);
         }
         throw new AuthException("Unable to retrieve graylog User");
     }

@@ -36,13 +36,8 @@ import java.util.Set;
 
 public class WaffleAuthorizator implements NonCachingAuthorizator {
 
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    protected final Settings settings;
-
     @Inject
     public WaffleAuthorizator(final Settings settings) {
-
-        this.settings = settings;
 
         if (!Constants.WINDOWS) {
             throw new ElasticsearchException("Waffle works only on Windows operating system, not on " + System.getProperty("os.name"));

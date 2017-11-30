@@ -33,6 +33,21 @@ import com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator;
 public class SettingsBasedBackendTest extends AbstractUnitTest {
 
     @Test
+    public void testSimpleGroup() throws Exception {
+
+        final Settings settings = Settings.builder()
+                .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
+                .put("armor.authentication.settingsdb.user.spock", "vulcan").build();
+
+        Assert.assertEquals("spock",
+                new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "vulcan".toCharArray()))
+                        .getName());
+
+    }
+
+
+
+    @Test
     public void testSimple() throws Exception {
 
         final Settings settings = Settings.builder()

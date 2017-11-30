@@ -45,14 +45,12 @@ import java.net.InetSocketAddress;
 
 public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
 
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
-    private final Settings settings;
+    private final Logger log = ESLoggerFactory.getLogger(this.getClass());
 
     private final IWindowsAuthProvider authProvider;
 
     @Inject
     public HTTPWaffleAuthenticator(final Settings settings, final IWindowsAuthProvider authProvider) {
-        this.settings = settings;
 
         this.authProvider = authProvider;
 
