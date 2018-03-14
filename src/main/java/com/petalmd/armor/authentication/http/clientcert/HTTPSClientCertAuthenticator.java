@@ -54,9 +54,9 @@ public class HTTPSClientCertAuthenticator implements HTTPAuthenticator {
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
             final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
 
-        String dn = null;
+        String dn;
 
-        Principal x509Principal = null;
+        Principal x509Principal;
         try {
             x509Principal = SSLPrincipalExtractor.extractPrincipalfromRequest(request, threadContext);
             dn = String.valueOf(x509Principal.getName());

@@ -92,8 +92,8 @@ public final class ConfigConstants {
     public static final String ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_PASSWORD = "armor.ssl.transport.http.truststore_password";
     public static final String ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_TYPE = "armor.ssl.transport.http.truststore_type";
     public static final String ARMOR_SSL_TRANSPORT_NODE_ENABLED = "armor.ssl.transport.node.enabled";
-    public static final String ARMOR_SSL_TRANSPORT_NODE_ENCFORCE_HOSTNAME_VERIFICATION = "armor.ssl.transport.node.encforce_hostname_verification";
-    public static final String ARMOR_SSL_TRANSPORT_NODE_ENCFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME = "armor.ssl.transport.node.encforce_hostname_verification.resolve_host_name";
+    public static final String ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION = "armor.ssl.transport.node.enforce_hostname_verification";
+    public static final String ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME = "armor.ssl.transport.node.enforce_hostname_verification.resolve_host_name";
     public static final String ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH = "armor.ssl.transport.node.enforce_clientauth";
     public static final String ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH = "armor.ssl.transport.node.keystore_filepath";
     public static final String ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_PASSWORD = "armor.ssl.transport.node.keystore_password";

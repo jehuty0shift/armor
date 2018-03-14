@@ -48,7 +48,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.network.NetworkService;
@@ -117,10 +116,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         clientBool = !"node".equals(this.settings.get(ArmorPlugin.CLIENT_TYPE, "node"));
     }
 
-    @Override
-    public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
-        return Collections.emptyList();
-    }
 
     @Override
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry) {
@@ -234,13 +229,15 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public List<Class<? extends ActionFilter>> getActionFilters() {
         List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
-        actionFilters.add(ArmorActionFilter.class);
-        actionFilters.add(ObfuscationFilter.class);
-        actionFilters.add(AggregationFilter.class);
-        actionFilters.add(RequestActionFilter.class);
-        actionFilters.add(ActionCacheFilter.class);
-        actionFilters.add(DLSActionFilter.class);
-        actionFilters.add(FLSActionFilter.class);
+        if (!clientBool) {
+            actionFilters.add(ArmorActionFilter.class);
+            actionFilters.add(ObfuscationFilter.class);
+            actionFilters.add(AggregationFilter.class);
+            actionFilters.add(RequestActionFilter.class);
+            actionFilters.add(ActionCacheFilter.class);
+            actionFilters.add(DLSActionFilter.class);
+            actionFilters.add(FLSActionFilter.class);
+        }
 
         return actionFilters;
     }
@@ -275,7 +272,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public UnaryOperator<RestHandler> getRestHandlerWrapper(ThreadContext threadContext) {
         return (rh) -> armorRestShield.shield(rh);
     }
-
 
     @Override
     public List<Setting<?>> getSettings() {
@@ -312,7 +308,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
 
-        //ssl
+        //ssl HTTP
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -322,6 +318,17 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
 
+        //ssl Transport
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_TYPE, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //armor authentication
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND, Setting.Property.NodeScope, Setting.Property.Filtered));

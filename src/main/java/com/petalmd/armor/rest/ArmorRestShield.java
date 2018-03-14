@@ -69,14 +69,10 @@ public class ArmorRestShield {
 
     public RestHandler shield(RestHandler original) {
 
-        return new RestHandler() {
+        return (request, channel, client) -> {
 
-            @Override
-            public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
-
-                if(requestIsAuthorized(request,channel,client)) {
-                    original.handleRequest(request, channel, client);
-                }
+            if(requestIsAuthorized(request,channel,client)) {
+                original.handleRequest(request, channel, client);
             }
         };
     }
