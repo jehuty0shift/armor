@@ -233,6 +233,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(ArmorActionFilter.class);
             actionFilters.add(ObfuscationFilter.class);
             actionFilters.add(AggregationFilter.class);
+            actionFilters.add(IndicesUpdateSettingsFilter.class);
             actionFilters.add(RequestActionFilter.class);
             actionFilters.add(ActionCacheFilter.class);
             actionFilters.add(DLSActionFilter.class);
@@ -300,7 +301,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_ACTION_CACHE_LIST, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
-
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_OBFUSCATION_FILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH, true, Setting.Property.NodeScope, Setting.Property.Filtered));

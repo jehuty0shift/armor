@@ -15,9 +15,6 @@
  */
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.AuditListener;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.filter.obfuscation.ObfFilterFactory;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
