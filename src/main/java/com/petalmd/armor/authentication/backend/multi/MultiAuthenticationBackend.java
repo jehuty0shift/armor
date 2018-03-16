@@ -37,26 +37,36 @@ implements NonCachingAuthenticationBackend {
             }
             catch (ClassNotFoundException ex) {
                 this.log.warn("Class " + backend + "has not been found ! Skipping this class", ex, new Object[0]);
+                this.log.warn(ex);
                 continue;
             }
             catch (NoSuchMethodException ex) {
                 this.log.warn("Couldn't find suitable constructor for " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn(ex);
                 continue;
             }
             catch (InstantiationException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn("InstantiationException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn(ex);
+                this.log.warn("WTF");
                 continue;
             }
             catch (IllegalAccessException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn("IllegalAccessException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn(ex);
                 continue;
             }
             catch (IllegalArgumentException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn("IllegalArgumentException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn(ex);
                 continue;
             }
             catch (InvocationTargetException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                this.log.warn("InvocationTargetException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
+                ex.getCause().printStackTrace();
+                this.log.error("cause", ex.getCause());
+                this.log.error("target",ex.getTargetException());
+                this.log.error("error",ex);
             }
         }
     }

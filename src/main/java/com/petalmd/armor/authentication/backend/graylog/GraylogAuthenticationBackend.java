@@ -31,7 +31,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 
 public class GraylogAuthenticationBackend
 implements NonCachingAuthenticationBackend {
@@ -45,7 +44,7 @@ implements NonCachingAuthenticationBackend {
             this.graylogAPIEndpoint = "http://localhost:12900";
         }
         log.info("using following endpoint for Graylog Authentication : " + this.graylogAPIEndpoint, new Object[0]);
-        int routesNeeded = Netty4HttpServerTransport.SETTING_HTTP_WORKER_COUNT.get(settings);
+        int routesNeeded = settings.getAsInt("http.netty.worker_count",32);
         Unirest.setConcurrency(routesNeeded>200?routesNeeded:200, routesNeeded/2);
     }
 
