@@ -20,21 +20,14 @@ package com.petalmd.armor.util;
 
 import com.google.common.io.BaseEncoding;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.codec.http.cookie.CookieDecoder;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
-import org.apache.commons.io.IOUtils;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.ldap.client.api.LdapConnection;
-import org.apache.directory.ldap.client.api.exception.InvalidConnectionException;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 import javax.crypto.*;
 import javax.net.ssl.SSLContext;

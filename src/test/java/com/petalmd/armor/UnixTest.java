@@ -20,10 +20,7 @@ package com.petalmd.armor;
 
 import org.elasticsearch.common.inject.CreationException;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.Assert;
 import org.junit.Test;
-
-import com.petalmd.armor.util.SecurityUtil;
 
 public class UnixTest extends AbstractScenarioTest {
 

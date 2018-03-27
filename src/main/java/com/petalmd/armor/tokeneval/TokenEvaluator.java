@@ -19,7 +19,6 @@
 package com.petalmd.armor.tokeneval;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +32,6 @@ import org.elasticsearch.common.logging.ESLoggerFactory;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
 

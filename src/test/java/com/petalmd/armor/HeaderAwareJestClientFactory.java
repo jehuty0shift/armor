@@ -17,15 +17,11 @@ limitations under the License.
 //borrowed from https://github.com/searchbox-io/Jest
 package com.petalmd.armor;
 
+import com.google.gson.Gson;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.client.config.discovery.NodeChecker;
 import io.searchbox.client.config.idle.HttpReapableConnectionManager;
 import io.searchbox.client.config.idle.IdleConnectionReaper;
-
-import java.net.ProxySelector;
-import java.util.LinkedHashSet;
-import java.util.Map;
-
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
@@ -48,7 +44,9 @@ import org.apache.http.nio.reactor.IOReactorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
+import java.net.ProxySelector;
+import java.util.LinkedHashSet;
+import java.util.Map;
 
 /**
  * @author Dogukan Sonmez

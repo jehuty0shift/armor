@@ -18,16 +18,15 @@
 
 package com.petalmd.armor;
 
-import javax.net.ssl.SSLHandshakeException;
-
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.petalmd.armor.util.SecurityUtil;
 import org.apache.http.NoHttpResponseException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.petalmd.armor.util.SecurityUtil;
+import javax.net.ssl.SSLHandshakeException;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SslTest extends AbstractScenarioTest {

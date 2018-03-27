@@ -15,7 +15,6 @@
  */
 package org.elasticsearch.node;
 
-import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 

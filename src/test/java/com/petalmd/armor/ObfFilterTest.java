@@ -16,23 +16,18 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.Action;
 import io.searchbox.action.GenericResultAbstractAction;
 import io.searchbox.client.JestResult;
 import io.searchbox.cluster.NodesInfo;
-import io.searchbox.core.Get;
-import io.searchbox.core.Index;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Created by jehuty0shift on 13/03/17.

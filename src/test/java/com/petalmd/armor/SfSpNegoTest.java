@@ -18,17 +18,15 @@
 
 package com.petalmd.armor;
 
-import java.net.URL;
-
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.petalmd.armor.tests.DummyLoginModule;
+import com.petalmd.armor.util.SecurityUtil;
 import net.sourceforge.spnego.SpnegoHttpURLConnection;
-
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.petalmd.armor.tests.DummyLoginModule;
-import com.petalmd.armor.util.SecurityUtil;
+import java.net.URL;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SfSpNegoTest extends AbstractUnitTest {

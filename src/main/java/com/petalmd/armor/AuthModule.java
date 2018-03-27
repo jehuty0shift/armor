@@ -18,12 +18,6 @@
 
 package com.petalmd.armor;
 
-import org.elasticsearch.common.inject.AbstractModule;
-import org.elasticsearch.common.settings.Settings;
-
-import waffle.windows.auth.IWindowsAuthProvider;
-import waffle.windows.auth.impl.WindowsAuthProviderImpl;
-
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.audit.ESStoreAuditListener;
 import com.petalmd.armor.audit.NullStoreAuditListener;
@@ -43,6 +37,10 @@ import com.petalmd.armor.http.SessionStore;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
+import org.elasticsearch.common.inject.AbstractModule;
+import org.elasticsearch.common.settings.Settings;
+import waffle.windows.auth.IWindowsAuthProvider;
+import waffle.windows.auth.impl.WindowsAuthProviderImpl;
 
 public final class AuthModule extends AbstractModule {
 

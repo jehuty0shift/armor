@@ -20,26 +20,22 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.common.collect.ImmutableMap;
-import com.petalmd.armor.authentication.AuthCredentials;
-import com.petalmd.armor.authentication.backend.graylog.GraylogAuthenticationBackend;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
+import io.searchbox.cluster.NodesStats;
 import io.searchbox.indices.mapping.PutMapping;
-
-import java.util.Map;
-
 import io.searchbox.indices.reindex.Reindex;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import io.searchbox.cluster.NodesStats;
 import org.junit.runner.RunWith;
+
+import java.util.Map;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)

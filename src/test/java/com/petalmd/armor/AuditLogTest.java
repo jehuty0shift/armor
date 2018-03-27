@@ -1,11 +1,9 @@
 package com.petalmd.armor;
 
+import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
-
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
-
-import com.petalmd.armor.util.ConfigConstants;
 
 public class AuditLogTest extends AbstractScenarioTest {
 

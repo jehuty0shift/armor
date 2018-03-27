@@ -18,17 +18,15 @@
 
 package com.petalmd.armor;
 
-import joptsimple.internal.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator;
+import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class SettingsBasedBackendTest extends AbstractUnitTest {
 

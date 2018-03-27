@@ -30,8 +30,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.*;
 

@@ -18,14 +18,10 @@
 
 package com.petalmd.armor.http.netty;
 
-import com.petalmd.armor.util.ArmorConstants;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.util.ReferenceCountUtil;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-
-import java.security.Principal;
 
 public class MutualSSLHandler extends SimpleChannelInboundHandler<Object> {
 

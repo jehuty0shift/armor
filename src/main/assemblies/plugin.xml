@@ -26,7 +26,7 @@
                 <exclude>*:jna:jar:4.1.0</exclude>
                 <exclude>org.elasticsearch:elasticsearch</exclude>
                 <exclude>org.elasticsearch.plugin:*</exclude>
-                <exclude>org.slf4j:slf4j-api*</exclude>
+                <!--exclude>org.slf4j:slf4j-api*</exclude-->
                 <exclude>org.apache.logging.log4j:log4j-*</exclude>
             </excludes>
         </dependencySet>

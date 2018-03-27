@@ -19,6 +19,7 @@
 package com.petalmd.armor.authentication.backend.multi;
 
 import com.petalmd.armor.authentication.AuthException;
+
 import java.util.List;
 
 public class MultiAuthException

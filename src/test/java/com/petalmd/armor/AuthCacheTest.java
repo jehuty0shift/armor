@@ -18,16 +18,15 @@
 
 package com.petalmd.armor;
 
-import org.elasticsearch.common.settings.Settings;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.GuavaCachingAuthenticationBackend;
 import com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend;
 import com.petalmd.armor.authorization.GuavaCachingAuthorizator;
 import com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator;
+import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class AuthCacheTest extends AbstractUnitTest {
 

@@ -18,11 +18,10 @@
 
 package com.petalmd.armor.authentication.backend.simple;
 
-import org.elasticsearch.common.inject.Inject;
-
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
 public class AlwaysSucceedAuthenticationBackend implements NonCachingAuthenticationBackend {

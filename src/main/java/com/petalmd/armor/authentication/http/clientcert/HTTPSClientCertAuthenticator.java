@@ -25,7 +25,6 @@ import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.http.netty.SSLPrincipalExtractor;
-import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
@@ -35,7 +34,6 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
-import javax.security.cert.X509Certificate;
 import java.security.Principal;
 import java.util.Locale;
 

@@ -18,31 +18,19 @@
 
 package com.petalmd.armor.rest;
 
-import static org.elasticsearch.rest.RestRequest.Method.GET;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
+import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
-import org.elasticsearch.client.Client;
+import com.petalmd.armor.util.SecurityUtil;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.rest.*;
 
-import com.petalmd.armor.ArmorPlugin;
-import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authentication.http.HTTPAuthenticator;
-import com.petalmd.armor.authorization.Authorizator;
-import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.util.SecurityUtil;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
+import static org.elasticsearch.rest.RestRequest.Method.GET;
 
 public class ArmorInfoAction extends BaseRestHandler {
 

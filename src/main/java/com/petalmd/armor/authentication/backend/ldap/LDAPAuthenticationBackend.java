@@ -30,7 +30,6 @@ import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.exception.LdapException;
-import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.logging.log4j.Logger;
@@ -40,6 +39,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
+import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
@@ -140,7 +140,11 @@ public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBacke
             throw new AuthException(e);
         } finally {
             if (result != null) {
-                result.close();
+                try {
+                    result.close();
+                } catch (IOException e) {
+                    log.error("Couldn't close result due to IOException: ",e);
+                }
             }
 
             SecurityUtil.unbindAndCloseSilently(ldapConnection);

@@ -31,7 +31,6 @@ import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
-import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.ldap.client.api.LdapConnection;
@@ -48,7 +47,6 @@ import org.elasticsearch.common.settings.Settings;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.*;
 import java.security.cert.CertificateException;
@@ -96,7 +94,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
         config.setUseTls(useStartSSL);
         config.setTimeout(5000L); //5 sec
 
-        final String[] ldapHosts = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, new String[] { "localhost" });
+        final String[] ldapHosts = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, new String[]{"localhost"});
 
         LdapConnection ldapConnection = null;
 
@@ -247,14 +245,14 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                             .replace("{0}", dn).replace("{1}", authenticatedUser)
                             .replace("{2}", userRoleAttributeValue == null ? "{2}" : userRoleAttributeValue), SearchScope.SUBTREE);
 
-            for (final Iterator iterator = rolesResult.iterator(); iterator.hasNext();) {
+            for (final Iterator iterator = rolesResult.iterator(); iterator.hasNext(); ) {
                 final Entry searchResultEntry = (Entry) iterator.next();
                 roles.put(new Tuple<String, Dn>(searchResultEntry.getDn().toString(), searchResultEntry.getDn()), searchResultEntry);
             }
 
             log.trace("non user roles count: {}", roles.size());
 
-            for (final Iterator<String> it = userRolesDn.iterator(); it.hasNext();) {
+            for (final Iterator<String> it = userRolesDn.iterator(); it.hasNext(); ) {
                 final String stringVal = it.next();
                 //lookup
                 final Entry userRole = ldapConnection.lookup(stringVal);
@@ -270,7 +268,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 final Set<Entry> nestedReturn = new HashSet<Entry>(roles.values());
 
                 for (final Iterator<java.util.Map.Entry<Tuple<String, Dn>, Entry>> iterator = roles.entrySet().iterator(); iterator
-                        .hasNext();) {
+                        .hasNext(); ) {
                     final java.util.Map.Entry<Tuple<String, Dn>, Entry> _entry = iterator.next();
 
                     final Set<Entry> x = resolveNestedRoles(_entry.getKey(), ldapConnection, roleName);
@@ -281,7 +279,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
                 }
 
-                for (final Iterator iterator = nestedReturn.iterator(); iterator.hasNext();) {
+                for (final Iterator iterator = nestedReturn.iterator(); iterator.hasNext(); ) {
                     final Entry entry2 = (Entry) iterator.next();
                     final String role = entry2.get(roleName).getString();
                     user.addRole(role);
@@ -293,7 +291,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
             } else {
 
-                for (final Iterator iterator = roles.values().iterator(); iterator.hasNext();) {
+                for (final Iterator iterator = roles.values().iterator(); iterator.hasNext(); ) {
                     final Entry entry2 = (Entry) iterator.next();
                     final String role = entry2.get(roleName).getString();
                     user.addRole(role);
@@ -304,16 +302,24 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 }
             }
 
-        } catch (LdapException | CursorException| AuthException e) {
+        } catch (LdapException | CursorException | AuthException e) {
             log.error(e.toString(), e);
             throw new AuthException(e);
         } finally {
             if (result != null) {
-                result.close();
+                try {
+                    result.close();
+                } catch (IOException e) {
+                    log.error("couldn't close result due to IOException: ",e);
+                }
             }
 
             if (rolesResult != null) {
-                rolesResult.close();
+                try {
+                    rolesResult.close();
+                } catch (IOException e) {
+                    log.error("Couldn't close roles result due to IOException: ",e);
+                }
             }
 
             SecurityUtil.unbindAndCloseSilently(ldapConnection);
@@ -366,7 +372,11 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                         log.warn("Cannot resolve role '{}' (EXCEPTION: {})", e, role.v1(), e.toString());
                     } finally {
                         if (_result != null) {
-                            _result.close();
+                            try {
+                                _result.close();
+                            } catch (IOException e) {
+                                log.error("Couldn't close result due to IOException: ",e);
+                            }
                         }
 
                     }
@@ -382,13 +392,13 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                     settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, "(member={0})")
                             .replace("{0}", roleDn == null ? role.v1() : roleDn.toString()).replace("{1}", role.v1()), SearchScope.SUBTREE);
 
-            for (final Iterator iterator = rolesResult.iterator(); iterator.hasNext();) {
+            for (final Iterator iterator = rolesResult.iterator(); iterator.hasNext(); ) {
                 final Entry searchResultEntry = (Entry) iterator.next();
                 final String _role = searchResultEntry.get(roleName).getString();
                 log.trace("nested l1 {}", searchResultEntry.getDn());
                 final Set<Entry> in = resolveNestedRoles(new Tuple<String, Dn>(_role, searchResultEntry.getDn()), ldapConnection, roleName);
 
-                for (final Iterator<Entry> iterator2 = in.iterator(); iterator2.hasNext();) {
+                for (final Iterator<Entry> iterator2 = in.iterator(); iterator2.hasNext(); ) {
                     final Entry entry = iterator2.next();
                     result.add(entry);
                     log.trace("nested l2 {}", entry.getDn());
@@ -402,7 +412,11 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
         } finally {
 
             if (rolesResult != null) {
-                rolesResult.close();
+                try {
+                    rolesResult.close();
+                } catch (IOException e) {
+                    log.error("Couldn't close roles results due to IOException: e",e);
+                }
             }
         }
     }

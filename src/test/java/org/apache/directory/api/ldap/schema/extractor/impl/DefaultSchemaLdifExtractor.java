@@ -17,22 +17,7 @@
  *  under the License.
  * 
  */
-package org.apache.directory.api.ldap.schemaextractor.impl;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InvalidObjectException;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Stack;
-import java.util.UUID;
-import java.util.regex.Pattern;
+package org.apache.directory.api.ldap.schema.extractor.impl;
 
 import org.apache.directory.api.i18n.I18n;
 import org.apache.directory.api.ldap.model.constants.SchemaConstants;
@@ -44,6 +29,15 @@ import org.apache.directory.api.ldap.schema.extractor.UniqueResourceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Stack;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
 //Patched because of https://issues.apache.org/jira/browse/DIRSERVER-1606
 
 /**
@@ -51,7 +45,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  */
-public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap.schemaextractor.SchemaLdifExtractor {
+public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap.schema.extractor.SchemaLdifExtractor
+{
 
     static {
 

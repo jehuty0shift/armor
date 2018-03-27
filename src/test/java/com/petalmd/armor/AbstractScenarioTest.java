@@ -1,17 +1,15 @@
 package com.petalmd.armor;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.searchbox.client.JestResult;
-
-import java.util.Map;
-
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.junit.runner.RunWith;
+
+import java.util.Map;
 
 @RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 public abstract class AbstractScenarioTest extends AbstractUnitTest {

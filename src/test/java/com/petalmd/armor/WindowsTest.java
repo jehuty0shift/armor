@@ -20,7 +20,6 @@ package com.petalmd.armor;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
-
 import waffle.mock.MockWindowsAuthProvider;
 
 public class WindowsTest extends AbstractScenarioTest {

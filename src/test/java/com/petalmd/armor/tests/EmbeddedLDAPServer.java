@@ -18,13 +18,8 @@
 
 package com.petalmd.armor.tests;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
+import com.petalmd.armor.AbstractUnitTest;
+import com.petalmd.armor.util.SecurityUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.directory.api.ldap.model.constants.SupportedSaslMechanisms;
 import org.apache.directory.api.ldap.model.entry.DefaultEntry;
@@ -35,11 +30,7 @@ import org.apache.directory.server.annotations.CreateKdcServer;
 import org.apache.directory.server.annotations.CreateLdapServer;
 import org.apache.directory.server.annotations.CreateTransport;
 import org.apache.directory.server.annotations.SaslMechanism;
-import org.apache.directory.server.core.annotations.AnnotationUtils;
-import org.apache.directory.server.core.annotations.ContextEntry;
-import org.apache.directory.server.core.annotations.CreateDS;
-import org.apache.directory.server.core.annotations.CreateIndex;
-import org.apache.directory.server.core.annotations.CreatePartition;
+import org.apache.directory.server.core.annotations.*;
 import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.factory.DSAnnotationProcessor;
 import org.apache.directory.server.core.kerberos.KeyDerivationInterceptor;
@@ -61,8 +52,12 @@ import org.apache.directory.shared.kerberos.components.EncryptionKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.petalmd.armor.AbstractUnitTest;
-import com.petalmd.armor.util.SecurityUtil;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class EmbeddedLDAPServer {
 
@@ -142,7 +137,7 @@ public class EmbeddedLDAPServer {
 
     public void stop() throws Exception {
 
-        if (!ldapServer.isStarted()) {
+        if (ldapServer == null || !ldapServer.isStarted()) {
             throw new IllegalStateException("Service is not running");
         }
 

@@ -1,7 +1,6 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.gson.internal.LinkedTreeMap;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
 import org.apache.http.HttpResponse;

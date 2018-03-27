@@ -46,9 +46,9 @@
 
     <properties>
         <elasticsearch.version>5.6.3</elasticsearch.version>
-        <apache.ds.version>2.0.0-M17</apache.ds.version>
-        <apache.ds.api.version>1.0.0-M28</apache.ds.api.version>
-        <slf4j.api.bundleversion>1.7.13</slf4j.api.bundleversion>
+        <apache.ds.version>2.0.0-M24</apache.ds.version>
+        <apache.ds.api.version>1.0.0</apache.ds.api.version>
+        <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <lucene.maven.version>6.6.1</lucene.maven.version>
@@ -109,21 +109,44 @@
         </dependency>
         <dependency>
             <groupId>org.apache.directory.api</groupId>
-            <artifactId>api-ldap-client-all</artifactId>
+            <artifactId>api-ldap-client-api</artifactId>
             <version>${apache.ds.api.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.directory.api</groupId>
+            <artifactId>api-ldap-codec-standalone</artifactId>
+            <version>${apache.ds.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.directory.api</groupId>
+            <artifactId>api-ldap-codec-core</artifactId>
+            <version>${apache.ds.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.directory.api</groupId>
+            <artifactId>api-ldap-extras-codec-api</artifactId>
+            <version>${apache.ds.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.api.bundleversion}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.api.bundleversion}</version>
+        </dependency>
         <dependency>
             <groupId>com.github.dblock.waffle</groupId>
             <artifactId>waffle-jna</artifactId>
             <version>1.7.3</version>
         </dependency>
 
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>1.10</version>
-        </dependency>
 
         <dependency>
             <groupId>commons-io</groupId>
@@ -203,6 +226,15 @@
             <version>2.9.0</version>
             <!--scope>test</scope-->
         </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+            <scope>provided</scope>
+        </dependency>
+
+
 
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>

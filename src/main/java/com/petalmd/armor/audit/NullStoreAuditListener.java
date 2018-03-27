@@ -18,10 +18,6 @@
 
 package com.petalmd.armor.audit;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.transport.TransportRequest;
-
 public class NullStoreAuditListener implements AuditListener {
 
   //NO-OP use default functions of AuditListener that do nothing.

@@ -1,6 +1,8 @@
 package com.petalmd.armor.tokeneval;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by bdiasse on 05/04/17.

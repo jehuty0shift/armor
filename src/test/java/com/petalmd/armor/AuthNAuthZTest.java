@@ -18,27 +18,13 @@
 
 package com.petalmd.armor;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
-import com.carrotsearch.randomizedtesting.Randomness;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.nitorcreations.junit.runners.parameterized.ParameterizedSuite;
-import com.nitorcreations.junit.runners.parameterized.ParameterizedSuiteBuilder;
-import com.nitorcreations.junit.runners.parameterized.WrappedRunWith;
-import com.nitorcreations.junit.runners.parameterized.WrappingParameterizedRunner;
-import org.elasticsearch.common.settings.Settings;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
-
 import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
-import org.junit.runners.Suite;
+import org.elasticsearch.common.settings.Settings;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
