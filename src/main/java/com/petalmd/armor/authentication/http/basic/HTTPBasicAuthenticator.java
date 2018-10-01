@@ -34,9 +34,9 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Locale;
 
 //TODO FUTURE allow only if protocol==https
@@ -62,7 +62,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
                 throw new AuthException("Bad 'Authorization' header");
             } else {
 
-                final String decodedBasicHeader = new String(DatatypeConverter.parseBase64Binary(authorizationHeader.split(" ")[1]),
+                final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
                         StandardCharsets.US_ASCII);
 
                 final String[] decodedBasicHeaderParts = decodedBasicHeader.split(":");

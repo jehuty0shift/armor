@@ -50,6 +50,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.mina.util.AvailablePortFinder;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.client.Client;
@@ -567,6 +568,7 @@ public abstract class AbstractUnitTest {
 
     protected final void setupTestData(final String armorConfig) throws Exception {
         executeIndex("dummy_content.json", "ceo", "internal", "tp_1", true, true);
+        executeIndex("dummy_content.json", "cto", "internal", "tp_1", true, true);
         executeIndex("dummy_content.json", "marketing", "flyer", "tp_2", true, true);
         executeIndex("dummy_content.json", "marketing", "customer", "tp_3", true, true);
         executeIndex("dummy_content.json", "marketing", "customer", "tp_4", true, true);
@@ -581,16 +583,24 @@ public abstract class AbstractUnitTest {
         executeIndex("dummy_content2.json", "future", "docs", "f_1", true, true);
         executeIndex("dummy_content2.json", "future", "docs", "f_2", true, true);
 
-        esNode1.client().admin().indices()
+        IndicesAliasesResponse alias1 = esNode1.client().admin().indices()
                 .prepareAliases()
                 .addAlias(new String[]{"ceo", "financial"}, "crucial")
                 .execute()
                 .actionGet();
-        esNode1.client().admin().indices()
+        Assert.assertTrue(alias1.isAcknowledged());
+        IndicesAliasesResponse alias2 = esNode1.client().admin().indices()
                 .prepareAliases()
                 .addAlias(new String[]{"crucial", "marketing"}, "internal")
                 .execute()
                 .actionGet();
+        Assert.assertTrue(alias2.isAcknowledged());
+        IndicesAliasesResponse alias3 = esNode1.client().admin().indices()
+                .prepareAliases()
+                .addAlias(new String[]{"ceo", "cto"}, "cxo")
+                .execute()
+                .actionGet();
+        Assert.assertTrue(alias3.isAcknowledged());
 
         executeIndex(armorConfig, "armor", "ac", "ac", true, true);
     }

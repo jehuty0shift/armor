@@ -313,6 +313,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
         final List<String> aliases = new ArrayList<String>();
         final List<String> types = new ArrayList<String>();
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
+        final SortedMap<String, AliasOrIndex> aliasesAndIndexMap = clusterService.state().metaData().getAliasAndIndexLookup();
+
 
         final boolean allowedForAllIndices = !SecurityUtil.isWildcardMatch(action, "*put*", false)
                 && !SecurityUtil.isWildcardMatch(action, "*delete*", false)
@@ -329,8 +331,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
             log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
 
             try {
-                ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+                ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()),aliasesAndIndexMap));
+                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()),aliasesAndIndexMap));
             } catch (java.lang.NullPointerException e) {
             }
 
@@ -346,8 +348,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
         if (request instanceof CompositeIndicesRequest) {
             final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
             log.trace("Indices {}", cirDetails.getIndices().toString());
-            ci.addAll(resolveAliases(cirDetails.getIndices()));
-            aliases.addAll(getOnlyAliases(cirDetails.getIndices()));
+            ci.addAll(getOnlyIndices(cirDetails.getIndices(),aliasesAndIndexMap));
+            aliases.addAll(getOnlyAliases(cirDetails.getIndices(),aliasesAndIndexMap));
 
             if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -396,46 +398,61 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     //works also with alias of an alias!
-    protected List<String> resolveAliases(final Collection<String> indices) {
+//    protected List<String> resolveAliases(final Collection<String> indices) {
+//
+//        final List<String> result = new ArrayList<String>();
+//
+//        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
+//
+//        for (String index : indices) {
+//
+//            final AliasOrIndex indexAliases = aliases.get(index);
+//
+//            if (!indexAliases.isAlias()) {
+//                result.add(index);
+//                log.trace("{} is an concrete index", index);
+//                continue;
+//            }
+//
+//            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices());
+//
+//            final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
+//
+//            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
+//                final Tuple<String, AliasMetaData> entry = iterator.next();
+//                result.add(entry.v1());
+//            }
+//
+//        }
+//
+//        return result;
+//
+//    }
+
+    protected List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
         final List<String> result = new ArrayList<String>();
 
-        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
-
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliases.get(index);
+            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
             if (!indexAliases.isAlias()) {
                 result.add(index);
-                log.trace("{} is an concrete index", index);
-                continue;
             }
-
-            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices());
-
-            final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
-
-            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
-                final Tuple<String, AliasMetaData> entry = iterator.next();
-                result.add(entry.v1());
-            }
-
         }
 
         return result;
 
     }
 
-    protected List<String> getOnlyAliases(final Collection<String> indices) {
+    protected List<String> getOnlyAliases(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
         final List<String> result = new ArrayList<String>();
 
-        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
-
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliases.get(index);
+            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
             if (indexAliases.isAlias()) {
                 result.add(index);

@@ -44,6 +44,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
@@ -75,7 +76,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             final KeyStore ts = KeyStore.getInstance(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE,
                     "JKS"));
             FileInputStream trustStoreFile = new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
-                    null)));
+                    System.getProperty("java.home")+"/lib/security/cacerts")));
             try {
                 ts.load(trustStoreFile, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
                         .toCharArray());

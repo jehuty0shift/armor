@@ -69,7 +69,7 @@ public class EvaluatorTest {
         final User user = new User("jacksonm");
         user.addRole("ceo");
 
-        eval = te.getEvaluator(Lists.newArrayList("xxx"), Lists.newArrayList("internal"), Lists.newArrayList(),
+        eval = te.getEvaluator(Lists.newArrayList(), Lists.newArrayList("internal"), Lists.newArrayList(),
                 InetAddress.getLocalHost(), user);
         Assert.assertFalse(eval.getBypassAll());
         Assert.assertTrue(eval.getExecuteAll());

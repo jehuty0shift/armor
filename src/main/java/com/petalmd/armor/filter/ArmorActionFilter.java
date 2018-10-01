@@ -170,6 +170,7 @@ public class ArmorActionFilter implements ActionFilter {
                 && !SecurityUtil.isWildcardMatch(action, "*update*", false) && !SecurityUtil.isWildcardMatch(action, "*create*", false);
 
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
+        final SortedMap<String, AliasOrIndex> aliasesAndIndicesMap = clusterService.state().metaData().getAliasAndIndexLookup();
         final Evaluator eval;
 
         if (threadContext.getTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR) == null) {
@@ -198,10 +199,10 @@ public class ArmorActionFilter implements ActionFilter {
                     log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
                 }
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
-                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases);
+                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases,aliasesAndIndicesMap);
                 } else {
-                    ci.addAll(resolveAliases(Arrays.asList(ir.indices())));
-                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices())));
+                    ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()),aliasesAndIndicesMap));
+                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()),aliasesAndIndicesMap));
                 }
 
 
@@ -218,8 +219,8 @@ public class ArmorActionFilter implements ActionFilter {
             if (request instanceof CompositeIndicesRequest) {
                 final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
                 log.trace("Indices {}", cirDetails.getIndices().toString());
-                ci.addAll(resolveAliases(cirDetails.getIndices()));
-                aliases.addAll(getOnlyAliases(cirDetails.getIndices()));
+                ci.addAll(getOnlyIndices(cirDetails.getIndices(),aliasesAndIndicesMap));
+                aliases.addAll(getOnlyAliases(cirDetails.getIndices(),aliasesAndIndicesMap));
 
                 if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -335,7 +336,7 @@ public class ArmorActionFilter implements ActionFilter {
 
     }
 
-    private void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, List<String> ci, List<String> aliases) {
+    private void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
         List<String> irIndices = Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
@@ -392,8 +393,8 @@ public class ArmorActionFilter implements ActionFilter {
             }
         }
 
-        ci.addAll(resolveAliases(otherIndicesOrAliases));
-        aliases.addAll(getOnlyAliases(otherIndicesOrAliases));
+        ci.addAll(getOnlyIndices(otherIndicesOrAliases, aliasesAndIndicesMap));
+        aliases.addAll(getOnlyAliases(otherIndicesOrAliases, aliasesAndIndicesMap));
 
         if (!newIndices.isEmpty()) {
             log.debug("replacing indices " + String.valueOf(ir.indices()) + " by " + String.valueOf(newIndices));
@@ -402,55 +403,30 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    //works also with alias of an alias!
-    private List<String> resolveAliases(final Collection<String> indices) {
+    protected List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
         final List<String> result = new ArrayList<String>();
 
-        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
-
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliases.get(index);
-
-            if (indexAliases == null) {
-                continue;
-            }
+            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
             if (!indexAliases.isAlias()) {
                 result.add(index);
-                log.trace("{} is a concrete index", index);
-                continue;
             }
-
-            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices().toString());
-
-            final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
-
-            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
-                final Tuple<String, AliasMetaData> entry = iterator.next();
-                result.add(entry.v1());
-            }
-
         }
 
         return result;
 
     }
 
-    private List<String> getOnlyAliases(final Collection<String> indices) {
+    protected List<String> getOnlyAliases(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
         final List<String> result = new ArrayList<String>();
 
-        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
-
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliases.get(index);
-
-            if (indexAliases == null) {
-                continue;
-            }
+            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
             if (indexAliases.isAlias()) {
                 result.add(index);

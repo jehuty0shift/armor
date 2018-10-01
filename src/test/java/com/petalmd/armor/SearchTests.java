@@ -3,12 +3,15 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
+import io.searchbox.client.http.JestHttpClient;
+import io.searchbox.indices.settings.UpdateSettings;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -158,4 +161,248 @@ public class SearchTests extends AbstractScenarioTest {
 
 
     }
+
+
+
+    @Test
+    public void searchWildcardMultiIndicesSingleFilter() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+
+        final Settings settings = Settings.builder()
+                .putArray("armor.actionrequestfilter.names", "wild", "forbidden")
+                .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
+                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_13.json");
+
+        //test on allowed alias inter* (part of wildcard) + forbidden indice
+        final String[] indices1 = new String[] { "inter*", "cto" };
+        final Tuple<JestResult, HttpResponse> resulttu1 = executeSearch("ac_query_matchall.json", indices1, null,
+                false, false);
+        JestResult result = resulttu1.v1();
+        Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on  forbidden indice + allowed alias
+        final String[] indices2 = new String[] { "cto", "cxo" };
+        final Tuple<JestResult, HttpResponse> resulttu2 = executeSearch("ac_query_matchall.json", indices2, null,
+                false, false);
+        result = resulttu2.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on forbidden indice + allowed indice
+        final String[] indices3 = new String[] { "ceo", "financial" };
+        final Tuple<JestResult, HttpResponse> resulttu3 = executeSearch("ac_query_matchall.json", indices3, null,
+                false, false);
+        result = resulttu3.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on *
+        final String[] indices4 = new String[] { "*" };
+        final Tuple<JestResult, HttpResponse> resulttu4 = executeSearch("ac_query_matchall.json", indices4, null,
+                true, false);
+        result = resulttu4.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed alias + allowed index
+        final String[] indices5 = new String[] { "financial", "cxo" };
+        final Tuple<JestResult, HttpResponse> resulttu5 = executeSearch("ac_query_matchall.json", indices5, null,
+                true, false);
+        result = resulttu5.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+
+        //test on allowed alias + allowed index with wildcard
+        final String[] indices6 = new String[] { "financial", "cx*" };
+        final Tuple<JestResult, HttpResponse> resulttu6 = executeSearch("ac_query_matchall.json", indices6, null,
+                true, false);
+        result = resulttu6.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed indice + allowed index with wildcard
+        final String[] indices7 = new String[] { "marketing", "fin*" };
+        final Tuple<JestResult, HttpResponse> resulttu7 = executeSearch("ac_query_matchall.json", indices7, null,
+                true, false);
+        result = resulttu7.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed alias + allowed alias with wildcard
+        final String[] indices8 = new String[] { "internal", "c*" };
+        final Tuple<JestResult, HttpResponse> resulttu8 = executeSearch("ac_query_matchall.json", indices8, null,
+                true, false);
+        result = resulttu8.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on forbidden indice
+        final String[] indices9 = new String[] { "ceo" };
+        final Tuple<JestResult, HttpResponse> resulttu9 = executeSearch("ac_query_matchall.json", indices9, null,
+                false, false);
+        result = resulttu9.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on forbidden alias
+        final String[] indices10 = new String[] { "crucial" };
+        final Tuple<JestResult, HttpResponse> resulttu10 = executeSearch("ac_query_matchall.json", indices10, null,
+                false, false);
+        result = resulttu10.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+    }
+
+    @Test
+    public void searchWildcardMultiIndicesMultiRules() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+
+        final Settings settings = Settings.builder()
+                .putArray("armor.actionrequestfilter.names", "reader","writer", "forbidden")
+                .putArray("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
+                .putArray("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*,indices:admin/settings/update*")
+                .putArray("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search","indices:data/read/write","indices:admin/settings/update")
+                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_14.json");
+
+        //test on allowed alias inter* (part of wildcard) + forbidden indice
+        final String[] indices1 = new String[] { "inter*", "cto" };
+        final Tuple<JestResult, HttpResponse> resulttu1 = executeSearch("ac_query_matchall.json", indices1, null,
+                false, false);
+        JestResult result = resulttu1.v1();
+        Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on  forbidden indice + allowed alias
+        final String[] indices2 = new String[] { "cto", "cxo" };
+        final Tuple<JestResult, HttpResponse> resulttu2 = executeSearch("ac_query_matchall.json", indices2, null,
+                false, false);
+        result = resulttu2.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on forbidden indice + allowed indice
+        final String[] indices3 = new String[] { "ceo", "financial" };
+        final Tuple<JestResult, HttpResponse> resulttu3 = executeSearch("ac_query_matchall.json", indices3, null,
+                false, false);
+        result = resulttu3.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on *
+        final String[] indices4 = new String[] { "*" };
+        final Tuple<JestResult, HttpResponse> resulttu4 = executeSearch("ac_query_matchall.json", indices4, null,
+                true, false);
+        result = resulttu4.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed alias + allowed index
+        final String[] indices5 = new String[] { "financial", "cxo" };
+        final Tuple<JestResult, HttpResponse> resulttu5 = executeSearch("ac_query_matchall.json", indices5, null,
+                true, false);
+        result = resulttu5.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+
+        //test on allowed alias + allowed index with wildcard
+        final String[] indices6 = new String[] { "financial", "cx*" };
+        final Tuple<JestResult, HttpResponse> resulttu6 = executeSearch("ac_query_matchall.json", indices6, null,
+                true, false);
+        result = resulttu6.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed indice + allowed index with wildcard
+        final String[] indices7 = new String[] { "marketing", "fin*" };
+        final Tuple<JestResult, HttpResponse> resulttu7 = executeSearch("ac_query_matchall.json", indices7, null,
+                true, false);
+        result = resulttu7.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on allowed alias + allowed alias with wildcard
+        final String[] indices8 = new String[] { "internal", "c*" };
+        final Tuple<JestResult, HttpResponse> resulttu8 = executeSearch("ac_query_matchall.json", indices8, null,
+                true, false);
+        result = resulttu8.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+
+        //test on forbidden indice
+        final String[] indices9 = new String[] { "ceo" };
+        final Tuple<JestResult, HttpResponse> resulttu9 = executeSearch("ac_query_matchall.json", indices9, null,
+                false, false);
+        result = resulttu9.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+
+        //test on forbidden alias
+        final String[] indices10 = new String[] { "crucial" };
+        final Tuple<JestResult, HttpResponse> resulttu10 = executeSearch("ac_query_matchall.json", indices10, null,
+                false, false);
+        result = resulttu10.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+        //test write on forbidden alias with allowed alias
+        final String[] indices11 = new String[] { "internal", "c*" };
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        final String settingSource = "{\"index.refresh_interval\" : \"5s\" }";
+        final Tuple<JestResult, HttpResponse> resulttu11 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices11)).build());
+        result = resulttu11.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+        //test write on forbidden alias with allowed indice
+        final String[] indices12 = new String[] { "internal", "financial" };
+        client = getJestClient(getServerUri(false), username, password);
+        final String settingSource2 = "{\"index.refresh_interval\" : \"5s\" }";
+        final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices12)).build());
+        result = resulttu12.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+    }
+
 }
