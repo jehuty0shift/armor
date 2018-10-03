@@ -10,6 +10,8 @@
             "roles": [
                 "admin"
             ],
+            "indices" : ["*"],
+            "aliases" : ["*"],
             "filters_bypass": ["*"],
             "filters_execute": []
         },

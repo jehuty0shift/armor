@@ -395,7 +395,7 @@ public class SearchTests extends AbstractScenarioTest {
         Assert.assertTrue(result.getResponseCode() == 403);
 
         //test write on forbidden alias with allowed indice
-        final String[] indices12 = new String[] { "internal", "financial" };
+        final String[] indices12 = new String[] { "financial", "internal" };
         client = getJestClient(getServerUri(false), username, password);
         final String settingSource2 = "{\"index.refresh_interval\" : \"5s\" }";
         final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices12)).build());

@@ -29,6 +29,8 @@
                 "admin",
                 "root"
             ],
+            "indices" : ["*"],
+            "aliases" : ["*"],
             "filters_bypass": [],
             "filters_execute": []
         },

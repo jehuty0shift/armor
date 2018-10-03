@@ -18,6 +18,8 @@
          "hosts":[
             "8.8.8*"
          ],
+         "indices" : ["*"],
+         "aliases" : ["*"],
          "filters_bypass": ["check.1"],
          "filters_execute": []
       },
@@ -26,6 +28,8 @@
             "admin",
             "root"
          ],
+         "indices" : ["*"],
+         "aliases" : ["*"],
          "filters_bypass": ["*"],
          "filters_execute": []
       },

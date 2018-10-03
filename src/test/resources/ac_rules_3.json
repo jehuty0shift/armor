@@ -7,6 +7,8 @@
          {
             "__Comment__": "For the unauthenticated user all filters will be executed.",
             "users": ["armor_unauthenticated_user"],
+            "indices" : ["*"],
+            "aliases" : ["*"],
             "filters_bypass": [],
             "filters_execute": ["*"]
          }

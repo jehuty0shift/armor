@@ -49,6 +49,9 @@
       "roles":[
         "ceo"
       ],
+      "indices":[
+        "financial","marketing"
+      ],
       "aliases":[
         "cx*","internal"
       ],

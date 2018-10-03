@@ -39,8 +39,11 @@
       "indices":[
         "financial","marketing"
       ],
+      "aliases":[
+        "cx*","internal"
+      ],
       "filters_bypass": ["actionrequestfilter.forbidden"],
-      "filters_execute": ["actionrequestfilter.writer"]
+      "filters_execute": ["actionrequestfilter.reader"]
     },
     {
       "users":[
@@ -49,11 +52,11 @@
       "roles":[
         "ceo"
       ],
-      "aliases":[
-        "cx*","internal"
+      "indices":[
+        "financial","marketing"
       ],
       "filters_bypass": ["actionrequestfilter.forbidden"],
-      "filters_execute": ["actionrequestfilter.reader"]
+      "filters_execute": ["actionrequestfilter.writer"]
     }
   ]
 }
