@@ -176,7 +176,7 @@ public class ArmorRestShield {
 
             final User authenticatedUser = sessionUser;
 
-            log.info("Authenticated user is {}", authenticatedUser);
+            log.debug("Authenticated user is {}", authenticatedUser);
 
             threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER,authenticatedUser);
             threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS,resolvedAddress);
