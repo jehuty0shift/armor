@@ -411,7 +411,10 @@ public class ArmorActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
-            if (!indexAliases.isAlias()) {
+            //it doesn't exist or is a unhandled word* , we still add it as an index
+            if(indexAliases == null) {
+                result.add(index);
+            } else if (!indexAliases.isAlias()) {
                 result.add(index);
             }
         }
@@ -428,7 +431,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
-            if (indexAliases.isAlias()) {
+            if (indexAliases != null && indexAliases.isAlias()) {
                 result.add(index);
             }
         }

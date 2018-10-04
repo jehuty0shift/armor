@@ -437,7 +437,10 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
-            if (!indexAliases.isAlias()) {
+            if(indexAliases == null) {
+                result.add(index);
+            }
+            if (indexAliases != null && !indexAliases.isAlias()) {
                 result.add(index);
             }
         }
@@ -454,7 +457,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
-            if (indexAliases.isAlias()) {
+            if (indexAliases != null && indexAliases.isAlias()) {
                 result.add(index);
             }
         }
