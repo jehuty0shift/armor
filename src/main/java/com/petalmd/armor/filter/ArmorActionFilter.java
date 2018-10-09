@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.petalmd.armor.filter;
 
@@ -130,7 +130,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             return;
         }
-        AtomicBoolean isRequestExternal =  threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
+        AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
         if (isRequestExternal == null || isRequestExternal.get() == false) {
             log.debug("TYPE: inter node cluster request, skip filters");
             chain.proceed(task, action, request, listener);
@@ -199,10 +199,10 @@ public class ArmorActionFilter implements ActionFilter {
                     log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
                 }
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
-                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases,aliasesAndIndicesMap);
+                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
                 } else {
-                    ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()),aliasesAndIndicesMap));
-                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()),aliasesAndIndicesMap));
+                    ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
                 }
 
 
@@ -219,8 +219,8 @@ public class ArmorActionFilter implements ActionFilter {
             if (request instanceof CompositeIndicesRequest) {
                 final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
                 log.trace("Indices {}", cirDetails.getIndices().toString());
-                ci.addAll(getOnlyIndices(cirDetails.getIndices(),aliasesAndIndicesMap));
-                aliases.addAll(getOnlyAliases(cirDetails.getIndices(),aliasesAndIndicesMap));
+                ci.addAll(getOnlyIndices(cirDetails.getIndices(), aliasesAndIndicesMap));
+                aliases.addAll(getOnlyAliases(cirDetails.getIndices(), aliasesAndIndicesMap));
 
                 if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -273,6 +273,7 @@ public class ArmorActionFilter implements ActionFilter {
 
 
         log.trace("filter {}", filterList);
+        boolean filtered = false;
 
         for (String fullFilter : filterList) {
             final String[] f = fullFilter.split(":");
@@ -292,6 +293,7 @@ public class ArmorActionFilter implements ActionFilter {
                 log.trace("will bypass");
                 continue;
             }
+            filtered = true;
 
             if ("actionrequestfilter".equals(ft)) {
 
@@ -325,12 +327,14 @@ public class ArmorActionFilter implements ActionFilter {
                     }
                 }
 
-                log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, "DEFAULT");
-
-                auditListener.onMissingPrivileges(user.getName(), request, threadContext);
-                listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
-                throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
             }
+        }
+        if(filtered) {
+            log.warn("Action  is forbidden due to {}", "DEFAULT");
+
+            auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+            listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
+            throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
         }
         chain.proceed(task, action, request, listener);
 
@@ -341,7 +345,7 @@ public class ArmorActionFilter implements ActionFilter {
         List<String> irIndices = Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
-        if(log.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             log.debug("replace index for {}", String.valueOf(ir.indices()));
         }
         if (irIndices.size() == 0 || irIndices.contains("_all")) {
@@ -412,7 +416,7 @@ public class ArmorActionFilter implements ActionFilter {
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
             //it doesn't exist or is a unhandled word* , we still add it as an index
-            if(indexAliases == null) {
+            if (indexAliases == null) {
                 result.add(index);
             } else if (!indexAliases.isAlias()) {
                 result.add(index);

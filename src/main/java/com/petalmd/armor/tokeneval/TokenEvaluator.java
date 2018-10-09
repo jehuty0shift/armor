@@ -121,8 +121,6 @@ public class TokenEvaluator {
 
     public Evaluator getEvaluator(List<String> requestedIndices, List<String> requestedAliases, List<String> requestedTypes,
                                   final InetAddress requestedHostAddress, final User user) throws MalformedConfigurationException {
-        final Map<String, Set<ACRule>> requestedIndicesMap = new HashMap<>();
-        final Map<String, Set<ACRule>> requestedAliasesMap = new HashMap<>();
 
         final Set<String> requestedIndicesSet = new HashSet<>();
         final Set<String> requestedAliasesSet = new HashSet<>();
@@ -131,14 +129,6 @@ public class TokenEvaluator {
             if (requestedAliases == null || requestedAliases.isEmpty()) {
                 requestedIndices = Lists.newArrayList("*");
                 requestedAliases = Lists.newArrayList("*");
-            } else {
-                for (String requestedAlias : requestedAliases) {
-                    requestedAliasesMap.put(requestedAlias, new HashSet<>());
-                }
-            }
-        } else {
-            for (String requestedIndice : requestedIndices) {
-                requestedIndicesMap.put(requestedIndice, new HashSet<>());
             }
         }
 
@@ -192,9 +182,9 @@ public class TokenEvaluator {
         }
 
         int rulenum = 0;
+        boolean removedDefault = false;
         ruleloop:
         for (final ACRule acRule : acRules.acl) {
-
 
 
             if (acRule.isDefault()) {
@@ -298,7 +288,7 @@ public class TokenEvaluator {
             //-- Aliases -------------------------------------------
 
             //if it's empty and we request alias, rule do not match, skipp this rule.
-            if((acRule.aliases == null || acRule.aliases.isEmpty()) && !requestedAliasesSet.isEmpty()) {
+            if ((acRule.aliases == null || acRule.aliases.isEmpty()) && !requestedAliasesSet.isEmpty()) {
                 log.debug("we skip this rule since alias(es) are requested but rule do not have alias");
                 continue ruleloop;
             }
@@ -319,7 +309,7 @@ public class TokenEvaluator {
                             log.debug("    Alias " + requestedAlias + " not match " + pAlias + "");
                         }
 
-                        if(requestedAliasesSet.isEmpty()){
+                        if (requestedAliasesSet.isEmpty()) {
                             break;
                         }
                     }
@@ -339,7 +329,7 @@ public class TokenEvaluator {
             //-- Indices -------------------------------------------
 
             //if it's empty and we request indices, rule do not match, skip this rule.
-            if((acRule.indices == null || acRule.indices.isEmpty()) && !requestedIndicesSet.isEmpty()) {
+            if ((acRule.indices == null || acRule.indices.isEmpty()) && !requestedIndicesSet.isEmpty()) {
                 log.debug("we skip this rule since indices are requested but rule do not have indices");
                 continue ruleloop;
             }
@@ -362,7 +352,7 @@ public class TokenEvaluator {
                             log.debug("    Index " + requestedIndex + " not match " + pIndex + "");
                         }
 
-                        if(requestedIndicesSet.isEmpty()){
+                        if (requestedIndicesSet.isEmpty()) {
                             //no need to continue
                             break;
                         }
@@ -383,44 +373,25 @@ public class TokenEvaluator {
             log.debug("    ----> APPLY RULE <---- which means the following executeFilters: {}/bypassFilters: {}", acRule.getFilters_execute(),
                     acRule.getFilters_bypass());
 
-                filtersExecute.addAll(acRule.getFilters_execute());
-                filtersBypass.addAll(acRule.getFilters_bypass());
-                //if we apply one rule, we remove default rules.
+            if(!removedDefault) {
                 filtersBypass.removeAll(defaultRulesBypass);
                 filtersExecute.removeAll(defaultRulesExecute);
+                removedDefault = true;
+            }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("current execute filters: {}", (filtersExecute.toArray(new String[filtersExecute.size()])).toString());
-                    log.debug("current bypass filters: {}", (filtersBypass.toArray(new String[filtersBypass.size()])).toString());
-                }
+            filtersExecute.addAll(acRule.getFilters_execute());
+            filtersBypass.addAll(acRule.getFilters_bypass());
+            //if we apply one rule, we remove default rules.
+
+            if (log.isDebugEnabled()) {
+                log.debug("current execute filters: {}", (filtersExecute.toArray(new String[filtersExecute.size()])).toString());
+                log.debug("current bypass filters: {}", (filtersBypass.toArray(new String[filtersBypass.size()])).toString());
+            }
 
             rulenum++;
 
         }
         log.debug("Final executeFilters: {}/bypassFilters: {}", filtersExecute, filtersBypass);
-//        if (!requestedAliasesMap.isEmpty()) {
-//            for (Map.Entry<String, Set<ACRule>> requestedAliasMapEntry : requestedAliasesMap.entrySet()) {
-//                final String alias = requestedAliasMapEntry.getKey();
-//                final Set<ACRule> ACRuleSet = requestedAliasMapEntry.getValue();
-//                log.debug("requested alias {}, got {} rules matching", alias, ACRuleSet.size());
-//                if (ACRuleSet.isEmpty()) {
-//                    log.warn("no Rule matched for {}, using default rules");
-//                    return new Evaluator(defaultRulesBypass, defaultRulesExecute);
-//                }
-//            }
-//        }
-//
-//        if (!requestedIndicesMap.isEmpty()) {
-//            for (Map.Entry<String, Set<ACRule>> requestedIndicesMapEntry : requestedIndicesMap.entrySet()) {
-//                final String index = requestedIndicesMapEntry.getKey();
-//                final Set<ACRule> ACRuleSet = requestedIndicesMapEntry.getValue();
-//                log.debug("requested index {}, got {} rules matching", index, ACRuleSet.size());
-//                if (ACRuleSet.isEmpty()) {
-//                    log.warn("no Rule matched for {}, using default rules");
-//                    return new Evaluator(defaultRulesBypass, defaultRulesExecute);
-//                }
-//            }
-//        }
 
         return new Evaluator(filtersBypass, filtersExecute);
 

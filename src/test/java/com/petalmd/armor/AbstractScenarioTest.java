@@ -183,9 +183,8 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
     protected void searchOnlyAllowedMoreFilters(final Settings additionalSettings, final boolean wrongPwd) throws Exception {
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "readonly", "al_l", "no-ne")
+                .putArray("armor.actionrequestfilter.names", "readonly", "no-ne")
                 .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.al_l.allowed_actions", "*")
                 .putArray("armor.actionrequestfilter.no-ne.allowed_actions", "indices:data/read/search")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 

@@ -281,7 +281,7 @@ public class SearchTests extends AbstractScenarioTest {
         final Settings settings = Settings.builder()
                 .putArray("armor.actionrequestfilter.names", "reader", "writer", "forbidden")
                 .putArray("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*,indices:admin/settings/update*")
+                .putArray("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*")
                 .putArray("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search", "indices:data/read/write", "indices:admin/settings/update")
                 .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
@@ -397,6 +397,14 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu12.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 403);
+
+        final String[] indices13 = new String[]{"financial", "marketing"};
+        client = getJestClient(getServerUri(false), username, password);
+        final String settingSource3 = "{\"index.refresh_interval\" : \"5s\" }";
+        final Tuple<JestResult, HttpResponse> resulttu13 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices13)).build());
+        result = resulttu13.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
 
     }
 
