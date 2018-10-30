@@ -293,6 +293,8 @@ public class ArmorActionFilter implements ActionFilter {
                 log.trace("will bypass");
                 continue;
             }
+
+            //Action has been filtered once so if it is never allowed, it will be rejected to due DEFAULT reject behavior.
             filtered = true;
 
             if ("actionrequestfilter".equals(ft)) {

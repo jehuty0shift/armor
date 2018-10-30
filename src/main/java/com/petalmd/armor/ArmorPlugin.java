@@ -95,11 +95,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private AuditListener auditListener;
     private Authorizator authorizator;
     private AuthenticationBackend authenticationBackend;
-    private ClusterService clusterService;
-    private Client client;
     private HTTPAuthenticator httpAuthenticator;
     private SessionStore sessionStore;
-    private ThreadPool threadPool;
 
 
     static {
@@ -126,10 +123,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         if (!enabled) {
             return componentsList;
         }
-
-        this.clusterService = clusterService;
-        this.client = client;
-        this.threadPool = threadPool;
 
         final Class<? extends HTTPAuthenticator> defaultHTTPAuthenticatorClass = HTTPBasicAuthenticator.class;
         final Class<? extends NonCachingAuthorizator> defaultNonCachingAuthorizatorClass = SettingsBasedAuthorizator.class;
@@ -230,6 +223,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public List<Class<? extends ActionFilter>> getActionFilters() {
         List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
         if (!clientBool) {
+            actionFilters.add(KibanaHelperFilter.class);
             actionFilters.add(ArmorActionFilter.class);
             actionFilters.add(ObfuscationFilter.class);
             actionFilters.add(AggregationFilter.class);
@@ -382,6 +376,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //WAFFLE
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_WAFFLE_WINDOWS_AUTH_PROVIDER_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //Kibana Helper
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
 
 
         return settings;

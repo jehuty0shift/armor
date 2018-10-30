@@ -3,7 +3,6 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
-import io.searchbox.client.http.JestHttpClient;
 import io.searchbox.indices.settings.UpdateSettings;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
