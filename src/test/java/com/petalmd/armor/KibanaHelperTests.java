@@ -49,8 +49,9 @@ public class KibanaHelperTests extends AbstractScenarioTest {
                 .addIndex(Arrays.asList(indices))
                 .setFields(Arrays.asList("@timestamp")).build());
 
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject().has("fields"));
+        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 404);
+        Assert.assertFalse(resulttu.v1().isSucceeded());
+        Assert.assertTrue(resulttu.v1().getJsonObject().has("error"));
 
 
     }

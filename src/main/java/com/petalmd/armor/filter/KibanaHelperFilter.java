@@ -1,8 +1,6 @@
 package com.petalmd.armor.filter;
 
 import com.petalmd.armor.authorization.ForbiddenException;
-import com.petalmd.armor.filter.KibanaHelper.FieldsCapabilitiesEmptyResponse;
-import com.petalmd.armor.filter.obfuscation.ObfFilterFactory;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
@@ -10,18 +8,15 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-
-import java.util.HashMap;
 
 /**
  * Created by jehuty0shift on 24/10/18.
@@ -73,7 +68,8 @@ public class KibanaHelperFilter extends AbstractActionFilter {
             //Handle only fieldCaps for now
             if(action.equals("indices:data/read/field_caps")) {
                 if (e instanceof ForbiddenException) {
-                    privListener.onResponse((Response)(FieldCapabilitiesAction.INSTANCE.newResponse()));
+                    String indexName = ((ForbiddenException) e).getIndex() != null?((ForbiddenException) e).getIndex().getName():"unknown";
+                    privListener.onFailure(new IndexNotFoundException(indexName));
                     return;
                 }
             }
