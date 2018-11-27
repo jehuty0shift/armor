@@ -160,6 +160,13 @@ public class ArmorActionFilter implements ActionFilter {
             return;
         }
 
+        //ACTION FILTER BYPASS (set by previous filters)
+        if (Boolean.TRUE.equals(threadpool.getThreadContext().getTransient(ArmorConstants.ARMOR_ACTION_FILTER_BYPASS))) {
+            log.debug("bypass filter due to FILTER BYPASS");
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
         log.trace("user {}", user);
 
         final boolean allowedForAllIndices = !SecurityUtil.isWildcardMatch(action, "*put*", false)

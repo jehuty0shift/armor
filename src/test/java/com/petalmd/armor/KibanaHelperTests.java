@@ -26,7 +26,6 @@ public class KibanaHelperTests extends AbstractScenarioTest {
 
     @Test
     public void testReadFieldCaps() throws Exception {
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
