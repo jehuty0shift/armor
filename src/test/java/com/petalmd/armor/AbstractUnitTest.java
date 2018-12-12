@@ -572,6 +572,7 @@ public abstract class AbstractUnitTest {
         executeIndex("dummy_content.json", "marketing", "flyer", "tp_2", true, true);
         executeIndex("dummy_content.json", "marketing", "customer", "tp_3", true, true);
         executeIndex("dummy_content.json", "marketing", "customer", "tp_4", true, true);
+        executeIndex("dummy_content.json", "dev", "beta", "tp_1", true, true);
         executeIndex("dummy_content.json", "financial", "public", "t2p_5", true, true);
         executeIndex("dummy_content.json", "financial", "sensitivestuff", "t2p_6", true, true);
         executeIndex("dummy_content.json", "financial", "sensitivestuff", "t2p_7", true, true);

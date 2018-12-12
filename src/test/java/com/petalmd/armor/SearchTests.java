@@ -10,9 +10,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by bdiasse on 20/02/17.
@@ -179,6 +177,9 @@ public class SearchTests extends AbstractScenarioTest {
 
         setupTestData("ac_rules_13.json");
 
+        HashSet<String> allowedIndices = new HashSet<>();
+        allowedIndices.addAll(Arrays.asList("financial", "marketing", "cto", "ceo"));
+
         //test on allowed alias inter* (part of wildcard) + forbidden indice
         final String[] indices1 = new String[]{"inter*", "cto"};
         final Tuple<JestResult, HttpResponse> resulttu1 = executeSearch("ac_query_matchall.json", indices1, null,
@@ -213,7 +214,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu4.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
-
+        List<Map> hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
         //test on allowed alias + allowed index
         final String[] indices5 = new String[]{"financial", "cxo"};
@@ -222,7 +226,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu5.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
-
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
         //test on allowed alias + allowed index with wildcard
         final String[] indices6 = new String[]{"financial", "cx*"};
@@ -231,7 +238,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu6.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
-
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
         //test on allowed indice + allowed index with wildcard
         final String[] indices7 = new String[]{"marketing", "fin*"};
@@ -240,7 +250,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu7.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
-
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
         //test on allowed alias + allowed alias with wildcard
         final String[] indices8 = new String[]{"internal", "c*"};
@@ -249,7 +262,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu8.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
-
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
         //test on forbidden indice
         final String[] indices9 = new String[]{"ceo"};
@@ -290,6 +306,9 @@ public class SearchTests extends AbstractScenarioTest {
 
         setupTestData("ac_rules_14.json");
 
+        Set<String> allowedIndices = new HashSet<>();
+        allowedIndices.addAll(Arrays.asList("financial", "marketing", "cto", "ceo"));
+
         //test on allowed alias inter* (part of wildcard) + forbidden indice
         final String[] indices1 = new String[]{"inter*", "cto"};
         final Tuple<JestResult, HttpResponse> resulttu1 = executeSearch("ac_query_matchall.json", indices1, null,
@@ -324,6 +343,11 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu4.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
+        List<Map> hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
+
 
 
         //test on allowed alias + allowed index
@@ -333,6 +357,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu5.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
 
         //test on allowed alias + allowed index with wildcard
@@ -342,6 +370,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu6.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
 
         //test on allowed indice + allowed index with wildcard
@@ -351,6 +383,11 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu7.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
+
 
 
         //test on allowed alias + allowed alias with wildcard
@@ -360,6 +397,10 @@ public class SearchTests extends AbstractScenarioTest {
         result = resulttu8.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
+        hits = (List)((Map)json.get("hits")).get("hits");
+        for(Map<String,Object> hit : hits){
+            Assert.assertTrue(allowedIndices.contains(hit.get("_index")));
+        }
 
 
         //test on forbidden indice
