@@ -65,7 +65,7 @@ public class HTTPBasicAuthenticator implements HTTPAuthenticator {
                 final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
                         StandardCharsets.US_ASCII);
 
-                final String[] decodedBasicHeaderParts = decodedBasicHeader.split(":");
+                final String[] decodedBasicHeaderParts = decodedBasicHeader.split(":",2);
 
                 if (decodedBasicHeaderParts.length != 2 || decodedBasicHeaderParts[1] == null) {
                     log.warn("Invalid 'Authorization' header, send 401 and 'WWW-Authenticate Basic'");
