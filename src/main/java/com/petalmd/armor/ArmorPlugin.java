@@ -224,6 +224,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
         if (!clientBool) {
             actionFilters.add(KibanaHelperFilter.class);
+            actionFilters.add(UpdateByQueryFilter.class);
             actionFilters.add(DeleteByQueryFilter.class);
             actionFilters.add(ArmorActionFilter.class);
             actionFilters.add(ObfuscationFilter.class);

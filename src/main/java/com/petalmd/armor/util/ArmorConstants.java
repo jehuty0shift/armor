@@ -15,6 +15,7 @@ public final class ArmorConstants {
     public static final String ARMOR_ACTION_FILTER_BYPASS = "armor_action_filter_bypass";
     public static final String ARMOR_DELETE_BY_QUERY_START = "armor_action_deletebyquery_start";
     public static final String ARMOR_RESOLVED_REST_ADDRESS = "armor_resolved_rest_address";
+    public static final String ARMOR_UPDATE_BY_QUERY_START = "armor_action_updatebyquery_start";
     public static final String ARMOR_FILTER = "armor_filter";
     public static final String ARMOR_IS_LOOPBACK = "armor_is_loopback";
     public static final String ARMOR_SSL_CERT_PRINCIPAL = "armor_ssl_cert_principal";

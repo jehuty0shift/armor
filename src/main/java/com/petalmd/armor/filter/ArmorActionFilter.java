@@ -189,6 +189,7 @@ public class ArmorActionFilter implements ActionFilter {
         final List<String> types = new ArrayList<String>();
         boolean wildcardExpEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true);
 
+
         //If we enable wildcard expansion the token Evaluator should be regenerated.
         if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null || wildcardExpEnabled) {
 
@@ -355,7 +356,7 @@ public class ArmorActionFilter implements ActionFilter {
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
         if (log.isDebugEnabled()) {
-            log.debug("replace index for {}", String.valueOf(ir.indices()));
+            log.debug("replace index for {}", irIndices);
         }
         if (irIndices.size() == 0 || irIndices.contains("_all")) {
             log.debug("request target _all indices, we replace it with rulesEntities items");
@@ -410,7 +411,7 @@ public class ArmorActionFilter implements ActionFilter {
         aliases.addAll(getOnlyAliases(otherIndicesOrAliases, aliasesAndIndicesMap));
 
         if (!newIndices.isEmpty()) {
-            log.debug("replacing indices " + String.valueOf(ir.indices()) + " by " + String.valueOf(newIndices));
+            log.debug("replacing indices " + irIndices + " by " + String.valueOf(newIndices));
             IndicesRequest.Replaceable irNew = (IndicesRequest.Replaceable) ir;
             irNew.indices(newIndices.toArray(new String[newIndices.size()]));
         }

@@ -63,6 +63,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.painless.PainlessPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
@@ -267,6 +268,7 @@ public abstract class AbstractUnitTest {
         list.add(ArmorPlugin.class);
         list.add(Netty4Plugin.class);
         list.add(ReindexPlugin.class);
+        list.add(PainlessPlugin.class);
         return new ArmorNode(settings, list);
     }
 
@@ -637,6 +639,8 @@ public abstract class AbstractUnitTest {
         setupTestData(armorConfig);
         executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
         executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);
+        executeIndex("dummy_content4.json", "dev", "beta", "t1p_9", true, true);
+
 
         esNode1.client().admin().indices()
                 .prepareAliases()

@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
@@ -38,8 +39,7 @@ public class KibanaHelperFilter extends AbstractActionFilter {
             chain.proceed(task, action, request, listener);
             return;
         }
-
-        if (action.equals("indices:data/read/field_caps")) {
+        if (action.equals(FieldCapabilitiesAction.NAME)) {
             chain.proceed(task, action, request, new KibanaHelperActionListener(listener, action));
         } else {
             chain.proceed(task, action, request, listener);
@@ -66,7 +66,7 @@ public class KibanaHelperFilter extends AbstractActionFilter {
         @Override
         public void onFailure(Exception e) {
             //Handle only fieldCaps for now
-            if(action.equals("indices:data/read/field_caps")) {
+            if(action.equals(FieldCapabilitiesAction.NAME)) {
                 if (e instanceof ForbiddenException) {
                     String indexName = ((ForbiddenException) e).getIndex() != null?((ForbiddenException) e).getIndex().getName():"unknown";
                     privListener.onFailure(new IndexNotFoundException(indexName));
