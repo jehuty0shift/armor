@@ -185,7 +185,7 @@ public class TokenEvaluator {
         boolean removedDefault = false;
         ruleloop:
         for (final ACRule acRule : acRules.acl) {
-
+            rulenum++;
 
             if (acRule.isDefault()) {
                 continue;
@@ -207,7 +207,7 @@ public class TokenEvaluator {
             String _role = null;
             String _host = null;
 
-            log.debug("Check rule {}.: {}", rulenum + 1, acRule);
+            log.debug("Check rule {}.: {}", rulenum, acRule);
 
             boolean userMatch = false;
             boolean roleMatch = false;
@@ -387,8 +387,6 @@ public class TokenEvaluator {
                 log.debug("current execute filters: {}", (filtersExecute.toArray(new String[filtersExecute.size()])).toString());
                 log.debug("current bypass filters: {}", (filtersBypass.toArray(new String[filtersBypass.size()])).toString());
             }
-
-            rulenum++;
 
         }
         log.debug("Final executeFilters: {}/bypassFilters: {}", filtersExecute, filtersBypass);

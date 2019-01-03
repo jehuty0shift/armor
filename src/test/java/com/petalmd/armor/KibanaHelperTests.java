@@ -25,7 +25,7 @@ import java.util.Map;
 public class KibanaHelperTests extends AbstractScenarioTest {
 
     @Test
-    public void testReadFieldCaps() throws Exception {
+    public void readFieldCapsOnAliasDenied() throws Exception {
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
@@ -52,6 +52,37 @@ public class KibanaHelperTests extends AbstractScenarioTest {
         Assert.assertFalse(resulttu.v1().isSucceeded());
         Assert.assertTrue(resulttu.v1().getJsonObject().has("error"));
 
+
+    }
+
+    @Test
+    public void readFieldCapsOnAliasAllowed() throws Exception {
+
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String[] indices = new String[]{"filtered"};
+
+        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readcaps","forbidden")
+                .putArray("armor.actionrequestfilter.readcaps.allowed_actions", "indices:data/read/field_caps")
+                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
+                .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestDataWithFilteredAlias("ac_rules_18.json");
+
+        JestClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetFieldCapsAction.Builder())
+                .addIndex(Arrays.asList(indices))
+                .setAllFields().build());
+
+        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
+        Assert.assertTrue(resulttu.v1().isSucceeded());
+        Assert.assertTrue(resulttu.v1().getJsonObject().getAsJsonObject("fields").has("user"));
 
     }
 }
