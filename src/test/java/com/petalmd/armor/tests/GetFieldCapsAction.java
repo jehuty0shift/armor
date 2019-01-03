@@ -39,6 +39,10 @@ public class GetFieldCapsAction extends GenericResultAbstractAction {
             return setParameter("fields", String.join(",",fieldList));
         }
 
+        public GetFieldCapsAction.Builder setAllFields() {
+            return setParameter("fields","*");
+        }
+
 
         @Override
         public GetFieldCapsAction build() {

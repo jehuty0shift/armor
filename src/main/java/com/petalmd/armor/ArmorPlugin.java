@@ -43,6 +43,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -224,6 +225,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
         if (!clientBool) {
             actionFilters.add(KibanaHelperFilter.class);
+            actionFilters.add(FieldCapabilitiesFilter.class);
             actionFilters.add(UpdateByQueryFilter.class);
             actionFilters.add(DeleteByQueryFilter.class);
             actionFilters.add(ArmorActionFilter.class);
