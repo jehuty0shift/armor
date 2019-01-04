@@ -29,6 +29,8 @@ import com.petalmd.armor.util.SecurityUtil;
 import org.apache.directory.api.ldap.model.entry.Attribute;
 import org.apache.directory.api.ldap.model.exception.LdapInvalidAttributeValueException;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -41,7 +43,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -58,7 +59,7 @@ import java.util.Map.Entry;
 public class DLSActionFilter extends AbstractActionFilter {
 
     private final String filterType = "dlsfilter";
-    private final Logger log = ESLoggerFactory.getLogger(DLSActionFilter.class);
+    private final Logger log = LogManager.getLogger(DLSActionFilter.class);
     private final Map<String, List<String>> filterMap = new HashMap<String, List<String>>();
     private final Client client;
     protected final boolean rewriteGetAsSearch;

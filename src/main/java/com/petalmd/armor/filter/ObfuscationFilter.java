@@ -20,13 +20,13 @@ import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -38,7 +38,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 public class ObfuscationFilter extends AbstractActionFilter {
 
 
-    protected final Logger log = ESLoggerFactory.getLogger(ObfuscationFilter.class);
+    protected final Logger log = LogManager.getLogger(ObfuscationFilter.class);
     private final boolean enabled;
     ObfFilterFactory factory;
 

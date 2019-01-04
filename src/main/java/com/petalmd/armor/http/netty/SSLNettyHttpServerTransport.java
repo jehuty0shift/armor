@@ -25,8 +25,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
@@ -65,7 +65,7 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     protected static class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
-        protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+        protected final Logger log = LogManager.getLogger(this.getClass());
 
         private final String keystoreType;
         private final String keystoreFilePath;

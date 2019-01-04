@@ -5,6 +5,7 @@ import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -12,7 +13,6 @@ import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -24,7 +24,7 @@ import org.elasticsearch.threadpool.ThreadPool;
  */
 public class KibanaHelperFilter extends AbstractActionFilter {
 
-    protected final Logger log = ESLoggerFactory.getLogger(KibanaHelperFilter.class);
+    protected final Logger log = LogManager.getLogger(KibanaHelperFilter.class);
     private final boolean enabled;
 
     @Inject

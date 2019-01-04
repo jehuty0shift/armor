@@ -25,12 +25,12 @@ import com.petalmd.armor.http.SessionStore;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import javax.crypto.KeyGenerator;
@@ -46,7 +46,7 @@ public class ArmorService extends AbstractLifecycleComponent {
 
     //private final String securityConfigurationIndex;
     private final Settings settings;
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
     private final AuditListener auditListener;
     private final ClusterService clusterService;
     private static AtomicReference<SecretKey> secretKey = new AtomicReference<>();

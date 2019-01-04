@@ -28,13 +28,13 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 public class GraylogAuthenticationBackend
 implements NonCachingAuthenticationBackend {
-    private static final Logger log = ESLoggerFactory.getLogger(GraylogAuthenticationBackend.class);
+    private static final Logger log = LogManager.getLogger(GraylogAuthenticationBackend.class);
     private String graylogAPIEndpoint;
 
     @Inject

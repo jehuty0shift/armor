@@ -8,6 +8,7 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -21,7 +22,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
@@ -38,7 +38,7 @@ import static org.elasticsearch.common.settings.Settings.readSettingsFromStream;
  */
 public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
 
-    protected final Logger log = ESLoggerFactory.getLogger(IndicesUpdateSettingsFilter.class);
+    protected final Logger log = LogManager.getLogger(IndicesUpdateSettingsFilter.class);
     private final String UPDATE_ACTION_NAME = "indices:admin/settings/update";
     private final List<String> allowedSettings;
 

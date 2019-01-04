@@ -18,6 +18,7 @@ package com.petalmd.armor.filter.obfuscation;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
@@ -25,7 +26,6 @@ import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import java.io.IOException;
@@ -42,7 +42,7 @@ import java.util.*;
 
 public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 
-    protected static final Logger log = ESLoggerFactory.getLogger(ObfGetIndexResponse.class);
+    protected static final Logger log = LogManager.getLogger(ObfGetIndexResponse.class);
     final private String[] indices;
     final private ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings;
     final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;

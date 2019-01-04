@@ -25,15 +25,15 @@ import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import java.util.concurrent.TimeUnit;
 
 public final class GuavaCachingAuthenticationBackend implements AuthenticationBackend {
 
-    private final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    private final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
     private final LoadingCache<AuthCredentials, User> cache;
     private final NonCachingAuthenticationBackend backend;

@@ -24,8 +24,8 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.AuthenticationBackend;
 import com.petalmd.armor.authorization.Authorizator;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
@@ -34,7 +34,7 @@ import org.elasticsearch.rest.RestRequest;
 public class HTTPUnauthenticatedAuthenticator implements HTTPAuthenticator {
 
     private static final String UNAUTHENTICATED_USER = "armor_unauthenticated_user";
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
 
     @Inject
     public HTTPUnauthenticatedAuthenticator(final Settings settings) {

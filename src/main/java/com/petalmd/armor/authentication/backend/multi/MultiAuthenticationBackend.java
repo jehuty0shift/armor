@@ -2,14 +2,15 @@
 
 package com.petalmd.armor.authentication.backend.multi;
 
+import com.google.common.collect.Lists;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import java.lang.reflect.Constructor;
@@ -21,13 +22,13 @@ import java.util.List;
 public class MultiAuthenticationBackend
 implements NonCachingAuthenticationBackend {
     private final List<NonCachingAuthenticationBackend> nonCachingAuthBackends;
-    protected static final Logger log = ESLoggerFactory.getLogger(MultiAuthenticationBackend.class);
+    protected static final Logger log = LogManager.getLogger(MultiAuthenticationBackend.class);
 
     @Inject
     public MultiAuthenticationBackend(Settings settings) {
 
         this.nonCachingAuthBackends = new ArrayList<NonCachingAuthenticationBackend>();
-        for (String backend : settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST,new String[0])) {
+        for (String backend : settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST)) {
             try {
                 Class clazz = Class.forName(backend);
                 Constructor ctor = clazz.getDeclaredConstructor(Settings.class);

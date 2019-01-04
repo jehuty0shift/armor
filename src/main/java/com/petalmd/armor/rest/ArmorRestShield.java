@@ -29,8 +29,8 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.*;
@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ArmorRestShield {
 
 
-    private static final Logger log = ESLoggerFactory.getLogger(ArmorRestShield.class);
+    private static final Logger log = LogManager.getLogger(ArmorRestShield.class);
     protected final boolean allowAllFromLoopback;
     private final AuthenticationBackend authenticationBackend;
     private final Authorizator authorizator;

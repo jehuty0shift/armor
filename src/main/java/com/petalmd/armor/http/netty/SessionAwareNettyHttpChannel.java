@@ -27,7 +27,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.netty4.Netty4HttpRequest;
 import org.elasticsearch.rest.AbstractRestChannel;
@@ -37,7 +37,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 public class SessionAwareNettyHttpChannel extends AbstractRestChannel {
 
-    private final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    private final Logger log = LogManager.getLogger(this.getClass());
     private final SessionStore sessionStore;
     private final RestChannel channel;
     private final ThreadPool threadPool;

@@ -26,6 +26,7 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -38,7 +39,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -53,7 +53,7 @@ import java.util.Map.Entry;
 public class FLSActionFilter extends AbstractActionFilter {
 
     private final String filterType = "flsfilter";
-    private final Logger log = ESLoggerFactory.getLogger(FLSActionFilter.class);
+    private final Logger log = LogManager.getLogger(FLSActionFilter.class);
     private final Map<String, Tuple<List<String>, List<String>>> filterMap = new HashMap<String, Tuple<List<String>, List<String>>>();
     private final Client client;
     protected final boolean rewriteGetAsSearch;

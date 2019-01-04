@@ -1,6 +1,7 @@
 package com.petalmd.armor.filter;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
@@ -12,7 +13,6 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
@@ -31,7 +31,7 @@ public class RequestItemDetails {
 
     private final Set<String> indices;
     private final Set<String> types;
-    protected static final Logger log = ESLoggerFactory.getLogger(RequestItemDetails.class);
+    protected static final Logger log = LogManager.getLogger(RequestItemDetails.class);
 
 
     private RequestItemDetails(Set<String> indices, Set<String> types) {

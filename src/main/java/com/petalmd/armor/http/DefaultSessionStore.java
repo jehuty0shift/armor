@@ -20,7 +20,7 @@ package com.petalmd.armor.http;
 
 import com.petalmd.armor.authentication.User;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.apache.logging.log4j.LogManager;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultSessionStore implements SessionStore {
 
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
     private final ConcurrentHashMap<String, Session> store = new ConcurrentHashMap<String, Session>();
 
     public DefaultSessionStore() {

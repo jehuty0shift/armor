@@ -37,11 +37,11 @@ import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapConnectionConfig;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 
 import javax.net.ssl.SSLContext;
@@ -55,7 +55,7 @@ import java.util.*;
 
 public class LDAPAuthorizator implements NonCachingAuthorizator {
 
-    protected static final Logger log = ESLoggerFactory.getLogger(LDAPAuthorizator.class);
+    protected static final Logger log = LogManager.getLogger(LDAPAuthorizator.class);
     final Settings settings;
 
     @Inject
@@ -95,16 +95,16 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
         config.setUseTls(useStartSSL);
         config.setTimeout(5000L); //5 sec
 
-        final String[] ldapHosts = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, new String[]{"localhost"});
+        final List<String> ldapHosts = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, Arrays.asList("localhost"));
 
         LdapConnection ldapConnection = null;
 
-        for (int i = 0; i < ldapHosts.length; i++) {
-            log.trace("Connect to {}", ldapHosts[i]);
+        for (String ldapHost : ldapHosts) {
+            log.trace("Connect to {}", ldapHost);
 
             try {
 
-                final String[] split = ldapHosts[i].split(":");
+                final String[] split = ldapHost.split(":");
 
                 config.setLdapHost(split[0]);
 
@@ -128,7 +128,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
         }
 
         if (ldapConnection == null || !ldapConnection.isConnected()) {
-            throw new LdapException("Unable to connect to any of those ldap servers " + Arrays.toString(ldapHosts));
+            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
         }
 
         return ldapConnection;

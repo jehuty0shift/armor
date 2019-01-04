@@ -26,8 +26,8 @@ import com.google.common.collect.Lists;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 
 import java.io.Serializable;
 import java.net.InetAddress;
@@ -38,7 +38,7 @@ import java.util.*;
 public class TokenEvaluator {
 
     private final static ObjectMapper mapper = new ObjectMapper();
-    protected static final Logger log = ESLoggerFactory.getLogger(TokenEvaluator.class);
+    protected static final Logger log = LogManager.getLogger(TokenEvaluator.class);
     protected final BytesReference xSecurityConfiguration;
     protected ACRules acRules = null;
 

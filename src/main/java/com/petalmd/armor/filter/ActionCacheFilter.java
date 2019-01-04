@@ -5,6 +5,7 @@ import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -14,7 +15,6 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.tasks.Task;
@@ -33,7 +33,7 @@ import java.util.Map;
 public class ActionCacheFilter extends AbstractActionFilter {
 
 
-    protected final Logger log = ESLoggerFactory.getLogger(ActionCacheFilter.class);
+    protected final Logger log = LogManager.getLogger(ActionCacheFilter.class);
     private final boolean enabled;
     private final List<String> cacheablesActions = new ArrayList<>();
     private final Map<String, ActionResponse> actionsCache;

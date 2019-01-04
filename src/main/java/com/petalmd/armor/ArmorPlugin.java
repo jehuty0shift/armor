@@ -42,6 +42,7 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
@@ -49,7 +50,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.*;
 import org.elasticsearch.common.util.BigArrays;
@@ -84,7 +84,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private static final String HTTP_TYPE = "http.type";
     private static final String TRANSPORT_TYPE = "transport.type";
 
-    private static final Logger log = ESLoggerFactory.getLogger(ArmorPlugin.class);
+    private static final Logger log = LogManager.getLogger(ArmorPlugin.class);
     private final boolean enabled;
     private final boolean clientBool;
     private final Settings settings;

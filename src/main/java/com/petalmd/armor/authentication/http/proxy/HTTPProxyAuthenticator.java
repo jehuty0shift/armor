@@ -26,8 +26,8 @@ import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestChannel;
@@ -39,7 +39,7 @@ import java.util.List;
 
 public class HTTPProxyAuthenticator implements HTTPAuthenticator {
 
-    protected final Logger log = ESLoggerFactory.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
 
     @Inject
@@ -51,8 +51,8 @@ public class HTTPProxyAuthenticator implements HTTPAuthenticator {
     public User authenticate(final RestRequest request, final RestChannel channel, final AuthenticationBackend backend,
                              final Authorizator authorizator, final ThreadContext threadContext) throws AuthException {
         final String headerName = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_PROXY_HEADER, "X-Authenticated-User");
-        final List<String> trustedSourceIps = Arrays.asList(settings.getAsArray(
-                ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS, new String[0]));
+        final List<String> trustedSourceIps = settings.getAsList(
+                ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS);
 
         if (!trustedSourceIps.contains("*")
                 && !trustedSourceIps.contains(((InetSocketAddress) request.getRemoteAddress()).getAddress().getHostAddress())) {
