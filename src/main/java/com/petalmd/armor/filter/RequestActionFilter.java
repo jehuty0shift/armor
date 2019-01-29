@@ -45,13 +45,13 @@ public class RequestActionFilter extends AbstractActionFilter {
     public RequestActionFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService,armorService, armorConfigService, armorService.getAuditListener(), threadPool);
 
-        final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
+        final List<String> arFilters = settings.getAsList(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
         for (final String filterName : arFilters) {
 
-            final List<String> allowedActions = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName
-                    + ".allowed_actions", new String[0]));
-            final List<String> forbiddenActions = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName
-                    + ".forbidden_actions", new String[0]));
+            final List<String> allowedActions = settings.getAsList("armor." + filterType + "." + filterName
+                    + ".allowed_actions", Collections.emptyList());
+            final List<String> forbiddenActions = settings.getAsList("armor." + filterType + "." + filterName
+                    + ".forbidden_actions", Collections.emptyList());
 
             filterMap.put(filterName, new Tuple<List<String>, List<String>>(allowedActions, forbiddenActions));
         }

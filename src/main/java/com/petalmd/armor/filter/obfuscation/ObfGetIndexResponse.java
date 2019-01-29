@@ -47,14 +47,15 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
     final private ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings;
     final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;
     final private ImmutableOpenMap<String, Settings> settings;
+    final private ImmutableOpenMap<String, Settings> defaultSettings;
     final private GetIndexResponse response;
 
     static private final String ITEMS_TO_OBFUSCATE = "armor.obfuscation.filter.getindexresponse.remove";
 
     public ObfGetIndexResponse(final GetIndexResponse response, final Settings armorSettings) {
         this.response = response;
-        final String[] defaultArray = {"aliases"};
-        String[] itemsToObfuscate = armorSettings.getAsArray(ITEMS_TO_OBFUSCATE, defaultArray);
+        final List<String> defaultList = Arrays.asList("aliases");
+        List<String> itemsToObfuscate = armorSettings.getAsList(ITEMS_TO_OBFUSCATE, defaultList);
 
         List<String> indicesToObfuscate = new ArrayList<>();
         List<String> aliasesToObfuscate = new ArrayList<>();
@@ -196,14 +197,15 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                 Settings.Builder indexSettingBuilder = Settings.builder();
                 String indexName = indexSetting.key;
                 Settings indexSettingValue = indexSetting.value;
-                final Map<String, String> flatSettings = indexSettingValue.getAsMap();
-                flatSettings.keySet().stream().filter(e -> !settingsToObfuscate.contains(e)).forEach(e -> indexSettingBuilder.put(e, flatSettings.get(e)));
+                indexSettingValue.keySet().stream().filter(e -> !settingsToObfuscate.contains(e)).forEach(e -> indexSettingBuilder.put(e, indexSettingValue.get(e)));
                 settingsObfuscated.put(indexName, indexSettingBuilder.build());
             }
             settings = settingsObfuscated.build();
         } else {
             settings = ImmutableOpenMap.of();
         }
+        //TO DO handle defaults settings too
+        defaultSettings = ImmutableOpenMap.of();
 
     }
 
@@ -248,6 +250,12 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
         }
         out.writeVInt(settings.size());
         for (ObjectObjectCursor<String, Settings> indexEntry : settings) {
+            out.writeString(indexEntry.key);
+            Settings.writeSettingsToStream(indexEntry.value, out);
+        }
+        //No need to check for Version since this call is purely internal
+        out.writeVInt(defaultSettings.size());
+        for (ObjectObjectCursor<String, Settings> indexEntry : defaultSettings) {
             out.writeString(indexEntry.key);
             Settings.writeSettingsToStream(indexEntry.value, out);
         }

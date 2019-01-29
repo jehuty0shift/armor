@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.petalmd.armor.filter;
 
@@ -69,11 +69,10 @@ public class DLSActionFilter extends AbstractActionFilter {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.client = client;
 
-        final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_DLSFILTER);
-        for (int i = 0; i < arFilters.length; i++) {
-            final String filterName = arFilters[i];
+        final List<String> arFilters = settings.getAsList(ConfigConstants.ARMOR_DLSFILTER);
+        for (final String filterName : arFilters) {
 
-            final List<String> filters = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName, new String[0]));
+            final List<String> filters = settings.getAsList("armor." + filterType + "." + filterName, Collections.emptyList());
 
             filterMap.put(filterName, filters);
         }
@@ -386,7 +385,7 @@ public class DLSActionFilter extends AbstractActionFilter {
             }
             break;
             default:
-            break;
+                break;
         }
 
         final BoolQueryBuilder dlsBoolQuery = new BoolQueryBuilder();

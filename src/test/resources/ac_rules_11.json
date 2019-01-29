@@ -39,7 +39,7 @@
         "ceo"
       ],
       "indices":[
-        "financial","marketing"
+        "financial","marketing", "marketing_backup"
       ],
       "filters_bypass": ["actionrequestfilter.forbidden"],
       "filters_execute": ["actionrequestfilter.reindex"]

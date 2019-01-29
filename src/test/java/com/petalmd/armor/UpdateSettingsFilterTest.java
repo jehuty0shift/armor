@@ -7,6 +7,7 @@ import io.searchbox.indices.CloseIndex;
 import io.searchbox.indices.OpenIndex;
 import io.searchbox.indices.settings.GetSettings;
 import io.searchbox.indices.settings.UpdateSettings;
+import org.apache.http.entity.ContentType;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
@@ -26,11 +27,11 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "forbidden","updatesettings")
-                .putArray("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
-                .putArray("armor.actionrequestfilter.updatesettings.allowed_actions","indices:admin/get", "indices:admin/settings/update", "indices:admin/close", "indices:admin/open", "indices:monitor/settings/get")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","updatesettings")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
+                .putList("armor.actionrequestfilter.updatesettings.allowed_actions","indices:admin/get", "indices:admin/settings/update", "indices:admin/close", "indices:admin/open", "indices:monitor/settings/get")
                 .put(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, true)
-                .putArray(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED, "analysis", "index.refresh_interval")
+                .putList(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED, "analysis", "index.refresh_interval")
                 .put(authSettings)
                 .build();
 
@@ -57,7 +58,7 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
                 "           \"language\": \"light_french\" }" +
                 "       }," +
                 "   \"analyzer\": {" +
-                "       \"french\": {" +
+                "       \"french_rebuilt\": {" +
                 "       \"tokenizer\": \"standard\"," +
                 "       \"filter\": [" +
                 "           \"lowercase\"," +
@@ -73,6 +74,7 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
         String indexName = "financial";
 
         UpdateSettings updateSettingRequest = new UpdateSettings.Builder(analysisSetting)
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
                 .addIndex(indexName)
                 .build();
 

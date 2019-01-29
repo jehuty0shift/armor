@@ -27,9 +27,9 @@ public class DeleteByQueryTest extends AbstractScenarioTest {
 
         final String index = "internal";
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "deletebyquery","forbidden")
-                .putArray("armor.actionrequestfilter.deletebyquery.allowed_actions", "indices:data/write/delete/byquery")
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "cluster:admin*")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "deletebyquery","forbidden")
+                .putList("armor.actionrequestfilter.deletebyquery.allowed_actions", "indices:data/write/delete/byquery")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "cluster:admin*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -39,7 +39,7 @@ public class DeleteByQueryTest extends AbstractScenarioTest {
 
         JestClient client = getJestClient(getServerUri(false), username, password);
 
-        DeleteByQueryNew dbq = new DeleteByQueryNew.Builder("{\"query\" : {\"match_all\" : {} } }").addIndex(index).setParameter("wait_for_completion",true).build();
+        DeleteByQuery dbq = new DeleteByQuery.Builder("{\"query\" : {\"match_all\" : {} } }").addIndex(index).setParameter("wait_for_completion",true).build();
 
         final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE(dbq);
 

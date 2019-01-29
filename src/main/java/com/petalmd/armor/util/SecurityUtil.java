@@ -35,6 +35,8 @@ import javax.net.ssl.SSLEngine;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -46,11 +48,11 @@ public class SecurityUtil {
 
     private static final Logger log = LogManager.getLogger(SecurityUtil.class);
     private static final String[] PREFERRED_SSL_CIPHERS = { "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_RSA_WITH_AES_256_GCM_SHA384",
-            "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384", "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
-            "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-            "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-            "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256","TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA" };
-    private static final String[] PREFERRED_SSL_PROTOCOLS = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+            "TLS_CHACHA20_POLY1305_SHA256",  "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
+             "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384",
+            "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+            "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA" };
+    private static final String[] PREFERRED_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2", "TLSv1.1", "TLSv1"};
 
     private static String[] ENABLED_SSL_PROTOCOLS = null;
     private static String[] ENABLED_SSL_CIPHERS = null;
@@ -106,21 +108,21 @@ public class SecurityUtil {
         }
     }
 
-    public static File getAbsoluteFilePathFromClassPath(final String fileNameFromClasspath) {
+    public static Path getAbsoluteFilePathFromClassPath(final String fileNameFromClasspath) {
 
-        File jaasConfigFile = null;
+        Path jaasConfigFile = null;
         final URL jaasConfigURL = SecurityUtil.class.getClassLoader().getResource(fileNameFromClasspath);
         if (jaasConfigURL != null) {
             try {
-                jaasConfigFile = new File(URLDecoder.decode(jaasConfigURL.getFile(), "UTF-8"));
-            } catch (final UnsupportedEncodingException e) {
+                jaasConfigFile = Path.of(jaasConfigURL.toURI());
+            } catch (final URISyntaxException e) {
                 return null;
             }
 
-            if (jaasConfigFile.exists() && jaasConfigFile.canRead()) {
+            if (Files.exists(jaasConfigFile) && Files.isReadable(jaasConfigFile)) {
                 return jaasConfigFile;
             } else {
-                log.error("Cannot read from {}, maybe the file does not exists? ", jaasConfigFile.getAbsolutePath());
+                log.error("Cannot read from {}, maybe the file does not exists? ", jaasConfigFile.toString());
             }
 
         } else {
@@ -259,14 +261,14 @@ public class SecurityUtil {
         }
 
         try {
-            final Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            final Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
             cipher.init(Cipher.ENCRYPT_MODE, key);
             final SealedObject sealedobject = new SealedObject(object, cipher);
             final ByteArrayOutputStream bos = new ByteArrayOutputStream();
             final ObjectOutputStream out = new ObjectOutputStream(bos);
             out.writeObject(sealedobject);
             final byte[] bytes = bos.toByteArray();
-            return BaseEncoding.base64().encode(bytes);
+            return Base64.getEncoder().encodeToString(bytes);
         } catch (final NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
             log.error(" error in cryptography configuration", e);
             throw new ElasticsearchException(e);
@@ -283,7 +285,7 @@ public class SecurityUtil {
         }
 
         try {
-            final byte[] userr = BaseEncoding.base64().decode(string);
+            final byte[] userr = Base64.getDecoder().decode(string);
             final ByteArrayInputStream bis = new ByteArrayInputStream(userr);
             final ObjectInputStream in = new ObjectInputStream(bis);
             final SealedObject ud = (SealedObject) in.readObject();
@@ -324,10 +326,10 @@ public class SecurityUtil {
     public static InetAddress getProxyResolvedHostAddressFromRequest(final RestRequest request, final Settings settings)
             throws UnknownHostException {
 
-        // this.logger.debug(request.getClass().toString());
+        log.debug(request.getClass().toString());
 
         final String oaddr = ((InetSocketAddress) request.getRemoteAddress()).getHostString();
-        // this.logger.debug("original hostname: " + addr);
+        log.debug("original hostname: " + oaddr);
 
         String raddr = oaddr;
 
@@ -343,9 +345,9 @@ public class SecurityUtil {
 
             final String xForwardedForValue = request.header(xForwardedForHeader);
 
-            //logger.trace("xForwardedForHeader is " + xForwardedForHeader + ":" + xForwardedForValue);
+            log.trace("xForwardedForHeader is " + xForwardedForHeader + ":" + xForwardedForValue);
 
-            final String[] xForwardedTrustedProxies = settings.getAsArray(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES);
+            final List<String> xForwardedTrustedProxies = settings.getAsList(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES);
 
             final boolean xForwardedEnforce = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE, false);
 
@@ -353,15 +355,15 @@ public class SecurityUtil {
                 final List<String> addresses = Arrays.asList(xForwardedForValue.replace(" ", "").split(","));
                 final List<String> proxiesPassed = new ArrayList<String>(addresses.subList(1, addresses.size()));
 
-                if (xForwardedTrustedProxies.length == 0) {
+                if (xForwardedTrustedProxies.size() == 0) {
                     throw new UnknownHostException("No trusted proxies");
                 }
 
-                proxiesPassed.removeAll(Arrays.asList(xForwardedTrustedProxies));
+                proxiesPassed.removeAll(xForwardedTrustedProxies);
 
-                //logger.debug(proxiesPassed.size() + "/" + proxiesPassed);
+                log.trace(proxiesPassed.size() + "/" + proxiesPassed);
 
-                if (proxiesPassed.size() == 0 && (Arrays.asList(xForwardedTrustedProxies).contains(oaddr) || iaddr.isLoopbackAddress())) {
+                if (proxiesPassed.size() == 0 && (xForwardedTrustedProxies.contains(oaddr) || iaddr.isLoopbackAddress())) {
 
                     raddr = addresses.get(0).trim();
 

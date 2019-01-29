@@ -2,20 +2,25 @@ package com.petalmd.armor.transport;
 
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import io.netty.channel.Channel;
+import io.netty.channel.*;
 import io.netty.handler.ssl.SslHandler;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.TcpChannel;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 
 import javax.net.ssl.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.KeyStore;
 
 /**
@@ -32,26 +37,51 @@ public class SSLNettyTransport extends Netty4Transport {
     private final String truststoreFilePath;
     private final String truststorePassword;
 
+    private final boolean verifyHostname;
+    private final boolean resolveHostname;
 
     public SSLNettyTransport(final Settings settings, final ThreadPool threadPool,
                              final NetworkService networkService, final BigArrays bigArrays, final NamedWriteableRegistry namedWriteableRegistry,
                              final CircuitBreakerService circuitBreakerService) {
         super(settings, threadPool, networkService, bigArrays, namedWriteableRegistry, circuitBreakerService);
+        enforceClientAuth = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH, false);
         keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_TYPE, "JKS");
         keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH, null);
         keystorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_PASSWORD, "changeit");
-        enforceClientAuth = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH, false);
         truststoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_TYPE, "JKS");
         truststoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH, null);
         truststorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_PASSWORD, "changeit");
+        verifyHostname = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION, false);
+        resolveHostname = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, false);
+    }
 
+    @Override
+    protected ChannelHandler getServerChannelInitializer(String name) {
+        return new SSLServerChannelInitializer(name, enforceClientAuth, keystoreType, keystoreFilePath, keystorePassword, truststoreType, truststoreFilePath, truststorePassword);
     }
 
 
-    protected class SSLServerChannelInilizer extends Netty4Transport.ServerChannelInitializer {
+    private class SSLServerChannelInitializer extends Netty4Transport.ServerChannelInitializer {
 
-        public SSLServerChannelInilizer(String name, Settings settings) {
-            super(name, settings);
+        private final boolean enforceClientAuth;
+        private final String keystoreType;
+        private final String keystoreFilePath;
+        private final String keystorePassword;
+
+        private final String truststoreType;
+        private final String truststoreFilePath;
+        private final String truststorePassword;
+
+        public SSLServerChannelInitializer(String name, final boolean enforceClientAuth, final String keystoreType, final String keystoreFilePath, final String keystorePassword,
+                                           final String truststoreType, final String truststoreFilePath, final String truststorePassword) {
+            super(name);
+            this.enforceClientAuth = enforceClientAuth;
+            this.keystoreFilePath = keystoreFilePath;
+            this.keystoreType = keystoreType;
+            this.keystorePassword = keystorePassword;
+            this.truststoreType = truststoreType;
+            this.truststoreFilePath = truststoreFilePath;
+            this.truststorePassword = truststorePassword;
         }
 
         @Override
@@ -67,7 +97,7 @@ public class SSLNettyTransport extends Netty4Transport {
                     FileInputStream trustStoreFile = fIS;
                     ts.load(trustStoreFile, truststorePassword.toCharArray());
                 } catch (IOException ex) {
-                    logger.warn("Problem during SSL Truststore initialization ",ex);
+                    logger.warn("Problem during SSL Truststore initialization ", ex);
                 }
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ts);
@@ -77,7 +107,7 @@ public class SSLNettyTransport extends Netty4Transport {
             try (FileInputStream fIS = new FileInputStream(new File(keystoreFilePath))) {
                 ks.load(fIS, keystorePassword.toCharArray());
             } catch (IOException ex) {
-                logger.warn("Problem during SSL Truststore initialization ",ex);
+                logger.warn("Problem during SSL Truststore initialization ", ex);
             }
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -94,8 +124,50 @@ public class SSLNettyTransport extends Netty4Transport {
             engine.setUseClientMode(false);
 
             final SslHandler sslHandler = new SslHandler(engine);
-            ch.pipeline().addFirst("ssl_server",sslHandler);
+            ch.pipeline().addFirst("ssl_server", sslHandler);
         }
     }
 
+
+    @Override
+    protected ChannelHandler getClientChannelInitializer(DiscoveryNode node) {
+        return new SSLClientChannelInitializer(node);
+    }
+
+
+    private class SSLClientChannelInitializer extends ClientChannelInitializer {
+
+        private final SNIHostName sniServerName;
+
+        public SSLClientChannelInitializer(DiscoveryNode node) {
+
+            String advertisedNodeName = node.getAttributes().get("server_name"); //used for compability with Elasticsearch SSL conventions.
+
+            if(advertisedNodeName != null && !advertisedNodeName.isEmpty()) {
+                try {
+                    sniServerName = new SNIHostName(advertisedNodeName);
+
+                } catch (IllegalArgumentException e) {
+                    logger.error("Invalid server name configured at server_name node attribute or server name or hostname : [" + advertisedNodeName + "]");
+                    throw new ConnectTransportException(node, "Invalid server name configured at server_name node attribute or server name or hostname : [" + advertisedNodeName + "]");
+                }
+
+            } else {
+                sniServerName = null;
+            }
+
+        }
+
+        @Override
+        protected void initChannel(Channel ch) throws Exception {
+            super.initChannel(ch);
+            ch.pipeline().addFirst(new SSLClientHandlerInitializer(sniServerName,keystoreType,keystoreFilePath,keystorePassword,truststoreType,truststoreFilePath,truststorePassword,verifyHostname,resolveHostname));
+        }
+    }
+
+    @Override
+    protected void onException(TcpChannel channel, Exception e) {
+        super.onException(channel, e);
+        logger.warn("Error on SSL Channel ",e);
+    }
 }

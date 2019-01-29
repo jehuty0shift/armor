@@ -13,8 +13,8 @@ public class AuditLogTest extends AbstractScenarioTest {
         username = "jacksonm";
         password = "secret";
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
-                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(getAuthSettings(false, "ceo")).build();
 
         startES(settings);
@@ -23,8 +23,8 @@ public class AuditLogTest extends AbstractScenarioTest {
 
         Thread.sleep(3000);
 
-        final JestResult result = executeSearch("ac_query_matchall.json", new String[] { ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX },
-                new String[] { "audit" }, true, true).v1();
+        final JestResult result = executeSearch("ac_query_matchall.json", new String[] { ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit" },
+                new String[] { "_doc" }, true, true).v1();
         log.debug(toPrettyJson(result.getJsonString()));
         assertJestResultCount(result, 1);
     }

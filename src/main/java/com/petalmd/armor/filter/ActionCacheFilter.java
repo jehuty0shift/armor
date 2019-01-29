@@ -46,8 +46,8 @@ public class ActionCacheFilter extends AbstractActionFilter {
         super(settings, armorService.getAuthenticationBackend(),armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(),threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_CACHE_ENABLED, false);
         log.info("Action Cache Filter is : " + (enabled?"enabled":"disabled"));
-        String[] actionsToCache = settings.getAsArray(ConfigConstants.ARMOR_ACTION_CACHE_LIST);
-        for (String action : actionsToCache) {
+        List<String> actionsToCache = settings.getAsList(ConfigConstants.ARMOR_ACTION_CACHE_LIST);
+        for (final String action : actionsToCache) {
             if (action.startsWith("cluster:monitor")) {
                 cacheablesActions.add(action);
                 log.info("Adding action " + action + " to cacheables actions");

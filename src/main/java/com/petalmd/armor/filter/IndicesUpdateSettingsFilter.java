@@ -48,7 +48,7 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
     public IndicesUpdateSettingsFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, false);
-        allowedSettings = Lists.newArrayList(settings.getAsArray(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED));
+        allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED);
         log.info("IndicesUpdateSettingsFilter is " + (enabled ? "enabled" : "disabled"));
         log.debug("allowed Settings are {}",allowedSettings.toString());
     }
@@ -174,7 +174,6 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
             indices = in.readStringArray();
             indicesOptions = IndicesOptions.readIndicesOptions(in);
             settings = readSettingsFromStream(in);
-            readTimeout(in);
             boolean preserveExisting = in.readBoolean();
         }
 

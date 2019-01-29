@@ -2,6 +2,7 @@ package com.petalmd.armor.tests;
 
 import io.searchbox.action.AbstractMultiIndexActionBuilder;
 import io.searchbox.action.GenericResultAbstractAction;
+import io.searchbox.client.config.ElasticsearchVersion;
 
 import java.util.List;
 
@@ -12,17 +13,11 @@ public class GetFieldCapsAction extends GenericResultAbstractAction {
 
     protected GetFieldCapsAction(Builder builder) {
         super(builder);
-        setURI(buildURI());
     }
 
     @Override
-    protected String buildURI() {
-        return super.buildURI() + "/_field_caps";
-    }
-
-    @Override
-    public String getURI() {
-        return super.getURI();
+    protected String getURLCommandExtension(ElasticsearchVersion elasticsearchVersion) {
+        return "_field_caps";
     }
 
     @Override

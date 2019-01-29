@@ -23,6 +23,11 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.transport.TransportRequest;
 
 public interface AuditListener {
+
+    default boolean isReady(){ return true;};
+
+    default boolean setupAuditListener(){return true;};
+
     default void onFailedLogin(String username, RestRequest request, ThreadContext threadContext){}
 
     default void onMissingPrivileges(String username, RestRequest request, ThreadContext threadContext){}

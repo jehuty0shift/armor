@@ -16,6 +16,7 @@
 package org.elasticsearch.node;
 
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.plugins.Plugin;
 
 import java.util.Collection;
@@ -27,7 +28,11 @@ import java.util.Collection;
 public final class ArmorNode extends Node {
 
     public ArmorNode(Settings preparedSettings, Collection<Class<? extends Plugin>> plugins) {
-        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null),  plugins);
+        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null),  plugins, true);
     }
 
+    @Override
+    protected void registerDerivedNodeNameWithLogger(String nodeName) {
+        //do nothing?
+    }
 }

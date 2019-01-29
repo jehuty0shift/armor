@@ -64,14 +64,13 @@ public class FLSActionFilter extends AbstractActionFilter {
 
         this.client = client;
 
-        final String[] arFilters = settings.getAsArray(ConfigConstants.ARMOR_FLSFILTER);
-        for (int i = 0; i < arFilters.length; i++) {
-            final String filterName = arFilters[i];
+        final List<String> arFilters = settings.getAsList(ConfigConstants.ARMOR_FLSFILTER);
+        for (String filterName : arFilters) {
 
-            final List<String> sourceIncludes = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName
-                    + ".source_includes", new String[0]));
-            final List<String> sourceExcludes = Arrays.asList(settings.getAsArray("armor." + filterType + "." + filterName
-                    + ".source_excludes", new String[0]));
+            final List<String> sourceIncludes = settings.getAsList("armor." + filterType + "." + filterName
+                    + ".source_includes", Collections.emptyList());
+            final List<String> sourceExcludes = settings.getAsList("armor." + filterType + "." + filterName
+                    + ".source_excludes", Collections.emptyList());
 
             filterMap.put(filterName, new Tuple<List<String>, List<String>>(sourceIncludes, sourceExcludes));
         }
@@ -263,7 +262,12 @@ public class FLSActionFilter extends AbstractActionFilter {
             //fields parameter
             FetchSourceContext fetchSourceContext = source.fetchSource();
             if (fetchSourceContext == null) {
-                source.fetchSource(new FetchSourceContext(true, sourceIncludes.toArray(new String[sourceIncludes.size()]), sourceExcludes.toArray(new String[sourceExcludes.size()])));
+                //fetch source if sourceExclude does not contains source
+                //if sourceIncludes is empty, then  add "*"
+                if (sourceIncludes.isEmpty()) {
+                    sourceIncludes.add("*");
+                }
+                source.fetchSource(new FetchSourceContext(!sourceExcludes.contains("_source"), sourceIncludes.toArray(new String[sourceIncludes.size()]), sourceExcludes.toArray(new String[sourceExcludes.size()])));
             } else {
                 if (fetchSourceContext.fetchSource() == true || (fetchSourceContext.includes() != null && fetchSourceContext.includes().length > 0)) {
                     final String[] fields = fetchSourceContext.includes();

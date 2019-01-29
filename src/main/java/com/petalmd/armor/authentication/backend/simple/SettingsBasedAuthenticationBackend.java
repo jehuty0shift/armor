@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.authentication.backend.simple;
@@ -37,14 +37,14 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
     public SettingsBasedAuthenticationBackend(final Settings settings) {
         this.settings = settings;
         authCredsList = new ArrayList<>();
-        String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
-        Map<String,String> userGroupSettings = settings.getByPrefix(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USER).getAsMap();
+        List<String> userCreds = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList());
+        Settings userGroupSettings = settings.getByPrefix(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USER);
         Settings roleGroupSettings = settings.getByPrefix(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES);
-        for (Map.Entry<String,String> userCred : userGroupSettings.entrySet()) {
-            String username = userCred.getKey();
-            String password = userCred.getValue();
-            String[] roles = roleGroupSettings.getAsArray(username,new String[]{});
-            authCredsList.add(new AuthCredentials(username,Arrays.asList(roles),password.toCharArray()));
+        for (String userKey : userGroupSettings.keySet()) {
+            String username = userKey;
+            String password = userGroupSettings.get(userKey);
+            List<String> roles = roleGroupSettings.getAsList(username, Collections.emptyList());
+            authCredsList.add(new AuthCredentials(username, roles, password.toCharArray()));
         }
         for (String userCred : userCreds) {
             String user = null;
@@ -58,7 +58,7 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
                     String[] userRoleArray = userRoles.split("@");
                     user = userRoleArray[0];
                     String roleArray = userRoleArray[1];
-                    if(roleArray.contains(",")) {
+                    if (roleArray.contains(",")) {
                         roles = Arrays.asList(roleArray.split(","));
                     }
                 } else {
@@ -67,7 +67,7 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
                 password = userRolePassArray[1];
             }
             if (user != null && password != null) {
-                authCredsList.add(new AuthCredentials(user,roles,password.toCharArray()));
+                authCredsList.add(new AuthCredentials(user, roles, password.toCharArray()));
             }
         }
     }
@@ -75,18 +75,18 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
     @Override
     public User authenticate(final com.petalmd.armor.authentication.AuthCredentials authCreds) throws AuthException {
         final String user = authCreds.getUsername();
-        final String clearTextPassword = authCreds.getPassword() == null?null:new String(authCreds.getPassword());
+        final String clearTextPassword = authCreds.getPassword() == null ? null : new String(authCreds.getPassword());
         authCreds.clear();
 
         String digest = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_DIGEST, null);
         String storedPasswordOrDigest = null;
-        for(AuthCredentials authCredentials : authCredsList) {
-            if(authCredentials.getUsername().equals(user)) {
+        for (AuthCredentials authCredentials : authCredsList) {
+            if (authCredentials.getUsername().equals(user)) {
                 storedPasswordOrDigest = new String(authCredentials.getPassword());
             }
         }
 
-        if(!StringUtils.isEmpty(clearTextPassword) && !StringUtils.isEmpty(storedPasswordOrDigest)) {
+        if (!StringUtils.isEmpty(clearTextPassword) && !StringUtils.isEmpty(storedPasswordOrDigest)) {
 
             String passwordOrHash = clearTextPassword;
 

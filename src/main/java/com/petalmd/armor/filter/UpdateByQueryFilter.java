@@ -27,7 +27,7 @@ public class UpdateByQueryFilter extends AbstractActionFilter {
     protected final Logger log = LogManager.getLogger(UpdateByQueryFilter.class);
 
     @Inject
-    public UpdateByQueryFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService, final NamedXContentRegistry xContentRegistry) {
+    public UpdateByQueryFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
     }
 

@@ -11,8 +11,8 @@
          "indices":[
             "eight"
          ],
-         "filters_bypass": [],
-         "filters_execute": ["*"]
+         "filters_bypass": ["*"],
+         "filters_execute": []
       },
       {
          "hosts":[
@@ -20,7 +20,7 @@
          ],
          "indices" : ["*"],
          "aliases" : ["*"],
-         "filters_bypass": [],
+         "filters_bypass": ["*"],
          "filters_execute": ["check.1"]
       },
       {

@@ -19,8 +19,10 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.petalmd.armor.util.ConfigConstants;
+import io.searchbox.action.AbstractAction;
 import io.searchbox.action.GenericResultAbstractAction;
 import io.searchbox.client.JestResult;
+import io.searchbox.client.config.ElasticsearchVersion;
 import io.searchbox.cluster.NodesInfo;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
@@ -44,8 +46,8 @@ public class ObfFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
 
-        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "monitoronly")
-                .putArray("armor.actionrequestfilter.monitoronly.allowed_actions", "cluster:monitor*")
+        final Settings settings =  Settings.builder().putList("armor.actionrequestfilter.names", "monitoronly")
+                .putList("armor.actionrequestfilter.monitoronly.allowed_actions", "cluster:monitor*")
                 .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
                 .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
                 .put(authSettings).build();
@@ -76,9 +78,9 @@ public class ObfFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
 
-        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "indicesadmin")
-                .putArray("armor.actionrequestfilter.indicesadmin.allowed_actions", "indices:admin*")
-                .putArray("armor.obfuscation.filter.getindexresponse.remove","mappings.post_date","indices.ceo","aliases")
+        final Settings settings =  Settings.builder().putList("armor.actionrequestfilter.names", "indicesadmin")
+                .putList("armor.actionrequestfilter.indicesadmin.allowed_actions", "indices:admin*")
+                .putList("armor.obfuscation.filter.getindexresponse.remove","mappings.post_date","indices.ceo","aliases")
                 .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
                 .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
                 .put(authSettings).build();
@@ -89,13 +91,16 @@ public class ObfFilterTest extends AbstractScenarioTest {
         HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
+
+
             @Override
             public String getRestMethodName() {
                 return "GET";
             }
 
             @Override
-            public String getURI() {
+            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
+                //fastest way to have a GET on an index
                 return "/internal";
             }
 
@@ -125,8 +130,8 @@ public class ObfFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
 
-        final Settings settings =  Settings.builder().putArray("armor.actionrequestfilter.names", "clusterstate")
-                .putArray("armor.actionrequestfilter.clusterstate.allowed_actions", "cluster:monitor/state")
+        final Settings settings =  Settings.builder().putList("armor.actionrequestfilter.names", "clusterstate")
+                .putList("armor.actionrequestfilter.clusterstate.allowed_actions", "cluster:monitor/state")
                 .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
                 .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
                 .put(authSettings).build();
@@ -143,8 +148,8 @@ public class ObfFilterTest extends AbstractScenarioTest {
             }
 
             @Override
-            public String getURI() {
-                return "/_cluster/state";
+            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
+                return "_cluster/state";
             }
 
         });

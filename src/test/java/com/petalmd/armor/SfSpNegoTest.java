@@ -35,12 +35,12 @@ public class SfSpNegoTest extends AbstractUnitTest {
     public void sfSpNegoTest() throws Exception {
 
         startLDAPServer();
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.actionrequestfilter.names", "readonly")
-                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search")
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search")
 
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.spnego.HTTPSpnegoAuthenticator")
@@ -52,7 +52,7 @@ public class SfSpNegoTest extends AbstractUnitTest {
                         .put("armor.authentication.authentication_backend.impl",
                                 "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
                                 .put("armor.authentication.authentication_backend.cache.enable", "false")
-                                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
                                 .put("armor.authentication.authorization.ldap.rolename", "cn")

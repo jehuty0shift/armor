@@ -42,7 +42,7 @@ public class SslTest extends AbstractScenarioTest {
         final Settings settings = Settings
                 .builder()
                 .put("http.type","armor_ssl_netty4")
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -71,7 +71,7 @@ public class SslTest extends AbstractScenarioTest {
         final Settings settings = Settings
                 .builder()
                 .put("http.type","armor_ssl_netty4")
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -99,7 +99,7 @@ public class SslTest extends AbstractScenarioTest {
         final Settings settings = Settings
                 .builder()
                 .put("http.type","armor_ssl_netty4")
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                         .put("armor.authentication.authorizer.cache.enable", "false")
@@ -129,7 +129,7 @@ public class SslTest extends AbstractScenarioTest {
                 .put("http.type","armor_ssl_netty4")
                 .put("armor.authentication.http_authenticator.impl",
                     "com.petalmd.armor.authentication.http.clientcert.HTTPSClientCertAuthenticator")
-                .putArray("armor.authentication.authorization.settingsdb.roles.localhost", "ceo")
+                .putList("armor.authentication.authorization.settingsdb.roles.localhost", "ceo")
                 .put("armor.authentication.authorizer.impl",
                     "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "false")

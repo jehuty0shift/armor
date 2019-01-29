@@ -46,14 +46,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.mina.util.AvailablePortFinder;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.collect.Tuple;
@@ -61,9 +61,11 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.reindex.ReindexPlugin;
+import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.painless.PainlessPlugin;
+import org.elasticsearch.plugins.AnalysisPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
@@ -113,7 +115,7 @@ public abstract class AbstractUnitTest {
 
         try {
 
-            String loginconf = FileUtils.readFileToString(SecurityUtil.getAbsoluteFilePathFromClassPath("login.conf_template"));
+            String loginconf = FileUtils.readFileToString(SecurityUtil.getAbsoluteFilePathFromClassPath("login.conf_template").toFile());
             loginconf = loginconf.replace("${debug}", String.valueOf(debugAll)).replace("${hostname}", getNonLocalhostAddress())
                     .replace("${keytab}", keytab.toURI().toString());
 
@@ -183,8 +185,8 @@ public abstract class AbstractUnitTest {
 
     protected Settings getAuthSettings(final boolean wrongPassword, final String... roles) {
         return cacheEnabled(false)
-                //.putArray("armor.authentication.authorization.settingsdb.roles." + username, roles)
-                .putArray("armor.authentication.settingsdb.usercreds", username + "@" + Strings.join(roles, ",") + ":" + password + (wrongPassword ? "-wrong" : ""))
+                //.putList("armor.authentication.authorization.settingsdb.roles." + username, roles)
+                .putList("armor.authentication.settingsdb.usercreds", username + "@" + Strings.join(roles, ",") + ":" + password + (wrongPassword ? "-wrong" : ""))
 //                .put("armor.authentication.settingsdb.user." + username, password + (wrongPassword ? "-wrong" : ""))
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
@@ -199,7 +201,7 @@ public abstract class AbstractUnitTest {
                 .put("node.master", masterNode).put("cluster.name", this.clustername)
                 .put("node.max_local_storage_nodes", 3)
                 .put("path.home", ".").put("path.data", "data/data")//.put("index.store.fs.memory.enabled", "true")
-                .put("path.logs", "data/logs").put("path.conf", "data/config")
+                .put("path.logs", "data/logs")
                 //.put("path.plugins", "data/plugins").put("plugin.types", ArmorPlugin.class.getName())
                 //.put("index.number_of_shards", "3").put("index.number_of_replicas", "1")
                 .put("cluster.routing.allocation.disk.threshold_enabled", false)
@@ -268,6 +270,7 @@ public abstract class AbstractUnitTest {
         list.add(ArmorPlugin.class);
         list.add(Netty4Plugin.class);
         list.add(ReindexPlugin.class);
+        list.add(org.elasticsearch.analysis.common.CommonAnalysisPlugin.class);
         list.add(PainlessPlugin.class);
         return new ArmorNode(settings, list);
     }
@@ -425,8 +428,8 @@ public abstract class AbstractUnitTest {
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
         final Tuple<JestResult, HttpResponse> restu = client.executeE(new Search.Builder(loadFile(file))
-                .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers)
+                .addIndices(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
+                .addTypes(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers)
                 .build());
 
         final JestResult res = restu.v1();
@@ -449,8 +452,8 @@ public abstract class AbstractUnitTest {
         client = getJestClient(getServerUri(connectFromLocalhost), username, password);
 
         Search.Builder searchB = new Search.Builder(loadFile(file))
-                .addIndex(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
-                .addType(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers);
+                .addIndices(indices == null ? Collections.EMPTY_SET : Arrays.asList(indices))
+                .addTypes(types == null ? Collections.EMPTY_SET : Arrays.asList(types)).setHeader(headers);
 
         for (Map.Entry<String, String> parameter : scrollParameters.entrySet()) {
             searchB.setParameter(parameter.getKey(), parameter.getValue());
@@ -535,11 +538,11 @@ public abstract class AbstractUnitTest {
             log.debug("Configure Jest with SSL");
 
             final KeyStore myTrustStore = KeyStore.getInstance("JKS");
-            myTrustStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")),
+            myTrustStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks").toFile()),
                     "changeit".toCharArray());
 
             final KeyStore keyStore = KeyStore.getInstance("JKS");
-            keyStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks")), "changeit".toCharArray());
+            keyStore.load(new FileInputStream(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks").toFile()), "changeit".toCharArray());
 
             final SSLContext sslContext = SSLContexts.custom().loadKeyMaterial(keyStore, "changeit".toCharArray())
                     .loadTrustMaterial(myTrustStore, null).build();
@@ -572,10 +575,11 @@ public abstract class AbstractUnitTest {
         executeIndex("dummy_content.json", "ceo", "internal", "tp_1", true, true);
         executeIndex("dummy_content.json", "cto", "internal", "tp_1", true, true);
         executeIndex("dummy_content.json", "marketing", "flyer", "tp_2", true, true);
-        executeIndex("dummy_content.json", "marketing", "customer", "tp_3", true, true);
-        executeIndex("dummy_content.json", "marketing", "customer", "tp_4", true, true);
+        executeIndex("dummy_content.json", "marketing", "flyer", "tp_3", true, true);
+        executeIndex("dummy_content.json", "marketing", "flyer", "tp_4", true, true);
+        executeIndex("dummy_content.json", "marketing_backup", "flyer", "tp_0", true, true);
         executeIndex("dummy_content.json", "dev", "beta", "tp_1", true, true);
-        executeIndex("dummy_content.json", "financial", "public", "t2p_5", true, true);
+        executeIndex("dummy_content.json", "financial", "sensitivestuff", "t2p_5", true, true);
         executeIndex("dummy_content.json", "financial", "sensitivestuff", "t2p_6", true, true);
         executeIndex("dummy_content.json", "financial", "sensitivestuff", "t2p_7", true, true);
 
@@ -586,19 +590,19 @@ public abstract class AbstractUnitTest {
         executeIndex("dummy_content2.json", "future", "docs", "f_1", true, true);
         executeIndex("dummy_content2.json", "future", "docs", "f_2", true, true);
 
-        IndicesAliasesResponse alias1 = esNode1.client().admin().indices()
+        AcknowledgedResponse alias1 = esNode1.client().admin().indices()
                 .prepareAliases()
                 .addAlias(new String[]{"ceo", "financial"}, "crucial")
                 .execute()
                 .actionGet();
         Assert.assertTrue(alias1.isAcknowledged());
-        IndicesAliasesResponse alias2 = esNode1.client().admin().indices()
+        AcknowledgedResponse alias2 = esNode1.client().admin().indices()
                 .prepareAliases()
-                .addAlias(new String[]{"crucial", "marketing"}, "internal")
+                .addAlias(new String[]{"ceo","financial", "marketing"}, "internal")
                 .execute()
                 .actionGet();
         Assert.assertTrue(alias2.isAcknowledged());
-        IndicesAliasesResponse alias3 = esNode1.client().admin().indices()
+        AcknowledgedResponse alias3 = esNode1.client().admin().indices()
                 .prepareAliases()
                 .addAlias(new String[]{"ceo", "cto"}, "cxo")
                 .execute()
@@ -623,7 +627,7 @@ public abstract class AbstractUnitTest {
                 , XContentType.JSON);
         CreateIndexResponse responseFinancial = indexFinancialBuilder.get();
         CreateIndexRequestBuilder indexCeoBuilder = esNode1.client().admin().indices().prepareCreate("ceo");
-        indexCeoBuilder.addMapping("sensitivestuff",
+        indexCeoBuilder.addMapping("internal",
                 "    { \"properties\":" +
                         "        {\"user\": " +
                         "             {\"type\" : \"keyword\" }" +

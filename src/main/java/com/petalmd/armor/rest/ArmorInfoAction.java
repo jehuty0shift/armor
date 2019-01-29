@@ -45,42 +45,41 @@ public class ArmorInfoAction extends BaseRestHandler {
     }
 
     @Override
+    public String getName() {
+        return "armor";
+    }
+
+    @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, final NodeClient client) {
 
-        return new RestChannelConsumer() {
-
-            @Override
-            public void accept(RestChannel restChannel) throws Exception {
+        return restChannel -> {
 
 
-                final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
-                final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
+            final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
+            final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
-                BytesRestResponse response;
-                final XContentBuilder builder = restChannel.newBuilder();
+            BytesRestResponse response;
+            final XContentBuilder builder = restChannel.newBuilder();
 
-                try {
+            try {
+                
+                builder.startObject();
 
-                    //TODO : To Delete ? Authentication is done in REST Wrapper
+                builder.field("armor.status", "running");
+                builder.field("armor.enabled",settings.get(ConfigConstants.ARMOR_ENABLED));
+                builder.field("armor.isloopback", isLoopback);
+                builder.field("armor.resolvedaddress", resolvedAddress);
 
-                    builder.startObject();
+                builder.endObject();
 
-                    builder.field("armor.status", "running");
-                    builder.field("armor.enabled",settings.get(ConfigConstants.ARMOR_ENABLED));
-                    builder.field("armor.isloopback", isLoopback);
-                    builder.field("armor.resolvedaddress", resolvedAddress);
-
-                    builder.endObject();
-
-                    response = new BytesRestResponse(RestStatus.OK, builder);
-                } catch (final Exception e1) {
-                    builder.startObject();
-                    builder.field("error", e1.toString());
-                    builder.endObject();
-                    response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
-                }
-                restChannel.sendResponse(response);
+                response = new BytesRestResponse(RestStatus.OK, builder);
+            } catch (final Exception e1) {
+                builder.startObject();
+                builder.field("error", e1.toString());
+                builder.endObject();
+                response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
             }
+            restChannel.sendResponse(response);
         };
     }
 

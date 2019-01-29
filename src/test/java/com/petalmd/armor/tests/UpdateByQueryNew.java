@@ -15,13 +15,13 @@ public class UpdateByQueryNew extends GenericResultAbstractAction {
         super(builder);
 
         this.payload = builder.query;
-        setURI(buildURI());
+    //    setURI(buildURI());
     }
 
-    @Override
-    protected String buildURI() {
-        return super.buildURI() + "/_update_by_query";
-    }
+//    @Override
+//    protected String buildURI() {
+//        return super.buildURI() + "/_update_by_query";
+//    }
 
     @Override
     public String getPathToResult() {

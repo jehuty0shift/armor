@@ -26,14 +26,16 @@ import io.searchbox.client.AbstractJestClient;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.JestResultHandler;
+import io.searchbox.client.config.ElasticsearchVersion;
 import io.searchbox.client.http.apache.HttpDeleteWithEntity;
 import io.searchbox.client.http.apache.HttpGetWithEntity;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.*;
 import org.apache.http.concurrent.FutureCallback;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
@@ -61,7 +63,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
 
     public Tuple<JestResult, HttpResponse> executeE(final Action clientRequest) throws IOException {
 
-        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI());
+        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI(ElasticsearchVersion.V55));
 
         final HttpUriRequest request = constructHttpMethod(clientRequest.getRestMethodName(), elasticSearchRestUrl,
                 clientRequest.getData(gson));
@@ -75,6 +77,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
                 request.addHeader((String) header.getKey(), header.getValue().toString());
             }
         }
+        request.addHeader("Content-Type", ContentType.APPLICATION_JSON.toString());
 
         final HttpResponse response = httpClient.execute(request);
 
@@ -94,7 +97,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
     @Override
     public <T extends JestResult> T execute(final Action<T> clientRequest) throws IOException {
 
-        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI());
+        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI(ElasticsearchVersion.V55));
 
         final HttpUriRequest request = constructHttpMethod(clientRequest.getRestMethodName(), elasticSearchRestUrl,
                 clientRequest.getData(gson));
@@ -133,7 +136,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
             }
         }
 
-        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI());
+        final String elasticSearchRestUrl = getRequestURL(getNextServer(), clientRequest.getURI(ElasticsearchVersion.V55));
 
         try {
             final HttpUriRequest request = constructHttpMethod(clientRequest.getRestMethodName(), elasticSearchRestUrl,

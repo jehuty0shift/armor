@@ -27,8 +27,7 @@ public class KibanaHelperFilter extends AbstractActionFilter {
     protected final Logger log = LogManager.getLogger(KibanaHelperFilter.class);
     private final boolean enabled;
 
-    @Inject
-    public KibanaHelperFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService, final NamedXContentRegistry xContentRegistry) {
+    public KibanaHelperFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED,true);
         log.info("Kibana Helper Filter is {}", enabled?"enabled":"disabled");

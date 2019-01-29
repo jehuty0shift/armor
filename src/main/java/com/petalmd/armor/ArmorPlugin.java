@@ -1,10 +1,10 @@
 /*
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.petalmd.armor;
 
@@ -38,13 +38,13 @@ import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.commons.lang.StringUtils;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -54,8 +54,11 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.*;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
@@ -65,6 +68,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.Transport;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import java.lang.reflect.InvocationTargetException;
@@ -96,9 +100,12 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private AuditListener auditListener;
     private Authorizator authorizator;
     private AuthenticationBackend authenticationBackend;
+    private Client client;
+    private ClusterService clusterService;
     private HTTPAuthenticator httpAuthenticator;
+    private NamedXContentRegistry xContentRegistry;
     private SessionStore sessionStore;
-
+    private ThreadPool threadPool;
 
     static {
         if (Boolean.parseBoolean(System.getProperty(ArmorPlugin.ARMOR_DEBUG, "false"))) {
@@ -114,10 +121,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         clientBool = !"node".equals(this.settings.get(ArmorPlugin.CLIENT_TYPE, "node"));
     }
 
-
     @Override
-    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry) {
-
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
 
         List<Object> componentsList = new ArrayList<Object>();
 
@@ -131,6 +136,11 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //create Authenticator
         try {
+            this.clusterService = clusterService;
+            this.threadPool = threadPool;
+            this.xContentRegistry = xContentRegistry;
+            this.client = client;
+
             String className = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND);
             Class authenticationBackendClass;
             authenticationBackendClass = className == null ? null : Class.forName(className);
@@ -143,7 +153,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE, true)) {
                 authenticationBackend = new GuavaCachingAuthenticationBackend((NonCachingAuthenticationBackend) authenticationBackend, settings);
             }
-        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the AuthenticationBackend Class ! ! ", e);
         }
         componentsList.add(authenticationBackend);
@@ -162,7 +172,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             if (settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATOR_CACHE_ENABLE, true)) {
                 authorizator = new GuavaCachingAuthorizator((NonCachingAuthorizator) authorizator, settings);
             }
-        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the Authorizator Class ! ! ", e);
         }
         componentsList.add(authorizator);
@@ -178,11 +188,10 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
                 httpAuthenticator = defaultHTTPAuthenticatorClass.getConstructor(Settings.class).newInstance(settings);
             }
 
-        } catch (InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
+        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException | SecurityException e) {
             log.error("Unable to instantiate the HTTP Authenticator Class ! ! ", e);
         }
         componentsList.add(httpAuthenticator);
-
 
         //create sessionStore
         Boolean enableHTTPSession = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false);
@@ -211,7 +220,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         componentsList.add(armorRestShield);
 
         //create Armor Config Service
-        armorConfigService = new ArmorConfigService(settings, client);
+        armorConfigService = new ArmorConfigService(settings, client, auditListener);
         componentsList.add(armorConfigService);
 
         log.info("added " + componentsList.size() + " number of components.");
@@ -221,21 +230,21 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     }
 
     @Override
-    public List<Class<? extends ActionFilter>> getActionFilters() {
-        List<Class<? extends ActionFilter>> actionFilters = new ArrayList<>();
+    public List<ActionFilter> getActionFilters() {
+        List<ActionFilter> actionFilters = new ArrayList<>();
         if (!clientBool) {
-            actionFilters.add(KibanaHelperFilter.class);
-            actionFilters.add(FieldCapabilitiesFilter.class);
-            actionFilters.add(UpdateByQueryFilter.class);
-            actionFilters.add(DeleteByQueryFilter.class);
-            actionFilters.add(ArmorActionFilter.class);
-            actionFilters.add(ObfuscationFilter.class);
-            actionFilters.add(AggregationFilter.class);
-            actionFilters.add(IndicesUpdateSettingsFilter.class);
-            actionFilters.add(RequestActionFilter.class);
-            actionFilters.add(ActionCacheFilter.class);
-            actionFilters.add(DLSActionFilter.class);
-            actionFilters.add(FLSActionFilter.class);
+            actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new FieldCapabilitiesFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new UpdateByQueryFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new DeleteByQueryFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new ArmorActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new ObfuscationFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new AggregationFilter(settings, clusterService, threadPool, armorService, armorConfigService, xContentRegistry));
+            actionFilters.add(new IndicesUpdateSettingsFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }
 
         return actionFilters;
@@ -281,6 +290,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1,1, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDITLOG_COMPRESSION, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -365,7 +376,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.groupSetting(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOSTS, Setting.Property.NodeScope));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, Setting.Property.NodeScope));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -392,7 +403,12 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NamedXContentRegistry xContentRegistry, NetworkService networkService, HttpServerTransport.Dispatcher dispatcher) {
-        return Collections.singletonMap("armor_ssl_netty4",() -> new SSLNettyHttpServerTransport(settings,networkService,bigArrays,threadPool,xContentRegistry,dispatcher));
+        return Collections.singletonMap("armor_ssl_netty4", () -> new SSLNettyHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher));
+    }
+
+    @Override
+    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
+        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings,threadPool,networkService,bigArrays,namedWriteableRegistry,circuitBreakerService));
     }
 
     @Override

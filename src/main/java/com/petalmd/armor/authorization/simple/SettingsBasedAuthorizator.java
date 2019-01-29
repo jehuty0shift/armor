@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.authorization.simple;
@@ -28,6 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class SettingsBasedAuthorizator implements NonCachingAuthorizator {
@@ -39,7 +40,7 @@ public class SettingsBasedAuthorizator implements NonCachingAuthorizator {
     public SettingsBasedAuthorizator(final Settings settings) {
         this.settings = settings;
         authCredsList = new ArrayList<>();
-        String[] userCreds = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, new String[]{});
+        List<String> userCreds = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_SETTINGSDB_USERCREDS, Collections.emptyList());
         for (String userCred : userCreds) {
             String user = null;
             List<String> roles = null;
@@ -67,20 +68,18 @@ public class SettingsBasedAuthorizator implements NonCachingAuthorizator {
 
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds) throws AuthException {
-
         for (AuthCredentials authCredentials : authCredsList) {
             if (authCredentials.getUsername().equals(user.getName())) {
                 user.addRoles(authCredentials.getRoles());
             }
         }
 
-        final String[] roles = settings.getAsArray(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES+user.getName());
+        final List<String> roles = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_SETTINGSDB_ROLES + user.getName());
         if (roles != null) {
-            for(String role : roles) {
+            for (String role : roles) {
                 user.addRole(role);
             }
         }
-
 
         if (optionalAuthCreds != null) {
             optionalAuthCreds.clear();

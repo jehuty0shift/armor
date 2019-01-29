@@ -28,8 +28,8 @@ public class SearchTests extends AbstractScenarioTest {
 
         final String[] indices = new String[]{"filtered"};
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "readonly")
-                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -60,8 +60,8 @@ public class SearchTests extends AbstractScenarioTest {
 
         final String[] indices = new String[]{"internal"};
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "scroll")
-                .putArray("armor.actionrequestfilter.scroll.allowed_actions", "indices:data/read/scroll", "indices:data/read/search")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "scroll")
+                .putList("armor.actionrequestfilter.scroll.allowed_actions", "indices:data/read/scroll", "indices:data/read/search")
                 .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -95,9 +95,9 @@ public class SearchTests extends AbstractScenarioTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "wild", "forbidden")
-                .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .putList("armor.actionrequestfilter.names", "wild", "forbidden")
+                .putList("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
                 .put(authSettings).build();
 
@@ -167,9 +167,9 @@ public class SearchTests extends AbstractScenarioTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "wild", "forbidden")
-                .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .putList("armor.actionrequestfilter.names", "wild", "forbidden")
+                .putList("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
                 .put(authSettings).build();
 
@@ -294,11 +294,11 @@ public class SearchTests extends AbstractScenarioTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "reader", "writer", "forbidden")
-                .putArray("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*")
-                .putArray("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search", "indices:data/read/write", "indices:admin/settings/update")
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .putList("armor.actionrequestfilter.names", "reader", "writer", "forbidden")
+                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
+                .putList("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*")
+                .putList("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search", "indices:data/read/write", "indices:admin/settings/update")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
                 .put(authSettings).build();
 
@@ -421,27 +421,27 @@ public class SearchTests extends AbstractScenarioTest {
         Assert.assertTrue(result.getResponseCode() == 403);
 
         //test write on forbidden alias with allowed alias
-        final String[] indices11 = new String[]{"internal", "c*"};
+        final List<String> indices11 = Arrays.asList("internal", "c*");
         HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
         final String settingSource = "{\"index.refresh_interval\" : \"5s\" }";
-        final Tuple<JestResult, HttpResponse> resulttu11 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices11)).build());
+        final Tuple<JestResult, HttpResponse> resulttu11 = client.executeE(new UpdateSettings.Builder(settingSource).addIndices(indices11).build());
         result = resulttu11.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 403);
 
         //test write on forbidden alias with allowed indice
-        final String[] indices12 = new String[]{"financial", "internal"};
+        final List<String> indices12 = Arrays.asList("financial", "internal");
         client = getJestClient(getServerUri(false), username, password);
         final String settingSource2 = "{\"index.refresh_interval\" : \"5s\" }";
-        final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices12)).build());
+        final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource).addIndices(indices12).build());
         result = resulttu12.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 403);
 
-        final String[] indices13 = new String[]{"financial", "marketing"};
+        final List<String> indices13 = Arrays.asList("financial", "marketing");
         client = getJestClient(getServerUri(false), username, password);
         final String settingSource3 = "{\"index.refresh_interval\" : \"5s\" }";
-        final Tuple<JestResult, HttpResponse> resulttu13 = client.executeE(new UpdateSettings.Builder(settingSource).addIndex(Arrays.asList(indices13)).build());
+        final Tuple<JestResult, HttpResponse> resulttu13 = client.executeE(new UpdateSettings.Builder(settingSource).addIndices(indices13).build());
         result = resulttu13.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
@@ -457,11 +457,11 @@ public class SearchTests extends AbstractScenarioTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "reader", "writer", "forbidden")
-                .putArray("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
-                .putArray("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*,indices:admin/settings/update*")
-                .putArray("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search", "indices:data/read/write", "indices:admin/settings/update")
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .putList("armor.actionrequestfilter.names", "reader", "writer", "forbidden")
+                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/search")
+                .putList("armor.actionrequestfilter.reader.forbidden_actions", "indices:data/write*,indices:admin/settings/update*")
+                .putList("armor.actionrequestfilter.writer.allowed_actions", "indices:data/read/search", "indices:data/read/write", "indices:admin/settings/update")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, false)
                 .put(authSettings).build();
 

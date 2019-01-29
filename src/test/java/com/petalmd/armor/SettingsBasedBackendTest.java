@@ -34,7 +34,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testSimpleGroup() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
+                .putList("armor.authentication.authorization.settingsdb.roles.spock", "kolinahr", "starfleet", "command")
                 .put("armor.authentication.settingsdb.user.spock", "vulcan").build();
 
         Assert.assertEquals("spock",
@@ -49,7 +49,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testSimple() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         Assert.assertEquals("spock",
@@ -62,7 +62,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testSimpleRoles() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         Assert.assertEquals("spock",
@@ -80,7 +80,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testDigestMd5() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":0c94ea3ecdd57ac44984589682e4be05")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":0c94ea3ecdd57ac44984589682e4be05")
                 .put("armor.authentication.settingsdb.digest", "md5").build();
 
         Assert.assertEquals(
@@ -94,7 +94,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testDigestSha1() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
                 .put("armor.authentication.settingsdb.digest", "sha1").build();
 
         Assert.assertEquals(
@@ -108,7 +108,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testDigestSha1Fail() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
                 .put("armor.authentication.settingsdb.digest", "sha1").build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "wrong-password".toCharArray()));
@@ -120,7 +120,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":966032eab6276624119a49080934e3936d2976f7")
                 .put("armor.authentication.settingsdb.digest", "sha1").build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "966032eab6276624119a49080934e3936d2976f7".toCharArray()));
@@ -131,7 +131,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailUser() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("picard", "secret".toCharArray()));
@@ -142,7 +142,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailPassword() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "secret".toCharArray()));
@@ -153,7 +153,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailNullPassword() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", null));
@@ -164,7 +164,7 @@ public class SettingsBasedBackendTest extends AbstractUnitTest {
     public void testFailEmptyPassword() throws Exception {
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
+                .putList("armor.authentication.settingsdb.usercreds","spock@"+"kolinahr,"+ "starfleet,"+ "command"+":vulcan")
                 .build();
 
         new SettingsBasedAuthenticationBackend(settings).authenticate(new AuthCredentials("spock", "".toCharArray()));

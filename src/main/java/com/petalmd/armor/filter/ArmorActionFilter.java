@@ -66,16 +66,14 @@ public class ArmorActionFilter implements ActionFilter {
     private final ThreadPool threadpool;
     protected final ClusterService clusterService;
     protected final ArmorService armorService;
-    protected final Client client;
     protected final ArmorConfigService armorConfigService;
 
     @Inject
-    public ArmorActionFilter(final Settings settings, final Client client, final ClusterService clusterService,
+    public ArmorActionFilter(final Settings settings,  final ClusterService clusterService,
                              final ThreadPool threadpool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         this.auditListener = armorService.getAuditListener();
         this.settings = settings;
         this.clusterService = clusterService;
-        this.client = client;
         this.armorService = armorService;
         this.armorConfigService = armorConfigService;
         this.threadpool = threadpool;
@@ -130,6 +128,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             return;
         }
+
         AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
         if (isRequestExternal == null || isRequestExternal.get() == false) {
             log.debug("TYPE: inter node cluster request, skip filters");

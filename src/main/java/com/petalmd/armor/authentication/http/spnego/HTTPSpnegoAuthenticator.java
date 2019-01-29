@@ -29,8 +29,9 @@ import com.petalmd.armor.authentication.http.HTTPAuthenticator;
 import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.mina.util.Base64;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -43,7 +44,6 @@ import org.ietf.jgss.*;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
-import javax.xml.bind.DatatypeConverter;
 import java.io.Serializable;
 import java.security.Principal;
 import java.security.PrivilegedAction;
@@ -87,7 +87,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                 throw new AuthException("Bad 'Authorization' header");
             } else {
 
-                byte[] decodedNegotiateHeader = DatatypeConverter.parseBase64Binary(authorizationHeader.substring(10));
+                byte[] decodedNegotiateHeader = Base64.decodeBase64(authorizationHeader.substring(10).getBytes());
 
                 LoginContext lc = null;
                 GSSContext gssContext = null;
@@ -158,7 +158,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                 if (principal == null) {
 
                     final BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "{\"error\" : \"Unauthorized\"}");
-                    wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate " + DatatypeConverter.printBase64Binary(outToken));
+                    wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate " + Base64.encodeBase64(outToken));
                     channel.sendResponse(wwwAuthenticateResponse);
                     throw new AuthException("Cannot authenticate");
                 }

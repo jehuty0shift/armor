@@ -18,7 +18,7 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
     public ObfClusterStateResponse(final ClusterStateResponse cStateResponse, final Settings settings) {
 
-            super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()));
+            super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()),cStateResponse.getTotalCompressedSize().getBytes());
     }
 
 

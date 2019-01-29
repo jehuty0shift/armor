@@ -40,10 +40,10 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})").build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
@@ -57,13 +57,13 @@ public class LdapBackendTest extends AbstractUnitTest {
         startLDAPServer();
 
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "123.xxx.1:838b9", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")
 
                 .build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
@@ -78,7 +78,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "true")
                 .put("armor.authentication.ldap.ldaps.starttls.enabled", "false")
@@ -86,7 +86,7 @@ public class LdapBackendTest extends AbstractUnitTest {
                 .put("armor.authentication.ldap.ldaps.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
@@ -101,7 +101,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "true")
                 .put("armor.authentication.ldap.ldaps.starttls.enabled", "false")
@@ -109,7 +109,7 @@ public class LdapBackendTest extends AbstractUnitTest {
                 .put("armor.authentication.ldap.ldaps.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm",
                 "secret-wrong".toCharArray()));
@@ -124,14 +124,14 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "false")
                 .put("armor.authentication.ldap.ldaps.starttls.enabled", "true")
                 .put("armor.authentication.ldap.ldaps.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
@@ -146,7 +146,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapsServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.ldaps.ssl.enabled", "false")
                 .put("armor.authentication.ldap.ldaps.starttls.enabled", "false")
@@ -154,7 +154,7 @@ public class LdapBackendTest extends AbstractUnitTest {
                 .put("armor.authentication.ldap.ldaps.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret"
                 .toCharArray()));
@@ -164,10 +164,10 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthenticationFail() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})").build();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm",
                 "secret-wrong".toCharArray()));
@@ -177,7 +177,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationDN() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})").build();
@@ -185,7 +185,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final User user = new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret".toCharArray()));
         Assert.assertTrue(user instanceof LdapUser);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials(user.getName(), null));
@@ -197,7 +197,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationDNWithNonAnonBindFail() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -206,7 +206,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final User user = new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret".toCharArray()));
         Assert.assertTrue(user instanceof LdapUser);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials(user.getName(), null));
@@ -219,7 +219,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationDNWithNonAnonBind() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -229,7 +229,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final User user = new LDAPAuthenticationBackend(settings).authenticate(new AuthCredentials("jacksonm", "secret".toCharArray()));
         Assert.assertTrue(user instanceof LdapUser);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials(user.getName(), null));
@@ -241,7 +241,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorization() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})").build();
@@ -249,7 +249,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final LdapUser user = new LdapUser("jacksonm", null);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("jacksonm", null));
         Assert.assertEquals(2, user.getRoles().size());
@@ -260,7 +260,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationUserRoles() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -269,7 +269,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final LdapUser user = new LdapUser("jacksonm", null);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("jacksonm", null));
         Assert.assertEquals(3, user.getRoles().size());
@@ -280,7 +280,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationNestedRoles() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -291,7 +291,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final LdapUser user = new LdapUser("spock", null);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("spock", null));
         Assert.assertEquals(4, user.getRoles().size());
@@ -303,7 +303,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationNestedRolesCache() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -314,7 +314,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         LdapUser user = new LdapUser("spock", null);
         final GuavaCachingAuthorizator gc = new GuavaCachingAuthorizator(new LDAPAuthorizator(settings), settings);
         gc.fillRoles(user, new AuthCredentials("spock", null));
@@ -328,7 +328,7 @@ public class LdapBackendTest extends AbstractUnitTest {
     public void testLdapAuthorizationNestedRolesOff() throws Exception {
         startLDAPServer();
         final Settings settings = Settings.builder()
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -339,7 +339,7 @@ public class LdapBackendTest extends AbstractUnitTest {
 
         //Role names may also be held as the values of an attribute in the user's directory entry. Use userRoleName to specify the name of this attribute.
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
         final LdapUser user = new LdapUser("spock", null);
         new LDAPAuthorizator(settings).fillRoles(user, new AuthCredentials("spock", null));
         Assert.assertEquals(2, user.getRoles().size());

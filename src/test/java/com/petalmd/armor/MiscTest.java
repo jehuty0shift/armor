@@ -29,6 +29,7 @@ import io.searchbox.cluster.NodesStats;
 import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.reindex.Reindex;
 import org.apache.http.HttpResponse;
+import org.apache.http.entity.ContentType;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -46,8 +47,8 @@ public class MiscTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.actionrequestfilter.names", "allow_all")
-                .putArray("armor.actionrequestfilter.allow_all.allowed_actions", "*")
+                .putList("armor.actionrequestfilter.names", "allow_all")
+                .putList("armor.actionrequestfilter.allow_all.allowed_actions", "*")
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.HTTPUnauthenticatedAuthenticator")
                 .put("armor.authentication.authentication_backend.impl",
@@ -76,10 +77,10 @@ public class MiscTest extends AbstractUnitTest {
 
         final Settings settings = Settings
                 .builder()
-                .putArray("armor.actionrequestfilter.names", "allowHealth")
-                .putArray("armor.actionrequestfilter.allowHealth.allowed_actions", "cluster:monitor/health")
+                .putList("armor.actionrequestfilter.names", "allowHealth")
+                .putList("armor.actionrequestfilter.allowHealth.allowed_actions", "cluster:monitor/health")
                 .put("armor.allow_kibana_actions", false)
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "true")
@@ -113,13 +114,13 @@ public class MiscTest extends AbstractUnitTest {
                 .builder()
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
-                .putArray("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
                 .put("armor.authentication.authorizer.cache.enable", "true")
                 .put("armor.authentication.authentication_backend.impl",
                         "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
                 .put("armor.authentication.authentication_backend.cache.enable", "true")
-                .putArray("armor.actionrequestfilter.names", "readonly")
-                .putArray("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search").build();
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search").build();
 
         startES(settings);
         username = "jacksonm";
@@ -131,13 +132,15 @@ public class MiscTest extends AbstractUnitTest {
 
         final JestClient client = getJestClient(getServerUri(false), username, password);
 
+
+        headers.put("Content-Type", ContentType.APPLICATION_JSON);
         final JestResult jr = client.execute(new PutMapping.Builder("_all", "ac", "{" + "\"properties\" : {"
-                + "\"rules\" : {\"type\" : \"string\", \"store\" : true }" + "}" + "}"
+                + "\"rules\" : {\"type\" : \"keyword\", \"store\" : true }" + "}" + "}"
         ).setHeader(headers).build());
 
+        Assert.assertTrue(!jr.isSucceeded());
         Assert.assertNotNull(jr.getErrorMessage());
         log.debug(jr.getErrorMessage());
-        Assert.assertTrue(jr.getErrorMessage().contains("to _all indices"));
 
     }
 
@@ -152,13 +155,13 @@ public class MiscTest extends AbstractUnitTest {
 
 
         final Settings settings = Settings.builder()
-                .putArray("armor.actionrequestfilter.names", "reindex","forbidden")
-                .putArray("armor.actionrequestfilter.reindex.allowed_actions",
+                .putList("armor.actionrequestfilter.names", "reindex","forbidden")
+                .putList("armor.actionrequestfilter.reindex.allowed_actions",
                         "indices:data/read/*",
                         "indices:data/write/reindex", //main action
                         "indices:data/write/bulk*", //bulk is needed due to reindex client
                         "indices:admin/mapping/put") //mapping is needed to update mapping to ES 5.6 new mapping
-                .putArray("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true)
                 .put(authSettings).build();
 
@@ -166,13 +169,13 @@ public class MiscTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_11.json");
         ImmutableMap<String, String> source = ImmutableMap.of("index", "marketing");
-        ImmutableMap<String, String> dest = ImmutableMap.of("index", "financial");
+        ImmutableMap<String, String> dest = ImmutableMap.of("index", "marketing_backup");
         final JestClient client = getJestClient(getServerUri(false), username, password);
 
-        Reindex reindex = new Reindex.Builder(source,dest).refresh(false).build();
+        Reindex reindex = new Reindex.Builder(source,dest).refresh(false).setHeader("Content-Type", ContentType.APPLICATION_JSON).build();
         final JestResult jr = client.execute(reindex);
 
-        Assert.assertTrue(jr.getErrorMessage(),jr.isSucceeded());
+        Assert.assertTrue(jr.isSucceeded());
 
     }
 }

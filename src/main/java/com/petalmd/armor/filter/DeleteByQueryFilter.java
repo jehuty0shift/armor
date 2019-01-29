@@ -26,7 +26,7 @@ public class DeleteByQueryFilter extends AbstractActionFilter {
     protected final Logger log = LogManager.getLogger(DeleteByQueryFilter.class);
 
     @Inject
-    public DeleteByQueryFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService, final NamedXContentRegistry xContentRegistry) {
+    public DeleteByQueryFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
     }
 

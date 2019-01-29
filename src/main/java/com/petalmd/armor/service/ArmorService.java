@@ -146,37 +146,19 @@ public class ArmorService extends AbstractLifecycleComponent {
     @Override
     protected void doStart() throws ElasticsearchException {
 
-//        restController.registerFilter(new DefaultRestFilter(this, null, null, auditListener));
-//
-//        final String[] restActionFilters = settings.getAsArray(ConfigConstants.ARMOR_RESTACTIONFILTER);
-//        for (int i = 0; i < restActionFilters.length; i++) {
-//            final String filterName = restActionFilters[i];
-//            restController.registerFilter(new RestActionFilter(this, "restactionfilter", filterName, auditListener));
-//            //filterRegistered = true;
-//        }
-
-        //TODO FUTURE version compatibility
-        /* if(!Version.CURRENT.before(Version.V_1_4_2)) {
-             throw new ElasticsearchException("Wrong ES version, use 1.4.2 or later");
-         }*/
-
- /*if (!filterRegistered) {
-            throw new ElasticsearchException("No filter configured");
-        }*/
-//        log.info("Starting Search Guard with {} filters",
-//            (restActionFilters.length + dlsFilters.length + flsFilters.length + arFilters.length));
-        log.trace("With settings " + this.settings.getAsMap());
+        log.trace("With settings " + this.settings.toString());
 
     }
 
     /*public String getSecurityConfigurationIndex() {
         return securityConfigurationIndex;
     }*/
+
     @Override
     protected void doStop() throws ElasticsearchException {
         //no-op
-
     }
+
 
     @Override
     protected void doClose() throws ElasticsearchException {

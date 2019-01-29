@@ -124,13 +124,13 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
     public void testLdapAuth() throws Exception {
         //Basic/Ldap/Ldap
         startLDAPServer();
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = cacheEnabled(cacheEnabled)
                 .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
                 .put("armor.authentication.authentication_backend.impl",
                         "com.petalmd.armor.authentication.backend.ldap.LDAPAuthenticationBackend")
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -145,16 +145,16 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
     public void testProxyAuth() throws Exception {
         //Proxy/Always/Ldap
         startLDAPServer();
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = cacheEnabled(cacheEnabled)
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.proxy.HTTPProxyAuthenticator")
-                        .putArray("armor.authentication.proxy.trusted_ips", "*")
+                        .putList("armor.authentication.proxy.trusted_ips", "*")
                         .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
                         .put("armor.authentication.authentication_backend.impl",
                                 "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
@@ -172,7 +172,7 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
 
         startLDAPServer();
 
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif"));
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = cacheEnabled(cacheEnabled)
                 .put("armor.authentication.http_authenticator.impl",
@@ -182,7 +182,7 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
                 .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
                 .put("armor.authentication.authentication_backend.impl",
                         "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
-                .putArray("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
+                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn").build();

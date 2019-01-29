@@ -30,6 +30,8 @@ public final class ConfigConstants {
     public static final String ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED = "armor.action.wildcard.expansion.enabled";
     public static final String ARMOR_ACTION_CACHE_ENABLED = "armor.action.cache.filter.enabled";
     public static final String ARMOR_ACTION_CACHE_LIST = "armor.action.cache.filter.actions";
+    public static final String ARMOR_AUDITLOG_NUM_REPLICAS = "armor.auditlog.number_of_replicas";
+    public static final String ARMOR_AUDITLOG_COMPRESSION = "armor.auditlog.compression";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND = "armor.authentication.authentication_backend.impl";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND_CACHE_ENABLE = "armor.authentication.authentication_backend.cache.enable";
     public static final String ARMOR_AUTHENTICATION_AUTHORIZATION_MULTI_BACKEND_LIST = "armor.authentication.authorization.multi.auth.backends";
@@ -47,7 +49,6 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_HTTPS_CLIENTCERT_ATTRIBUTENAME = "armor.authentication.https.clientcert.attributename";
     public static final String ARMOR_AUTHENTICATION_LDAP_BIND_DN = "armor.authentication.ldap.bind_dn";
     public static final String ARMOR_AUTHENTICATION_LDAP_HOST = "armor.authentication.ldap.host";
-    public static final String ARMOR_AUTHENTICATION_LDAP_HOSTS = "armor.authentication.ldap.host.";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED = "armor.authentication.ldap.ldaps.ssl.enabled";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED = "armor.authentication.ldap.ldaps.starttls.enabled";
     public static final String ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH = "armor.authentication.ldap.ldaps.truststore_filepath";

@@ -18,6 +18,7 @@
 
 package com.petalmd.armor.service;
 
+import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -35,6 +36,7 @@ import java.util.concurrent.*;
 
 public class ArmorConfigService extends AbstractLifecycleComponent {
 
+    private final AuditListener auditListener;
     private final Client client;
     private final String securityConfigurationIndex;
     private volatile BytesReference securityConfiguration;
@@ -44,9 +46,10 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private final CountDownLatch latch = new CountDownLatch(1);
 
     @Inject
-    public ArmorConfigService(final Settings settings, final Client client) {
+    public ArmorConfigService(final Settings settings, final Client client, final AuditListener auditListener) {
         super(settings);
         this.client = client;
+        this.auditListener = auditListener;
  //       this.threadPool = threadPool;
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
@@ -96,11 +99,26 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
         });
     }
 
+    private void configAuditListener(){
+
+        if (!auditListener.isReady()) {
+            if(auditListener.setupAuditListener()){
+                logger.info("audit Listener is ready");
+            } else {
+                logger.info("audit Listener is not yet ready");
+            }
+        } else {
+            logger.debug("audit Listener is already ready");
+        }
+
+    }
+
     private class Reload implements Runnable {
         @Override
         public void run() {
             synchronized (ArmorConfigService.this) {
                 reloadConfig();
+                configAuditListener();
             }
         }
     }

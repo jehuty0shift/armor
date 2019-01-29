@@ -7,6 +7,7 @@ import com.petalmd.armor.tests.UpdateByQueryNew;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
+import io.searchbox.core.UpdateByQuery;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.common.collect.Tuple;
@@ -29,9 +30,9 @@ public class UpdateByQueryTest extends AbstractScenarioTest {
 
         final String index = "dev";
 
-        final Settings settings = Settings.builder().putArray("armor.actionrequestfilter.names", "updatebyquery","forbidden")
-                .putArray("armor.actionrequestfilter.updatebyquery.allowed_actions", UpdateByQueryAction.NAME)
-                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "cluster:admin*")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "updatebyquery","forbidden")
+                .putList("armor.actionrequestfilter.updatebyquery.allowed_actions", UpdateByQueryAction.NAME)
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "cluster:admin*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -41,7 +42,7 @@ public class UpdateByQueryTest extends AbstractScenarioTest {
 
         JestClient client = getJestClient(getServerUri(false), username, password);
 
-        UpdateByQueryNew ubq = new UpdateByQueryNew.Builder("{\"script\" : " +
+        UpdateByQuery ubq = new UpdateByQuery.Builder("{\"script\" : " +
                 " { \"source\": \"ctx._source.message = 'message changed'\",\n" +
                 "    \"lang\": \"painless\" }," +
                 "\"query\": {\n" +
@@ -50,6 +51,7 @@ public class UpdateByQueryTest extends AbstractScenarioTest {
                 "    }\n" +
                 "  }" +
                 "}").addIndex(index).setParameter("wait_for_completion",true).build();
+
 
         final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE(ubq);
 
@@ -61,7 +63,7 @@ public class UpdateByQueryTest extends AbstractScenarioTest {
 
         log.info("result is {}", resulttu.v1().getJsonString());
 
-        UpdateByQueryNew ubq2 = new UpdateByQueryNew.Builder("{\"script\" : " +
+        UpdateByQuery ubq2 = new UpdateByQuery.Builder("{\"script\" : " +
                 " { \"source\": \"ctx._source.message = 'message changed'\",\n" +
                 "    \"lang\": \"painless\" }," +
                 "\"query\": {\n" +
