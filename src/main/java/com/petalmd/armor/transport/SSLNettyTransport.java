@@ -4,11 +4,15 @@ import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import io.netty.channel.*;
 import io.netty.handler.ssl.SslHandler;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ConnectTransportException;
@@ -40,10 +44,12 @@ public class SSLNettyTransport extends Netty4Transport {
     private final boolean verifyHostname;
     private final boolean resolveHostname;
 
+    private static final Logger log = LogManager.getLogger(SSLNettyTransport.class);
+    
     public SSLNettyTransport(final Settings settings, final ThreadPool threadPool,
-                             final NetworkService networkService, final BigArrays bigArrays, final NamedWriteableRegistry namedWriteableRegistry,
+                             final NetworkService networkService, final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
                              final CircuitBreakerService circuitBreakerService) {
-        super(settings, threadPool, networkService, bigArrays, namedWriteableRegistry, circuitBreakerService);
+        super(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService);
         enforceClientAuth = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH, false);
         keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_TYPE, "JKS");
         keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH, null);
@@ -97,7 +103,7 @@ public class SSLNettyTransport extends Netty4Transport {
                     FileInputStream trustStoreFile = fIS;
                     ts.load(trustStoreFile, truststorePassword.toCharArray());
                 } catch (IOException ex) {
-                    logger.warn("Problem during SSL Truststore initialization ", ex);
+                    log.warn("Problem during SSL Truststore initialization ", ex);
                 }
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ts);
@@ -107,7 +113,7 @@ public class SSLNettyTransport extends Netty4Transport {
             try (FileInputStream fIS = new FileInputStream(new File(keystoreFilePath))) {
                 ks.load(fIS, keystorePassword.toCharArray());
             } catch (IOException ex) {
-                logger.warn("Problem during SSL Truststore initialization ", ex);
+                log.warn("Problem during SSL Truststore initialization ", ex);
             }
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -148,7 +154,7 @@ public class SSLNettyTransport extends Netty4Transport {
                     sniServerName = new SNIHostName(advertisedNodeName);
 
                 } catch (IllegalArgumentException e) {
-                    logger.error("Invalid server name configured at server_name node attribute or server name or hostname : [" + advertisedNodeName + "]");
+                    log.error("Invalid server name configured at server_name node attribute or server name or hostname : [" + advertisedNodeName + "]");
                     throw new ConnectTransportException(node, "Invalid server name configured at server_name node attribute or server name or hostname : [" + advertisedNodeName + "]");
                 }
 
@@ -166,8 +172,8 @@ public class SSLNettyTransport extends Netty4Transport {
     }
 
     @Override
-    protected void onException(TcpChannel channel, Exception e) {
+    public void onException(TcpChannel channel, Exception e) {
         super.onException(channel, e);
-        logger.warn("Error on SSL Channel ",e);
+        log.warn("Error on SSL Channel ",e);
     }
 }

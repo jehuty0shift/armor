@@ -18,7 +18,7 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
     public ObfClusterStateResponse(final ClusterStateResponse cStateResponse, final Settings settings) {
 
-            super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()),cStateResponse.getTotalCompressedSize().getBytes());
+        super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()), cStateResponse.getTotalCompressedSize().getBytes(), cStateResponse.isWaitForTimedOut());
     }
 
 
@@ -38,7 +38,7 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
         ImmutableOpenMap.Builder<String, ClusterState.Custom> obfCustomsBuilder = ImmutableOpenMap.builder();
 
-        return new ClusterState(state.getClusterName(),obfVersion,obfStateUUID,obfMetaData,obfRTable,obfNodes,obfClusterBlocks,obfCustomsBuilder.build(),false);
+        return new ClusterState(state.getClusterName(), obfVersion, obfStateUUID, obfMetaData, obfRTable, obfNodes, obfClusterBlocks, obfCustomsBuilder.build(), false);
     }
 
 

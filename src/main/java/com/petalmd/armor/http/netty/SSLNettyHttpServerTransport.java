@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.http.netty;
@@ -24,8 +24,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.ssl.SslHandler;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
@@ -43,24 +43,28 @@ import java.security.KeyStore;
 
 public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
+    private final Settings settings;
+    private static Logger log = LogManager.getLogger(SSLNettyHttpServerTransport.class);
+
     @Inject
     public SSLNettyHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher) {
-        super(settings, networkService, bigArrays,threadPool,xContentRegistry,dispatcher);
+        super(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher);
+        this.settings = settings;
     }
 
     @Override
     public ChannelHandler configureServerChannelHandler() {
-        return new SSLHttpChannelHandler(this,this.settings,this.detailedErrorsEnabled,threadPool);
+        return new SSLHttpChannelHandler(this, this.settings, this.detailedErrorsEnabled, threadPool);
     }
 
     @Override
     protected void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (this.lifecycle.started()) {
-            logger.error("Unexpected error with ArmorSSLNettyHttpServer", cause);
+            log.error("Unexpected error with ArmorSSLNettyHttpServer", cause);
             ctx.channel().close();
             return;
         }
-        super.exceptionCaught(ctx,cause);
+        super.exceptionCaught(ctx, cause);
     }
 
     protected static class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
@@ -78,8 +82,8 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
         private final ThreadContext threadContext;
 
         public SSLHttpChannelHandler(final Netty4HttpServerTransport transport, final Settings settings,
-                final boolean detailedErrorsEnabled, final ThreadPool threadpool) {
-            super(transport, detailedErrorsEnabled,threadpool.getThreadContext());
+                                     final boolean detailedErrorsEnabled, final ThreadPool threadpool) {
+            super(transport, detailedErrorsEnabled, threadpool.getThreadContext());
             keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE, "JKS");
             keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, null);
             keystorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD, "changeit");
@@ -106,7 +110,7 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
                     FileInputStream trustStoreFile = fIS;
                     ts.load(trustStoreFile, truststorePassword.toCharArray());
                 } catch (IOException ex) {
-                    log.warn("Problem during SSL Truststore initialization ",ex);
+                    log.warn("Problem during SSL Truststore initialization ", ex);
                 }
                 tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init(ts);
@@ -116,7 +120,7 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
             try (FileInputStream fIS = new FileInputStream(new File(keystoreFilePath))) {
                 ks.load(fIS, keystorePassword.toCharArray());
             } catch (IOException ex) {
-                log.warn("Problem during SSL Truststore initialization ",ex);
+                log.warn("Problem during SSL Truststore initialization ", ex);
             }
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());

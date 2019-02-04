@@ -77,7 +77,10 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
                 request.addHeader((String) header.getKey(), header.getValue().toString());
             }
         }
-        request.addHeader("Content-Type", ContentType.APPLICATION_JSON.toString());
+
+        if(!request.containsHeader("Content-Type")) {
+            request.addHeader("Content-Type", ContentType.APPLICATION_JSON.toString());
+        }
 
         final HttpResponse response = httpClient.execute(request);
 

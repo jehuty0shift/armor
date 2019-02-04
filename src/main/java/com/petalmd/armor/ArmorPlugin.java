@@ -406,9 +406,10 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         return Collections.singletonMap("armor_ssl_netty4", () -> new SSLNettyHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher));
     }
 
+
     @Override
-    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings,threadPool,networkService,bigArrays,namedWriteableRegistry,circuitBreakerService));
+    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
+        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings,threadPool,networkService,pageCacheRecycler,namedWriteableRegistry,circuitBreakerService));
     }
 
     @Override

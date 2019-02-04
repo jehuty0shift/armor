@@ -278,7 +278,7 @@ public class TokenEvaluator {
                 log.debug("    --> Host wildcard match");
             }
 
-            if (!hostMatch || !roleMatch || !userMatch) {
+            if (!userMatch || !roleMatch || !hostMatch ) {
                 log.debug("    --> Users or roles or hosts does not match, so we skip this rule");
                 continue ruleloop;
             } else {

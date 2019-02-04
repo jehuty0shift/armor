@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.petalmd.armor.filter;
 
@@ -32,13 +32,9 @@ import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.CompositeIndicesRequest;
-import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.*;
+import org.elasticsearch.action.get.*;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
@@ -46,7 +42,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.DelegatingActionListener;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -145,7 +140,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         boolean interNodeAuthenticated = false;
 
         if (authHeader != null) {
-            final Object decrypted = SecurityUtil.decryptAnDeserializeObject((String) authHeader, armorService.getSecretKey());
+            final Object decrypted = SecurityUtil.decryptAnDeserializeObject(authHeader, ArmorService.getSecretKey());
 
             if (decrypted != null && (decrypted instanceof String) && decrypted.equals("authorized")) {
                 interNodeAuthenticated = true;
@@ -206,7 +201,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         }
 
         if (threadContext.getHeader(key) != null) {
-            return (T) SecurityUtil.decryptAnDeserializeObject(threadContext.getHeader(key), armorService.getSecretKey());
+            return (T) SecurityUtil.decryptAnDeserializeObject(threadContext.getHeader(key), ArmorService.getSecretKey());
         }
 
         return defaultValue;
@@ -250,27 +245,32 @@ public abstract class AbstractActionFilter implements ActionFilter {
         client.search(searchRequest, new SearchDelegatingActionListener(listener, getRequest));
     }
 
-    static class SearchDelegatingActionListener extends DelegatingActionListener<SearchResponse, GetResponse> {
+    private static class SearchDelegatingActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
-        final GetRequest getRequest;
+        private final GetRequest getRequest;
+        private final ActionListener<GetResponse> privListener;
 
         public SearchDelegatingActionListener(ActionListener<GetResponse> listener, final GetRequest getRequest) {
-            super(listener);
+            this.privListener = listener;
             this.getRequest = getRequest;
         }
 
         @Override
-        public GetResponse getDelegatedFromInstigator(final SearchResponse searchResponse) {
-
-            if (searchResponse.getHits().getTotalHits() <= 0) {
-                return new GetResponse(new GetResult(getRequest.index(), getRequest.type(), getRequest.id(), getRequest.version(), false, null,
-                        null));
-            } else if (searchResponse.getHits().getTotalHits() > 1) {
-                throw new RuntimeException("cannot happen");
-            } else {
-                final SearchHit sh = searchResponse.getHits().getHits()[0];
-                return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
+        public void onResponse(final Response response) {
+            if (response instanceof SearchResponse) {
+                SearchResponse searchResponse = new SearchResponse();
+                if (searchResponse.getHits().getTotalHits() > 1) {
+                    privListener.onFailure(new ElasticsearchException("An unexpected failure has happened during get"));
+                } else {
+                    final SearchHit sh = searchResponse.getHits().getHits()[0];
+                    privListener.onResponse(new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), 1,0,sh.getVersion(), true, sh.getSourceRef(), sh.getFields())));
+                }
             }
+        }
+
+        @Override
+        public void onFailure(Exception e) {
+            privListener.onFailure(e);
         }
     }
 
@@ -279,29 +279,40 @@ public abstract class AbstractActionFilter implements ActionFilter {
         client.multiSearch(searchRequest, new MultiSearchDelegatingActionListener(listener, getRequest));
     }
 
-    static class MultiSearchDelegatingActionListener extends DelegatingActionListener<MultiSearchResponse, GetResponse> {
+    private static class MultiSearchDelegatingActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
-        final MultiGetRequest getRequest;
+        private final MultiGetRequest getRequest;
+        private final ActionListener<MultiGetResponse> privListener;
 
-        public MultiSearchDelegatingActionListener(ActionListener<GetResponse> listener, MultiGetRequest getRequest) {
-            super(listener);
+        public MultiSearchDelegatingActionListener(ActionListener<MultiGetResponse> listener, MultiGetRequest getRequest) {
+            this.privListener = listener;
             this.getRequest = getRequest;
         }
 
         @Override
-        public GetResponse getDelegatedFromInstigator(final MultiSearchResponse searchResponse) {
+        public void onResponse(final Response response) {
 
-            if (searchResponse.getResponses() == null || searchResponse.getResponses().length <= 0) {
-                final Item item = getRequest.getItems().get(0);
-                return new GetResponse(new GetResult(item.index(), item.type(), item.id(), item.version(), false, null, null));
-            } else if (searchResponse.getResponses().length > 1) {
-                throw new RuntimeException("cannot happen");
-            } else {
-                final org.elasticsearch.action.search.MultiSearchResponse.Item item = searchResponse.getResponses()[0];
-                final SearchHit sh = item.getResponse().getHits().getHits()[0];
-                return new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), sh.getVersion(), true, sh.getSourceRef(), null));
+            if (response instanceof MultiSearchResponse) {
+                MultiSearchResponse searchResponse = (MultiSearchResponse) response;
+                List<MultiGetItemResponse> mGetItemResponseList = new ArrayList<>();
+                for (org.elasticsearch.action.search.MultiSearchResponse.Item item : searchResponse.getResponses()) {
+                    final SearchHit sh = item.getResponse().getHits().getHits()[0];
+                    MultiGetItemResponse itemResponse = new MultiGetItemResponse(new GetResponse(new GetResult(sh.getIndex(),
+                            sh.getType(),
+                            sh.getId(),
+                            1, 0, sh.getVersion(), true, sh.getSourceRef(), sh.getFields())), null);
+                    mGetItemResponseList.add(itemResponse);
+                }
+
+                privListener.onResponse(new MultiGetResponse(mGetItemResponseList.toArray(new MultiGetItemResponse[mGetItemResponseList.size()])));
             }
         }
+
+        @Override
+        public void onFailure(Exception e) {
+            privListener.onFailure(e);
+        }
+
     }
 
     protected TokenEvaluator.Evaluator getEvaluator(final ActionRequest request, final String action, final User user, final ThreadContext threadContext) {
@@ -328,8 +339,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
             log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
 
             try {
-                ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()),aliasesAndIndexMap));
-                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()),aliasesAndIndexMap));
+                ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndexMap));
+                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndexMap));
             } catch (java.lang.NullPointerException e) {
             }
 
@@ -345,8 +356,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
         if (request instanceof CompositeIndicesRequest) {
             final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
             log.trace("Indices {}", cirDetails.getIndices().toString());
-            ci.addAll(getOnlyIndices(cirDetails.getIndices(),aliasesAndIndexMap));
-            aliases.addAll(getOnlyAliases(cirDetails.getIndices(),aliasesAndIndexMap));
+            ci.addAll(getOnlyIndices(cirDetails.getIndices(), aliasesAndIndexMap));
+            aliases.addAll(getOnlyAliases(cirDetails.getIndices(), aliasesAndIndexMap));
 
             if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
@@ -434,7 +445,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
 
-            if(indexAliases == null) {
+            if (indexAliases == null) {
                 result.add(index);
             }
             if (indexAliases != null && !indexAliases.isAlias()) {

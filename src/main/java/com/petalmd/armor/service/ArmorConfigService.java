@@ -20,6 +20,8 @@ package com.petalmd.armor.service;
 
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.util.ConfigConstants;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetResponse;
@@ -44,6 +46,8 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private ScheduledFuture scheduledFuture;
     //private ThreadPool threadPool;
     private final CountDownLatch latch = new CountDownLatch(1);
+
+    private static final Logger log = LogManager.getLogger(ArmorConfigService.class);
 
     @Inject
     public ArmorConfigService(final Settings settings, final Client client, final AuditListener auditListener) {
@@ -81,7 +85,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
                 if (response.isExists() && !response.isSourceEmpty()) {
                     securityConfiguration = response.getSourceAsBytesRef();
                     latch.countDown();
-                    logger.debug("Security configuration reloaded");
+                    log.debug("Security configuration reloaded");
 
                 }
             }
@@ -89,11 +93,11 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
             @Override
             public void onFailure(final Exception e) {
                 if (e instanceof IndexNotFoundException) {
-                    logger.debug(
+                    log.debug(
                             "Tried to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
                             e.toString());
                 } else {
-                    logger.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
+                    log.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
                 }
             }
         });
@@ -103,12 +107,12 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
 
         if (!auditListener.isReady()) {
             if(auditListener.setupAuditListener()){
-                logger.info("audit Listener is ready");
+                log.info("audit Listener is ready");
             } else {
-                logger.info("audit Listener is not yet ready");
+                log.info("audit Listener is not yet ready");
             }
         } else {
-            logger.debug("audit Listener is already ready");
+            log.debug("audit Listener is already ready");
         }
 
     }

@@ -30,19 +30,16 @@ import com.petalmd.armor.tokeneval.TokenEvaluator.FilterAction;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -60,7 +57,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ArmorActionFilter implements ActionFilter {
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    protected static final Logger log = LogManager.getLogger(ArmorActionFilter.class);
     private final AuditListener auditListener;
     protected final Settings settings;
     private final ThreadPool threadpool;
@@ -206,10 +203,10 @@ public class ArmorActionFilter implements ActionFilter {
                     log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
                 }
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
-                    replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
+                    FilterHelper.replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
                 } else {
-                    ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
-                    aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    ci.addAll(FilterHelper.getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    aliases.addAll(FilterHelper.getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
                 }
 
 
@@ -224,11 +221,16 @@ public class ArmorActionFilter implements ActionFilter {
             }
 
             if (request instanceof CompositeIndicesRequest) {
-                final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
-                log.trace("Indices {}", cirDetails.getIndices().toString());
-                ci.addAll(getOnlyIndices(cirDetails.getIndices(), aliasesAndIndicesMap));
-                aliases.addAll(getOnlyAliases(cirDetails.getIndices(), aliasesAndIndicesMap));
-
+                final RequestItemDetails cirDetails;
+                if (wildcardExpEnabled) {
+                    FilterHelper.replaceWildcardOrAllIndicesComposite((CompositeIndicesRequest) request, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
+                    cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
+                } else {
+                    cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
+                    log.trace("Indices {}", cirDetails.getIndices().toString());
+                    ci.addAll(FilterHelper.getOnlyIndices(cirDetails.getIndices(), aliasesAndIndicesMap));
+                    aliases.addAll(FilterHelper.getOnlyAliases(cirDetails.getIndices(), aliasesAndIndicesMap));
+                }
                 if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
                     auditListener.onMissingPrivileges(user.getName(), request, threadContext);
@@ -236,7 +238,6 @@ public class ArmorActionFilter implements ActionFilter {
                     listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
                     throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
                 }
-
             }
 
             if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
@@ -338,7 +339,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             }
         }
-        if(filtered) {
+        if (filtered) {
             log.warn("Action  is forbidden due to {}", "DEFAULT");
 
             auditListener.onMissingPrivileges(user.getName(), request, threadContext);
@@ -406,8 +407,8 @@ public class ArmorActionFilter implements ActionFilter {
             }
         }
 
-        ci.addAll(getOnlyIndices(otherIndicesOrAliases, aliasesAndIndicesMap));
-        aliases.addAll(getOnlyAliases(otherIndicesOrAliases, aliasesAndIndicesMap));
+        ci.addAll(FilterHelper.getOnlyIndices(otherIndicesOrAliases, aliasesAndIndicesMap));
+        aliases.addAll(FilterHelper.getOnlyAliases(otherIndicesOrAliases, aliasesAndIndicesMap));
 
         if (!newIndices.isEmpty()) {
             log.debug("replacing indices " + irIndices + " by " + String.valueOf(newIndices));
@@ -416,42 +417,6 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    protected List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
-
-        final List<String> result = new ArrayList<String>();
-
-        for (String index : indices) {
-
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
-
-            //it doesn't exist or is a unhandled word* , we still add it as an index
-            if (indexAliases == null) {
-                result.add(index);
-            } else if (!indexAliases.isAlias()) {
-                result.add(index);
-            }
-        }
-
-        return result;
-
-    }
-
-    protected List<String> getOnlyAliases(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
-
-        final List<String> result = new ArrayList<String>();
-
-        for (String index : indices) {
-
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
-
-            if (indexAliases != null && indexAliases.isAlias()) {
-                result.add(index);
-            }
-        }
-
-        return result;
-
-    }
 
     private void addType(final IndicesRequest request, final List<String> typesl, final String action) {
 
