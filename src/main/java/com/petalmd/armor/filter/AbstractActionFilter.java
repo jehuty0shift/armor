@@ -47,10 +47,8 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.DelegatingActionListener;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
 import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -61,7 +59,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import javax.xml.bind.DatatypeConverter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -172,7 +169,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             try {
 
-                final String decodedBasicHeader = new String(DatatypeConverter.parseBase64Binary((String) transportCreds),
+                final String decodedBasicHeader = new String(Base64.getDecoder().decode(transportCreds),
                         StandardCharsets.US_ASCII);
 
                 final String username = decodedBasicHeader.split(":")[0];

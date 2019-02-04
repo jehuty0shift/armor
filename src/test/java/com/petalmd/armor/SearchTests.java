@@ -1,10 +1,14 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.google.gson.JsonArray;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
+import io.searchbox.core.MultiSearch;
+import io.searchbox.core.Search;
 import io.searchbox.indices.settings.UpdateSettings;
 import org.apache.http.HttpResponse;
+import org.apache.http.entity.ContentType;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -156,6 +160,141 @@ public class SearchTests extends AbstractScenarioTest {
 
 
     }
+
+    @Test
+    public void mSearchAliasWildcard() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings.builder()
+                .putArray("armor.actionrequestfilter.names", "wild", "forbidden")
+                .putArray("armor.actionrequestfilter.wild.allowed_actions", "indices:data/read/search","indices:data/read/msearch")
+                .putArray("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_10.json");
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        //test on indice inter* (part of wildcard) but only one request
+        final String[] indices1 = new String[]{"inter*"};
+        MultiSearch mSearch1 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                                .addIndex(indices1[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu1 = client.executeE(mSearch1);
+        JestResult result = resulttu1.v1();
+        Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on indice financial
+        final String[] indices2 = new String[]{"financial"};
+        MultiSearch mSearch2 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices2[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu2 = client.executeE(mSearch2);
+        result = resulttu2.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+        //test on all
+        final String[] indices3 = new String[]{"_all"};
+        MultiSearch mSearch3 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices3[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu3 = client.executeE(mSearch3);
+        result = resulttu3.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard *
+        final String[] indices4 = new String[]{"*"};
+        MultiSearch mSearch4 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices4[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu4 = client.executeE(mSearch4);
+        result = resulttu4.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        //TODO : put Assert equals 8
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard interna*
+        final String[] indices5 = new String[]{"interna*"};
+        MultiSearch mSearch5 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices5[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu5 = client.executeE(mSearch5);
+        result = resulttu5.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+
+        //test on wildcard finan
+        final String[] indices6 = new String[]{"finan*"};
+        MultiSearch mSearch6 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices6[0]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu6 = client.executeE(mSearch6);
+        result = resulttu6.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 403);
+
+        //test allowed (internal) alias and denied index
+        final String[] indices7 = new String[]{"inter*", "finan*"};
+        MultiSearch mSearch7 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices7[0]).build())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices7[1]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu7 = client.executeE(mSearch7);
+        result = resulttu7.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+        JsonArray responsesArray7 = result.getJsonObject().get("responses").getAsJsonArray();
+        Assert.assertTrue(responsesArray7.size() == 2);
+        Assert.assertTrue(responsesArray7.get(0).getAsJsonObject().get("status").getAsInt() == 200);
+        Assert.assertTrue(responsesArray7.get(0).getAsJsonObject().get("hits").getAsJsonObject().get("total").getAsInt() == 7);
+        Assert.assertTrue(responsesArray7.get(1).getAsJsonObject().get("status").getAsInt() == 403);
+
+        //test allowed (internal) alias and allowed index (cto)
+        final String[] indices8 = new String[]{"inter*", "c*"};
+        MultiSearch mSearch8 = new MultiSearch.Builder(new ArrayList<>())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices8[0]).build())
+                .addSearch(new Search.Builder(loadFile("ac_query_matchall_line.json"))
+                        .addIndex(indices8[1]).build())
+                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
+                .build();
+        final Tuple<JestResult, HttpResponse> resulttu8 = client.executeE(mSearch8);
+        result = resulttu8.v1();
+        json = prettyGson.fromJson(result.getJsonString(), Map.class);
+        Assert.assertTrue(result.getResponseCode() == 200);
+        JsonArray responsesArray8 = result.getJsonObject().get("responses").getAsJsonArray();
+        Assert.assertTrue(responsesArray8.size() == 2);
+        Assert.assertTrue(responsesArray8.get(0).getAsJsonObject().get("status").getAsInt() == 200);
+        Assert.assertTrue(responsesArray8.get(0).getAsJsonObject().get("hits").getAsJsonObject().get("total").getAsInt() == 7);
+        Assert.assertTrue(responsesArray8.get(1).getAsJsonObject().get("status").getAsInt() == 200);
+
+    }
+
+
 
 
     @Test
