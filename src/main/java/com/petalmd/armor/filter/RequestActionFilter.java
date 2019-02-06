@@ -38,7 +38,7 @@ import java.util.Map.Entry;
 
 public class RequestActionFilter extends AbstractActionFilter {
 
-    private final String filterType = "actionrequestfilter";
+    private static final String filterType = "actionrequestfilter";
     private final Map<String, Tuple<List<String>, List<String>>> filterMap = new HashMap<String, Tuple<List<String>, List<String>>>();
 
     @Inject

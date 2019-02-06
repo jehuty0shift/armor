@@ -47,7 +47,7 @@ public class KibanaHelperFilter extends AbstractActionFilter {
     }
 
 
-    private class KibanaHelperActionListener<Response extends ActionResponse> implements ActionListener<Response> {
+    private static class KibanaHelperActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
         private final ActionListener<Response> privListener;
         private final String action;

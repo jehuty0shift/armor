@@ -384,8 +384,8 @@ public class TokenEvaluator {
             //if we apply one rule, we remove default rules.
 
             if (log.isDebugEnabled()) {
-                log.debug("current execute filters: {}", (filtersExecute.toArray(new String[filtersExecute.size()])).toString());
-                log.debug("current bypass filters: {}", (filtersBypass.toArray(new String[filtersBypass.size()])).toString());
+                log.debug("current execute filters: {}", filtersExecute);
+                log.debug("current bypass filters: {}", filtersBypass);
             }
 
         }

@@ -242,17 +242,15 @@ public abstract class AbstractActionFilter implements ActionFilter {
     }
 
     protected void doGetFromSearchRequest(final GetRequest getRequest, final SearchRequest searchRequest, final ActionListener listener, final Client client) {
-        client.search(searchRequest, new SearchDelegatingActionListener(listener, getRequest));
+        client.search(searchRequest, new SearchDelegatingActionListener(listener));
     }
 
     private static class SearchDelegatingActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
-        private final GetRequest getRequest;
         private final ActionListener<GetResponse> privListener;
 
-        public SearchDelegatingActionListener(ActionListener<GetResponse> listener, final GetRequest getRequest) {
+        public SearchDelegatingActionListener(ActionListener<GetResponse> listener) {
             this.privListener = listener;
-            this.getRequest = getRequest;
         }
 
         @Override
@@ -276,17 +274,15 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
 
     protected void doGetFromSearchRequest(final MultiGetRequest getRequest, final MultiSearchRequest searchRequest, final ActionListener listener, final Client client) {
-        client.multiSearch(searchRequest, new MultiSearchDelegatingActionListener(listener, getRequest));
+        client.multiSearch(searchRequest, new MultiSearchDelegatingActionListener(listener));
     }
 
     private static class MultiSearchDelegatingActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
-        private final MultiGetRequest getRequest;
         private final ActionListener<MultiGetResponse> privListener;
 
-        public MultiSearchDelegatingActionListener(ActionListener<MultiGetResponse> listener, MultiGetRequest getRequest) {
+        public MultiSearchDelegatingActionListener(ActionListener<MultiGetResponse> listener) {
             this.privListener = listener;
-            this.getRequest = getRequest;
         }
 
         @Override

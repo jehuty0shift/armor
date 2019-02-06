@@ -234,7 +234,7 @@ public class ESStoreAuditListener implements AuditListener {
             //auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
             auditInfo.put("audit_details_class", request.getClass().toString());
             final String ip = String.valueOf(request.remoteAddress());
-            if (ip != null && !"null".equals(ip)) {
+            if (!"null".equals(ip)) {
                 auditInfo.put("audit_ip", ip);
             }
         }

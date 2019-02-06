@@ -76,7 +76,7 @@ public class SSLClientHandlerInitializer extends ChannelOutboundHandlerAdapter {
 
 
             serverContext = SSLContext.getInstance("TLS");
-            serverContext.init(kmf.getKeyManagers(), tmf == null ? null : tmf.getTrustManagers(), null);
+            serverContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
         } else {
             serverContext = SSLContext.getDefault();
         }

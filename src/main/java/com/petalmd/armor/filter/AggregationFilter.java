@@ -126,7 +126,7 @@ public class AggregationFilter extends AbstractActionFilter {
                                                   XContentBuilder jsonContent = JsonXContent.contentBuilder();
                                                   jsonContent = aggregations.toXContent(jsonContent, null);
                                                   jsonContent.close();
-                                                  String aggregationString = jsonContent.toString();
+                                                  log.debug("aggregation string {}",jsonContent.toString());
                                                   Map<String, Object> aggregationMap = XContentHelper.convertToMap(BytesReference.bytes(jsonContent),false,XContentType.JSON).v2();
                                                   replaceMinDocsCount(aggregationMap);
                                                   XContentParser aggParser = JsonXContent.contentBuilder().generator().contentType().xContent().createParser(xContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, mapper.writeValueAsBytes(aggregationMap));

@@ -38,7 +38,7 @@ import static org.elasticsearch.common.settings.Settings.readSettingsFromStream;
  */
 public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
 
-    protected final Logger log = LogManager.getLogger(IndicesUpdateSettingsFilter.class);
+    protected static final Logger log = LogManager.getLogger(IndicesUpdateSettingsFilter.class);
     private final String UPDATE_ACTION_NAME = "indices:admin/settings/update";
     private final List<String> allowedSettings;
 
@@ -120,7 +120,7 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
     }
 
 
-    class CustomUpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsRequest> implements IndicesRequest.Replaceable {
+    static class CustomUpdateSettingsRequest extends AcknowledgedRequest<UpdateSettingsRequest> implements IndicesRequest.Replaceable {
 
         private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, false, true, true);
         private Settings settings = Settings.Builder.EMPTY_SETTINGS;
@@ -174,7 +174,8 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
             indices = in.readStringArray();
             indicesOptions = IndicesOptions.readIndicesOptions(in);
             settings = readSettingsFromStream(in);
-            boolean preserveExisting = in.readBoolean();
+            //read boolean preserveExisting (unused)
+            in.readBoolean();
         }
 
     }

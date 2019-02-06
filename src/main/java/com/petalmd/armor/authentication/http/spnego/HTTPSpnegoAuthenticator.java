@@ -45,6 +45,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import java.io.Serializable;
+import java.nio.charset.Charset;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -87,7 +88,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
                 throw new AuthException("Bad 'Authorization' header");
             } else {
 
-                byte[] decodedNegotiateHeader = Base64.decodeBase64(authorizationHeader.substring(10).getBytes());
+                byte[] decodedNegotiateHeader = Base64.decodeBase64(authorizationHeader.substring(10).getBytes(Charset.forName("UTF-8")));
 
                 LoginContext lc = null;
                 GSSContext gssContext = null;
