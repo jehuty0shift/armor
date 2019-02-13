@@ -223,7 +223,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         armorConfigService = new ArmorConfigService(settings, client, auditListener);
         componentsList.add(armorConfigService);
 
-        log.info("added " + componentsList.size() + " number of components.");
+        log.info("added " + componentsList.size() + " components.");
         log.info(authenticationBackend.getClass().getName());
         return componentsList;
 

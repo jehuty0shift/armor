@@ -152,71 +152,74 @@ public class ESStoreAuditListener implements AuditListener {
     public boolean setupAuditListener() {
 
         if (!auditIndexCreated.get()) {
+            log.info("Checking if the audit index exists");
+            IndicesExistsResponse resp = client.execute(IndicesExistsAction.INSTANCE, new IndicesExistsRequest(securityConfigurationIndex)).actionGet(TimeValue.timeValueSeconds(10));
 
-            IndicesExistsResponse resp = client.execute(IndicesExistsAction.INSTANCE, new IndicesExistsRequest(securityConfigurationIndex)).actionGet(TimeValue.MINUS_ONE);
+            if (resp != null) {
+                if (!resp.isExists()) {
+                    log.info("Audit index does not exists, creating it !");
+                    final int numOfReplicas = settings.getAsInt(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1);
+                    final String compression = settings.get(ConfigConstants.ARMOR_AUDITLOG_COMPRESSION, "best_compression");
+                    try {
+                        CreateIndexRequestBuilder criBuilder = new CreateIndexRequestBuilder(client, CreateIndexAction.INSTANCE, securityConfigurationIndex);
+                        XContentBuilder mappingBuilder = JsonXContent.contentBuilder();
+                        mappingBuilder.startObject()
+                                .startObject("properties")
+                                .startObject(AUDIT_USER)
+                                .field("type", "keyword")
+                                .endObject()
+                                .startObject(AUDIT_MESSAGE)
+                                .field("type", "keyword")
+                                .endObject()
+                                .startObject(AUDIT_DATE)
+                                .field("type", "date")
+                                .endObject()
+                                .startObject(AUDIT_DETAILS_CLASS)
+                                .field("type", "keyword")
+                                .endObject()
+                                .startObject(AUDIT_DETAILS_REST)
+                                .field("type", "keyword")
+                                .endObject()
+                                .startObject(AUDIT_IP)
+                                .field("type", "ip")
+                                .endObject()
+                                .endObject()
+                                .endObject();
+                        final Settings auditIndexSettings = Settings.builder()
+                                .put("index.number_of_shards", 1)
+                                .put("index.number_of_replicas", numOfReplicas)
+                                //should take as little space than possible
+                                .put("index.codec", compression)
+                                .build();
 
-            if (!resp.isExists()) {
-                final int numOfReplicas = settings.getAsInt(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1);
-                final String compression = settings.get(ConfigConstants.ARMOR_AUDITLOG_COMPRESSION, "best_compression");
-                try {
-                    CreateIndexRequestBuilder criBuilder = new CreateIndexRequestBuilder(client, CreateIndexAction.INSTANCE, securityConfigurationIndex);
-                    XContentBuilder mappingBuilder = JsonXContent.contentBuilder();
-                    mappingBuilder.startObject()
-                            .startObject("properties")
-                            .startObject(AUDIT_USER)
-                            .field("type", "keyword")
-                            .endObject()
-                            .startObject(AUDIT_MESSAGE)
-                            .field("type", "keyword")
-                            .endObject()
-                            .startObject(AUDIT_DATE)
-                            .field("type", "date")
-                            .endObject()
-                            .startObject(AUDIT_DETAILS_CLASS)
-                            .field("type", "keyword")
-                            .endObject()
-                            .startObject(AUDIT_DETAILS_REST)
-                            .field("type", "keyword")
-                            .endObject()
-                            .startObject(AUDIT_IP)
-                            .field("type", "ip")
-                            .endObject()
-                            .endObject()
-                            .endObject();
-                    final Settings auditIndexSettings = Settings.builder()
-                            .put("index.number_of_shards", 1)
-                            .put("index.number_of_replicas", numOfReplicas)
-                            //should take as little space than possible
-                            .put("index.codec", compression)
-                            .build();
+                        criBuilder.setSettings(auditIndexSettings);
+                        criBuilder.addMapping("records", mappingBuilder);
 
-                    criBuilder.setSettings(auditIndexSettings);
-                    criBuilder.addMapping("_doc", mappingBuilder);
+                        criBuilder.execute(new ActionListener<CreateIndexResponse>() {
+                            @Override
+                            public void onResponse(CreateIndexResponse createIndexResponse) {
 
-                    criBuilder.execute(new ActionListener<CreateIndexResponse>() {
-                        @Override
-                        public void onResponse(CreateIndexResponse createIndexResponse) {
-
-                            if (createIndexResponse.isAcknowledged()) {
-                                auditIndexCreated.set(true);
-                                log.info("the security audit index {} has been created", securityConfigurationIndex);
-                            } else {
-                                log.warn("the security audit index {} has not been created, Check if it has been created by another node", securityConfigurationIndex);
+                                if (createIndexResponse.isAcknowledged()) {
+                                    auditIndexCreated.set(true);
+                                    log.info("the security audit index {} has been created", securityConfigurationIndex);
+                                } else {
+                                    log.warn("the security audit index {} has not been created, Check if it has been created by another node", securityConfigurationIndex);
+                                }
                             }
-                        }
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            log.warn("the security audit index {} has not been created due to {}", securityConfigurationIndex, e);
-                        }
-                    });
+                            @Override
+                            public void onFailure(Exception e) {
+                                log.warn("the security audit index {} has not been created due to {}", securityConfigurationIndex, e);
+                            }
+                        });
 
 
-                } catch (IOException e) {
-                    throw new IllegalStateException(e);
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                } else {
+                    auditIndexCreated.set(true);
                 }
-            } else {
-                auditIndexCreated.set(true);
             }
         }
         return auditIndexCreated.get();

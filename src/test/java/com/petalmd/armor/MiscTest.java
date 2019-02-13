@@ -25,6 +25,7 @@ import com.google.gson.GsonBuilder;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
+import io.searchbox.cluster.Health;
 import io.searchbox.cluster.NodesStats;
 import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.reindex.Reindex;
@@ -144,6 +145,42 @@ public class MiscTest extends AbstractUnitTest {
 
     }
 
+
+    @Test
+    public void clusterHealth() throws Exception {
+        final Settings settings = Settings
+                .builder()
+                .put("armor.authentication.authorizer.impl",
+                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
+                .put("armor.authentication.authorizer.cache.enable", "true")
+                .put("armor.authentication.authentication_backend.impl",
+                        "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
+                .put("armor.authentication.authentication_backend.cache.enable", "true")
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "cluster:monitor*")
+                .put("armor.aggregation_filter.enabled",true)
+                .put("armor.action.cache.filter.enabled",true)
+                .putList("armor.action.cache.filter.actions","cluster:monitor/nodes/info*")
+                .put("armor.allow_kibana_actions",false)
+                .put("armor.obfuscation.filter.enabled",true)
+                .putList("armor.obfuscation.filter.getindexresponse.remove", "aliases", "settings.index.routing.allocation.require.new_box_type", "settings.index.merge.scheduler.max_thread_count", "settings.index.merge.scheduler.max_merge_count")
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put("armor.indices.updatesettingsfilter.enabled",true)
+                .putList("armor.indices.updatesettingsfilter.allowed_settings", "analysis", "index.refresh_interval")
+                .build();
+
+        startES(settings);
+        username = "jacksonm";
+        password = "secret";
+        setupTestData("ac_rules_19.json");
+
+        final JestClient client = getJestClient(getServerUri(false), username, password);
+
+        Tuple<JestResult, HttpResponse> jResult = ((HeaderAwareJestHttpClient) client).executeE(new Health.Builder().timeout(10).build());
+
+        Assert.assertEquals(jResult.v2().getStatusLine().getStatusCode(), 200);
+    }
 
     @Test
     public void reindexTest() throws Exception{
