@@ -20,23 +20,45 @@ package com.petalmd.armor.authentication;
 
 public class AuthException extends Exception {
 
-    public AuthException() {
+    public enum ExceptionType {
+        NOT_FOUND,
+        ERROR
+    }
 
+    public ExceptionType type;
+
+    public AuthException(ExceptionType type) {
+            this.type = type;
     }
 
     public AuthException(final String message) {
         super(message);
-
+        this.type = ExceptionType.ERROR;
     }
 
     public AuthException(final Throwable cause) {
         super(cause);
-
+        this.type = ExceptionType.ERROR;
     }
 
     public AuthException(final String message, final Throwable cause) {
         super(message, cause);
+        this.type = ExceptionType.ERROR;
+    }
 
+    public AuthException(final String message, final ExceptionType type) {
+        super(message);
+        this.type = type;
+    }
+
+    public AuthException(final Throwable cause, final ExceptionType type) {
+        super(cause);
+        this.type = type;
+    }
+
+    public AuthException(final String message, final Throwable cause, final ExceptionType type) {
+        super(message, cause);
+        this.type = type;
     }
 
 }

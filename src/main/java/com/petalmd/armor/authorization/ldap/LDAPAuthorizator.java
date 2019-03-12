@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.authorization.ldap;
@@ -76,7 +76,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             final KeyStore ts = KeyStore.getInstance(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE,
                     "JKS"));
             FileInputStream trustStoreFile = new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
-                    System.getProperty("java.home")+"/lib/security/cacerts")));
+                    System.getProperty("java.home") + "/lib/security/cacerts")));
             try {
                 ts.load(trustStoreFile, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
                         .toCharArray());
@@ -181,7 +181,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 entry = ldapConnection.lookup(authenticatedUser);
 
                 if (entry == null) {
-                    throw new AuthException("No user '" + authenticatedUser + "' found");
+                    throw new AuthException("No user '" + authenticatedUser + "' found", AuthException.ExceptionType.NOT_FOUND);
                 }
 
             } else {
@@ -193,7 +193,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                                 authenticatedUser), SearchScope.SUBTREE);
 
                 if (!result.next()) {
-                    throw new AuthException("No user '" + authenticatedUser + "' found");
+                    throw new AuthException("No user '" + authenticatedUser + "' found", AuthException.ExceptionType.NOT_FOUND);
                 }
 
                 entry = result.get();
@@ -304,14 +304,18 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             }
 
         } catch (LdapException | CursorException | AuthException e) {
-            log.error(e.toString(), e);
+            if ((e instanceof AuthException) && ((AuthException)e).type == AuthException.ExceptionType.ERROR) {
+                log.debug(e.toString(), e);
+            } else {
+                log.error(e.toString(), e);
+            }
             throw new AuthException(e);
         } finally {
             if (result != null) {
                 try {
                     result.close();
                 } catch (IOException e) {
-                    log.error("couldn't close result due to IOException: ",e);
+                    log.error("couldn't close result due to IOException: ", e);
                 }
             }
 
@@ -319,7 +323,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 try {
                     rolesResult.close();
                 } catch (IOException e) {
-                    log.error("Couldn't close roles result due to IOException: ",e);
+                    log.error("Couldn't close roles result due to IOException: ", e);
                 }
             }
 
@@ -376,7 +380,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                             try {
                                 _result.close();
                             } catch (IOException e) {
-                                log.error("Couldn't close result due to IOException: ",e);
+                                log.error("Couldn't close result due to IOException: ", e);
                             }
                         }
 
@@ -416,7 +420,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 try {
                     rolesResult.close();
                 } catch (IOException e) {
-                    log.error("Couldn't close roles results due to IOException: e",e);
+                    log.error("Couldn't close roles results due to IOException: e", e);
                 }
             }
         }

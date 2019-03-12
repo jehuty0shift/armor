@@ -70,8 +70,9 @@ implements NonCachingAuthenticationBackend {
         }
         catch (UnirestException ex) {
             log.warn("Unirest Exception " + ex.getMessage(), ex);
+            throw new AuthException("Graylog Auth Backend Exception", ex);
         }
-        throw new AuthException("Unable to retrieve graylog User");
+        throw new AuthException("Unable to retrieve graylog User", AuthException.ExceptionType.NOT_FOUND);
     }
 }
 

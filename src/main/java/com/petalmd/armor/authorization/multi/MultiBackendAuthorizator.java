@@ -61,20 +61,9 @@ implements NonCachingAuthorizator {
                 this.log.warn("Couldn't find suitable constructor for " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
             }
-            catch (InstantiationException ex) {
+            catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex ) {
                 this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 continue;
-            }
-            catch (IllegalAccessException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
-                continue;
-            }
-            catch (IllegalArgumentException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
-                continue;
-            }
-            catch (InvocationTargetException ex) {
-                this.log.warn("Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
             }
         }
     }

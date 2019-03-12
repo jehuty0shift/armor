@@ -342,6 +342,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             if (!allowedForAllIndices && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+                threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(ir.indices()));
                 auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
                 throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
             }
@@ -357,6 +358,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
             if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+                threadContext.putTransient(AuditListener.AUDIT_ITEMS,new ArrayList<>(cirDetails.getIndices()));
                 auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
 
                 //listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
@@ -368,6 +370,10 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
             log.error("Attempt from " + request.remoteAddress() + " on " + settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX));
+            List<String> itemList = new ArrayList<>();
+            itemList.addAll(ci);
+            itemList.addAll(aliases);
+            threadContext.putTransient(AuditListener.AUDIT_ITEMS, itemList);
             auditListener.onMissingPrivileges(user.getName(), request, threadContext);
             throw new ForbiddenException("Only allowed from localhost (loopback)");
         }

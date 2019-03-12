@@ -50,6 +50,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -98,7 +99,7 @@ public class ESStoreAuditListener implements AuditListener {
     @Override
     public void onFailedLogin(final String username, final TransportRequest request, ThreadContext threadContext) {
 
-        final AuditMessage msg = new AuditMessage(username, "failed_login", request);
+        final AuditMessage msg = new AuditMessage(username, "failed_login", request, threadContext);
         index(msg, threadContext);
 
     }
@@ -106,7 +107,7 @@ public class ESStoreAuditListener implements AuditListener {
     @Override
     public void onMissingPrivileges(final String username, final TransportRequest request, final ThreadContext threadContext) {
 
-        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request);
+        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request, threadContext);
         index(msg, threadContext);
 
     }
@@ -121,7 +122,7 @@ public class ESStoreAuditListener implements AuditListener {
         try {
 
             if (auditIndexCreated.get()) {
-                client.prepareIndex(securityConfigurationIndex, "_doc").setSource(msg.auditInfo).execute(new ActionListener<IndexResponse>() {
+                client.prepareIndex(securityConfigurationIndex, "records").setSource(msg.auditInfo).execute(new ActionListener<IndexResponse>() {
 
                     @Override
                     public void onResponse(final IndexResponse response) {
@@ -177,6 +178,11 @@ public class ESStoreAuditListener implements AuditListener {
                                 .startObject(AUDIT_DETAILS_CLASS)
                                 .field("type", "keyword")
                                 .endObject()
+                                //ADD Audit item
+                                .startObject(AUDIT_ITEMS)
+                                .field("type","keyword")
+                                .endObject()
+                                //ADD First Item to Fail
                                 .startObject(AUDIT_DETAILS_REST)
                                 .field("type", "keyword")
                                 .endObject()
@@ -228,11 +234,14 @@ public class ESStoreAuditListener implements AuditListener {
     private static class AuditMessage {
         final Map<String, Object> auditInfo = new HashMap<String, Object>();
 
-        private AuditMessage(final String username, final String message, final TransportRequest request) {
+        private AuditMessage(final String username, final String message, final TransportRequest request, final ThreadContext threadContext) {
             auditInfo.put("audit_user", username);
             auditInfo.put("audit_message", message);
             auditInfo.put("audit_date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-            //TODO
+            //TODO add first failing item
+            if(threadContext.getTransient(AUDIT_ITEMS) != null) {
+                auditInfo.put(AUDIT_ITEMS, threadContext.getTransient(AUDIT_ITEMS));
+            }
             //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
             //auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
             auditInfo.put("audit_details_class", request.getClass().toString());

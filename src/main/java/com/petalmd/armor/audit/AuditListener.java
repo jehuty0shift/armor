@@ -24,6 +24,8 @@ import org.elasticsearch.transport.TransportRequest;
 
 public interface AuditListener {
 
+    public static String AUDIT_ITEMS = "audit_items";
+
     default boolean isReady(){ return true;};
 
     default boolean setupAuditListener(){return true;};

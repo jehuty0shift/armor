@@ -24,7 +24,7 @@ public class AuditLogTest extends AbstractScenarioTest {
         Thread.sleep(3000);
 
         final JestResult result = executeSearch("ac_query_matchall.json", new String[] { ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit" },
-                new String[] { "_doc" }, true, true).v1();
+                new String[] { "records" }, true, true).v1();
         log.debug(toPrettyJson(result.getJsonString()));
         assertJestResultCount(result, 1);
     }

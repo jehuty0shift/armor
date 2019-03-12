@@ -234,9 +234,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         List<ActionFilter> actionFilters = new ArrayList<>();
         if (!clientBool) {
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
-            actionFilters.add(new FieldCapabilitiesFilter(settings, clusterService, threadPool, armorService, armorConfigService));
-            actionFilters.add(new UpdateByQueryFilter(settings, clusterService, threadPool, armorService, armorConfigService));
-            actionFilters.add(new DeleteByQueryFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ArmorActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ObfuscationFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new AggregationFilter(settings, clusterService, threadPool, armorService, armorConfigService, xContentRegistry));
