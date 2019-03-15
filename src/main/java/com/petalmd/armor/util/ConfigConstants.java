@@ -74,6 +74,7 @@ public final class ConfigConstants {
     public static final String ARMOR_ENABLED = "armor.enabled";
     public static final String ARMOR_FLSFILTER = "armor.flsfilter.names";
     public static final String ARMOR_FLSFILTERS = "armor.flsfilter.";
+    public static final String ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER = "armor.http.additionalrights.header.";
     public static final String ARMOR_HTTP_ENABLE_SESSIONS = "armor.http.enable_sessions";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_ENFORCE = "armor.http.xforwardedfor.enforce";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_HEADER = "armor.http.xforwardedfor.header";

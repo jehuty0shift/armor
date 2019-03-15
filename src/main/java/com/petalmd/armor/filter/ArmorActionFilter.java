@@ -267,7 +267,6 @@ public class ArmorActionFilter implements ActionFilter {
 
             }
 
-
             eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
 
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
@@ -281,6 +280,11 @@ public class ArmorActionFilter implements ActionFilter {
         List<String> filterList = threadContext.getTransient(ArmorConstants.ARMOR_FILTER);
         if (filterList == null) {
             filterList = Collections.EMPTY_LIST;
+        }
+
+        List<String> additionalRights = new ArrayList<>();
+        if(threadContext.getTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS) != null) {
+            additionalRights.addAll((List<String>)threadContext.getTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS));
         }
 
 
@@ -321,8 +325,7 @@ public class ArmorActionFilter implements ActionFilter {
                     forbiddenActions = Collections.emptyList();
                 }
 
-                for (final Iterator<String> iterator = forbiddenActions.iterator(); iterator.hasNext(); ) {
-                    final String forbiddenAction = iterator.next();
+                for (String forbiddenAction:  forbiddenActions) {
                     if (SecurityUtil.isWildcardMatch(action, forbiddenAction, false)) {
 
                         log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, forbiddenAction);
@@ -332,9 +335,14 @@ public class ArmorActionFilter implements ActionFilter {
                     }
                 }
 
-                for (final Iterator<String> iterator = allowedActions.iterator(); iterator.hasNext(); ) {
-                    final String allowedAction = iterator.next();
-                    if (SecurityUtil.isWildcardMatch(action, allowedAction, false)) {
+                for (String allowedAction: allowedActions) {
+                    String allowedActionSpecial = allowedAction;
+                    for(String additionalRight : additionalRights) {
+                        if (allowedAction.startsWith(additionalRight)) {
+                            allowedActionSpecial = allowedAction.substring(additionalRight.length()+1); //escape also the ':' separator
+                        }
+                    }
+                    if (SecurityUtil.isWildcardMatch(action, allowedActionSpecial, false)) {
                         log.trace("Action '{}' is allowed due to {}", action, allowedAction);
                         chain.proceed(task, action, request, listener);
                         return;

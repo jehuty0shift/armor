@@ -26,6 +26,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.cluster.NodesStats;
+import io.searchbox.core.Index;
 import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.reindex.Reindex;
 import org.apache.http.HttpResponse;
@@ -174,5 +175,44 @@ public class MiscTest extends AbstractUnitTest {
 
         Assert.assertTrue(jr.getErrorMessage(),jr.isSucceeded());
 
+    }
+
+
+    @Test
+    public void additionalRightsTest() throws Exception{
+
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+
+        final Settings settings = Settings.builder()
+                .put(ConfigConstants.ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER + "kibana","myreallyawesomekibanaheadervalue")
+                .putArray("armor.actionrequestfilter.names", "special","forbidden")
+                .putArray("armor.actionrequestfilter.special.allowed_actions",
+                        "indices:data/read/*",
+                        "kibana:indices:data/write*", //bulk is needed to write
+                        "kibana:indices:admin/mapping/put") //mapping is needed to update mapping to ES 5.6 new mapping
+                .putArray("armor.actionrequestfilter.forbidden.allowed_actions","indices:data/read/scroll*")
+                .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED,true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_19.json");
+        //without the magic header the call must failed
+        final JestClient client = getJestClient(getServerUri(false), username, password);
+
+        final JestResult jr = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("customer").id("tp_id6").build());
+
+        Assert.assertTrue(!jr.isSucceeded());
+        Assert.assertTrue(jr.getResponseCode() == 403);
+
+        //with the magic header now it should be allowed
+        final JestResult jr2 = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("customer").id("tp_id6").setHeader("kibana","myreallyawesomekibanaheadervalue").build());
+
+        Assert.assertTrue(jr2.isSucceeded());
+        Assert.assertTrue(jr2.getResponseCode() == 201);
     }
 }

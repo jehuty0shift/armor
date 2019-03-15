@@ -174,7 +174,6 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
             indices = in.readStringArray();
             indicesOptions = IndicesOptions.readIndicesOptions(in);
             settings = readSettingsFromStream(in);
-            readTimeout(in);
             boolean preserveExisting = in.readBoolean();
         }
 
