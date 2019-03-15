@@ -37,6 +37,10 @@ import org.elasticsearch.rest.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -50,6 +54,7 @@ public class ArmorRestShield {
     private final AuthenticationBackend authenticationBackend;
     private final Authorizator authorizator;
     private final ThreadContext threadContext;
+    private final Settings additionalRightHeaders;
     private final HTTPAuthenticator httpAuthenticator;
     private final AuditListener auditListener;
     private final SessionStore sessionStore;
@@ -63,8 +68,8 @@ public class ArmorRestShield {
         this.auditListener = auditListener;
         this.sessionStore = sessionStore;
         this.settings = settings;
-        allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
-
+        this.allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
+        this.additionalRightHeaders = settings.getByPrefix(ConfigConstants.ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER);
     }
 
     public RestHandler shield(RestHandler original) {
@@ -177,6 +182,21 @@ public class ArmorRestShield {
             final User authenticatedUser = sessionUser;
 
             log.debug("Authenticated user is {}", authenticatedUser);
+
+            List<String> additionalRightsList = new ArrayList<>();
+            for (Map.Entry<String, String> addRight : additionalRightHeaders.getAsMap().entrySet()) {
+                List<String> headerValues = request.getAllHeaderValues(addRight.getKey());
+                if (headerValues != null && !headerValues.isEmpty()) {
+                    for (String headerValue: headerValues) {
+                        if (headerValue.equals(addRight.getValue())) {
+                            additionalRightsList.add(addRight.getKey());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            threadContext.putTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS, additionalRightsList);
 
             threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER,authenticatedUser);
             threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS,resolvedAddress);

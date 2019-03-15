@@ -11,7 +11,7 @@
          "indices":[
             "eight"
          ],
-         "filters_bypass": [],
+         "filters_bypass": ["*"],
          "filters_execute": ["*"]
       },
       {
@@ -20,7 +20,7 @@
          ],
          "indices" : ["*"],
          "aliases" : ["*"],
-         "filters_bypass": [],
+         "filters_bypass": ["*"],
          "filters_execute": ["check.1"]
       },
       {

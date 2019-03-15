@@ -12,6 +12,7 @@ public final class ArmorConstants {
     //Context
     public static final String ARMOR_TOKEN_EVALUATOR = "_armor_token_evaluator";
     public static final String ARMOR_AC_EVALUATOR = "armor_ac_evaluator";
+    public static final String ARMOR_ADDITIONAL_RIGHTS ="armor_additional_rights";
     public static final String ARMOR_RESOLVED_REST_ADDRESS = "armor_resolved_rest_address";
     public static final String ARMOR_FILTER = "armor_filter";
     public static final String ARMOR_IS_LOOPBACK = "armor_is_loopback";
