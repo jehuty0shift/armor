@@ -37,6 +37,9 @@ import org.elasticsearch.rest.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -50,12 +53,13 @@ public class ArmorRestShield {
     private final AuthenticationBackend authenticationBackend;
     private final Authorizator authorizator;
     private final ThreadContext threadContext;
+    private final Settings additionalRightHeaders;
     private final HTTPAuthenticator httpAuthenticator;
     private final AuditListener auditListener;
     private final SessionStore sessionStore;
     private final Settings settings;
 
-    public ArmorRestShield(Settings settings, AuthenticationBackend authenticationBackend, Authorizator authorizator, HTTPAuthenticator httpAuthenticator, ThreadContext threadContext,  AuditListener auditListener, SessionStore sessionStore) {
+    public ArmorRestShield(Settings settings, AuthenticationBackend authenticationBackend, Authorizator authorizator, HTTPAuthenticator httpAuthenticator, ThreadContext threadContext, AuditListener auditListener, SessionStore sessionStore) {
         this.authorizator = authorizator;
         this.threadContext = threadContext;
         this.authenticationBackend = authenticationBackend;
@@ -63,15 +67,15 @@ public class ArmorRestShield {
         this.auditListener = auditListener;
         this.sessionStore = sessionStore;
         this.settings = settings;
-        allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
-
+        this.allowAllFromLoopback = settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, false);
+        this.additionalRightHeaders = settings.getByPrefix(ConfigConstants.ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER);
     }
 
     public RestHandler shield(RestHandler original) {
 
         return (request, channel, client) -> {
 
-            if(requestIsAuthorized(request,channel,client)) {
+            if (requestIsAuthorized(request, channel, client)) {
                 original.handleRequest(request, channel, client);
             }
         };
@@ -87,11 +91,11 @@ public class ArmorRestShield {
         //log.trace("Context: {}", request.getContext());
 
         //we always mark the request as external to the cluster.
-        threadContext.putTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL,new AtomicBoolean(true));
+        threadContext.putTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL, new AtomicBoolean(true));
 
         //allow all if request is coming from loopback
         if (isLoopback) {
-            threadContext.putTransient(ArmorConstants.ARMOR_IS_LOOPBACK,Boolean.TRUE);
+            threadContext.putTransient(ArmorConstants.ARMOR_IS_LOOPBACK, Boolean.TRUE);
             log.debug("This is a connection from localhost/loopback, will allow all");
             return true;
         }
@@ -130,7 +134,7 @@ public class ArmorRestShield {
         try {
             log.trace("Source: {}", request.content() == null ? "null" : request.content().utf8ToString());
         } catch (final Exception e) {
-            log.error("Source content printing generated an Exception",e);
+            log.error("Source content printing generated an Exception", e);
             throw e;
         }
 
@@ -178,8 +182,23 @@ public class ArmorRestShield {
 
             log.debug("Authenticated user is {}", authenticatedUser);
 
-            threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER,authenticatedUser);
-            threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS,resolvedAddress);
+            List<String> additionalRightsList = new ArrayList<>();
+            for (String addRightKey : additionalRightHeaders.names()) {
+                List<String> headerValues = request.getAllHeaderValues(addRightKey);
+                if (headerValues != null && !headerValues.isEmpty()) {
+                    for (String headerValue : headerValues) {
+                        if (headerValue.equals(additionalRightHeaders.get(addRightKey))) {
+                            additionalRightsList.add(addRightKey);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            threadContext.putTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS, additionalRightsList);
+
+            threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedUser);
+            threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS, resolvedAddress);
 //            String reqHeaderValue = request.header(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 //            if(reqHeaderValue != null) {
 //                threadContext.putHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST,reqHeaderValue);
@@ -191,13 +210,13 @@ public class ArmorRestShield {
             return true;
 
         } catch (final AuthException e1) {
-            channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN,e1));
+            channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e1));
             auditListener.onFailedLogin("unknown", request, threadContext);
             log.error(e1.toString(), e1);
             return false;
         } catch (final Exception e1) {
             log.error(e1.toString(), e1);
-            channel.sendResponse(new BytesRestResponse(channel, RestStatus.INTERNAL_SERVER_ERROR,e1));
+            channel.sendResponse(new BytesRestResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, e1));
             throw e1;
         }
 
