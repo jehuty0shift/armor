@@ -30,6 +30,7 @@ public final class ConfigConstants {
     public static final String ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED = "armor.action.wildcard.expansion.enabled";
     public static final String ARMOR_ACTION_CACHE_ENABLED = "armor.action.cache.filter.enabled";
     public static final String ARMOR_ACTION_CACHE_LIST = "armor.action.cache.filter.actions";
+    public static final String ARMOR_ACTION_INDICES_LIKE_ALIASES = "armor.action.indices.like.aliases";
     public static final String ARMOR_AUDITLOG_NUM_REPLICAS = "armor.auditlog.number_of_replicas";
     public static final String ARMOR_AUDITLOG_COMPRESSION = "armor.auditlog.compression";
     public static final String ARMOR_AUTHENTICATION_AUTHENTICATION_BACKEND = "armor.authentication.authentication_backend.impl";

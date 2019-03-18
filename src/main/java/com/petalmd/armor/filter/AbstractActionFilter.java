@@ -396,7 +396,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
         }
 
         try {
-            final TokenEvaluator.Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user);
+            boolean indicesLikeAliases = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_INDICES_LIKE_ALIASES,true);
+            final TokenEvaluator.Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user, indicesLikeAliases);
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }

@@ -121,6 +121,11 @@ public class TokenEvaluator {
 
     public Evaluator getEvaluator(List<String> requestedIndices, List<String> requestedAliases, List<String> requestedTypes,
                                   final InetAddress requestedHostAddress, final User user) throws MalformedConfigurationException {
+        return getEvaluator(requestedIndices, requestedAliases, requestedTypes, requestedHostAddress, user, false);
+    }
+
+    public Evaluator getEvaluator(List<String> requestedIndices, List<String> requestedAliases, List<String> requestedTypes,
+                                  final InetAddress requestedHostAddress, final User user, final boolean indicesLikeAliases) throws MalformedConfigurationException {
 
         final Set<String> requestedIndicesSet = new HashSet<>();
         final Set<String> requestedAliasesSet = new HashSet<>();
@@ -153,6 +158,7 @@ public class TokenEvaluator {
         Set<String> defaultRulesExecute = new HashSet<>();
         Set<String> defaultRulesBypass = new HashSet<>();
 
+
         for (final ACRule p : acRules.acl) {
 
             if (p.isDefault()) {
@@ -171,9 +177,7 @@ public class TokenEvaluator {
                 if (foundDefault) {
                     throw new MalformedConfigurationException("More than one default configuration found");
                 }
-
                 foundDefault = true;
-
             }
         }
 
@@ -278,7 +282,7 @@ public class TokenEvaluator {
                 log.debug("    --> Host wildcard match");
             }
 
-            if (!userMatch || !roleMatch || !hostMatch ) {
+            if (!userMatch || !roleMatch || !hostMatch) {
                 log.debug("    --> Users or roles or hosts does not match, so we skip this rule");
                 continue ruleloop;
             } else {
@@ -287,20 +291,29 @@ public class TokenEvaluator {
 
             //-- Aliases -------------------------------------------
 
+
+
+            Set<String> aliasesToCheck = acRule.aliases!=null?new HashSet<>(acRule.aliases):new HashSet<>();
+            if(indicesLikeAliases) {
+                if(acRule.indices!= null && !acRule.indices.isEmpty()) {
+                    aliasesToCheck.addAll(acRule.indices);
+                }
+            }
+
             //if it's empty and we request alias, rule do not match, skipp this rule.
-            if ((acRule.aliases == null || acRule.aliases.isEmpty()) && !requestedAliasesSet.isEmpty()) {
+            if (aliasesToCheck.isEmpty() && !requestedAliasesSet.isEmpty()) {
                 log.debug("we skip this rule since alias(es) are requested but rule do not have alias");
                 continue ruleloop;
             }
 
-            if (!isStar(acRule.aliases)) {
+            if (!isStar(aliasesToCheck)) {
 
                 aliasloop:
                 for (final String requestedAlias : requestedAliases) {
 
                     boolean aliasok = false;
 
-                    for (final String pAlias : acRule.aliases) {
+                    for (final String pAlias : aliasesToCheck) {
 
                         if (typeAndMatch(requestedAlias, pAlias, requestedTypes)) {
                             log.debug("    --> Alias " + requestedAlias + " match " + pAlias + "");
@@ -373,7 +386,7 @@ public class TokenEvaluator {
             log.debug("    ----> APPLY RULE <---- which means the following executeFilters: {}/bypassFilters: {}", acRule.getFilters_execute(),
                     acRule.getFilters_bypass());
 
-            if(!removedDefault) {
+            if (!removedDefault) {
                 filtersBypass.removeAll(defaultRulesBypass);
                 filtersExecute.removeAll(defaultRulesExecute);
                 removedDefault = true;
