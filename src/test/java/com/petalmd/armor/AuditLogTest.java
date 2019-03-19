@@ -5,6 +5,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
 import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -26,11 +27,20 @@ public class AuditLogTest extends AbstractScenarioTest {
         executeIndexAsString("{}", "audittest", "audittesttype", "x1", false, false);
 
         Thread.sleep(3000);
+        int totalHits = 0;
+        while (totalHits == 0) {
+            final JestResult result = executeSearch("ac_query_matchall.json", new String[]{ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit"},
+                    new String[]{"records"}, true, true).v1();
 
-        final JestResult result = executeSearch("ac_query_matchall.json", new String[] { ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit" },
-                new String[] { "records" }, true, true).v1();
-        log.debug(toPrettyJson(result.getJsonString()));
-        assertJestResultCount(result, 1);
+            Assert.assertTrue(result.isSucceeded());
+            totalHits = result.getJsonObject().getAsJsonObject("hits").getAsJsonPrimitive("total").getAsInt();
+            if (totalHits != 0) {
+                Thread.sleep(3000);
+            }
+            log.debug(toPrettyJson(result.getJsonString()));
+        }
+
+        Assert.assertTrue(totalHits == 1);
     }
 
 }

@@ -212,7 +212,7 @@ public abstract class AbstractUnitTest {
 
     }
 
-    protected final Logger log = LogManager.getLogger(this.getClass());
+    protected final Logger log = LogManager.getLogger(AbstractUnitTest.class);
 
     protected final String getServerUri(final boolean connectFromLocalhost) {
 
@@ -610,6 +610,8 @@ public abstract class AbstractUnitTest {
         Assert.assertTrue(alias3.isAcknowledged());
 
         executeIndex(armorConfig, "armor", "ac", "ac", true, true);
+
+        log.info("Cluster Data has been setup");
     }
 
     protected final void setupTestDataWithFilteredAlias(final String armorConfig) throws Exception {
