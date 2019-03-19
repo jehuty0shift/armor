@@ -9,6 +9,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 /**
  * Created by jehuty0shift on 09/11/17.
@@ -16,7 +17,7 @@ import org.elasticsearch.common.settings.Settings;
 public class ObfClusterStateResponse extends ClusterStateResponse implements ObfResponse {
 
 
-    public ObfClusterStateResponse(final ClusterStateResponse cStateResponse, final Settings settings) {
+    public ObfClusterStateResponse(final ClusterStateResponse cStateResponse, final Settings settings, final ThreadContext threadContext) {
 
         super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()), cStateResponse.getTotalCompressedSize().getBytes(), cStateResponse.isWaitForTimedOut());
     }

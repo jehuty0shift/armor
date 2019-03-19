@@ -90,6 +90,7 @@ public class EmbeddedLDAPServer {
 
         keytab.setEntries(entries);
         keytab.write(keytabFile);
+
         log.debug("Keytab with " + keytab.getEntries().size() + " entries written to " + keytabFile.getAbsolutePath());
     }
 

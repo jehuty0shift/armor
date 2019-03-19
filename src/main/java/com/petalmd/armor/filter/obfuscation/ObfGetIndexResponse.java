@@ -17,8 +17,16 @@
 package com.petalmd.armor.filter.obfuscation;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import com.petalmd.armor.authentication.User;
+import com.petalmd.armor.service.ArmorConfigService;
+import com.petalmd.armor.tokeneval.MalformedConfigurationException;
+import com.petalmd.armor.tokeneval.RulesEntities;
+import com.petalmd.armor.tokeneval.TokenEvaluator;
+import com.petalmd.armor.util.ArmorConstants;
+import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
@@ -27,13 +35,14 @@ import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import java.io.IOException;
 import java.util.*;
 
 /**
  * @author jehuty0shift
- *         Created on 18/07/17.
+ * Created on 18/07/17.
  */
 
 
@@ -48,12 +57,31 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
     final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;
     final private ImmutableOpenMap<String, Settings> settings;
     final private ImmutableOpenMap<String, Settings> defaultSettings;
+    final private ThreadContext threadContext;
     final private GetIndexResponse response;
 
     static private final String ITEMS_TO_OBFUSCATE = "armor.obfuscation.filter.getindexresponse.remove";
 
-    public ObfGetIndexResponse(final GetIndexResponse response, final Settings armorSettings) {
+    public ObfGetIndexResponse(final GetIndexResponse response, final Settings armorSettings, final ThreadContext threadContext) {
         this.response = response;
+        this.threadContext = threadContext;
+//
+//        TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
+//
+//        evaluator.
+
+        User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        TokenEvaluator evaluator = threadContext.getTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR);
+
+        RulesEntities entities = null;
+        if(evaluator != null) {
+            try {
+                entities = evaluator.findEntitiesforUser(user);
+            } catch (MalformedConfigurationException ex) {
+                throw new ElasticsearchException("Problem in cluster configuration, contact your administrator");
+            }
+        }
+
         final List<String> defaultList = Arrays.asList("aliases");
         List<String> itemsToObfuscate = armorSettings.getAsList(ITEMS_TO_OBFUSCATE, defaultList);
 
@@ -126,10 +154,25 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                 ObjectObjectCursor<String, List<AliasMetaData>> indexAliases = aliasesIt.next();
                 List<AliasMetaData> aliasesListObfuscated = new ArrayList<>();
                 for (AliasMetaData aliasMetaData : indexAliases.value) {
-                    if (!aliasesToObfuscate.contains(aliasMetaData.alias())) {
+                    boolean canAdd = true;
+                    for (String aliasToObf : aliasesToObfuscate) {
+                        if (SecurityUtil.isWildcardMatch(aliasMetaData.alias(), aliasToObf, false)) {
+                            canAdd = false;
+                            break;
+                        }
+                    }
+                    if (canAdd && entities != null) {
+                        boolean canAddSub = false;
+                        for (String aliasAllowed : entities.getAliases()) {
+                            if(SecurityUtil.isWildcardMatch(aliasMetaData.alias(),aliasAllowed,false)) {
+                                canAddSub = true;
+                                break;
+                            }
+                        }
+                        canAdd = canAddSub;
+                    }
+                    if(canAdd) {
                         aliasesListObfuscated.add(aliasMetaData);
-                    } else if (log.isDebugEnabled()) {
-                        log.debug("obfuscating alias " + aliasMetaData.alias());
                     }
                 }
                 aliasesObfuscated.put(indexAliases.key, aliasesListObfuscated);
@@ -177,7 +220,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                         MappingMetaData metadataObf = new MappingMetaData(typeMapping.key, typeMappingMapObf);
                         mappingObfuscated.put(typeMapping.key, metadataObf);
                     } catch (IOException e) {
-                        log.error("Error during obfuscation",e);
+                        log.error("Error during obfuscation", e);
                         e.printStackTrace();
                     }
                 }
@@ -219,7 +262,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
             response.readFrom(bSO.bytes().streamInput());
             return response;
         } catch (IOException e) {
-            log.error("Couldn't modify Response",e);
+            log.error("Couldn't modify Response", e);
             return null;
         } finally {
             //only to enforce best practices.

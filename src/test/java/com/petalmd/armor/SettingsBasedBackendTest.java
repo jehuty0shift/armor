@@ -18,6 +18,7 @@
 
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
@@ -28,6 +29,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SettingsBasedBackendTest extends AbstractUnitTest {
 
     @Test

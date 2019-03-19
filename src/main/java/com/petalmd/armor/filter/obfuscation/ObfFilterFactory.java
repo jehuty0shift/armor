@@ -15,6 +15,7 @@
  */
 package com.petalmd.armor.filter.obfuscation;
 
+import com.petalmd.armor.service.ArmorConfigService;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.action.ActionResponse;
@@ -22,6 +23,7 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -37,12 +39,14 @@ public class ObfFilterFactory {
     protected static final Logger log = LogManager.getLogger(ObfFilterFactory.class);
     private final Map<String, Class> hubMap;
     private final Settings settings;
+    private final ThreadContext threadContext;
 
     //private static ObfFilterFactory factory;
 
 
-    public ObfFilterFactory(final Settings settings) {
+    public ObfFilterFactory(final Settings settings, final ThreadContext threadContext) {
         this.settings = settings;
+        this.threadContext = threadContext;
         hubMap = new HashMap<>();
         hubMap.put(NodesInfoAction.NAME, ObfNodesInfoResponse.class);
         hubMap.put(GetIndexAction.NAME, ObfGetIndexResponse.class);
@@ -59,8 +63,8 @@ public class ObfFilterFactory {
         Class resp = hubMap.get(actionResponseName);
         try {
 
-            Constructor ct = resp.getDeclaredConstructor(orig.getClass(), Settings.class);
-            ObfResponse obfResponse = (ObfResponse) ct.newInstance(orig, settings);
+            Constructor ct = resp.getDeclaredConstructor(orig.getClass(), Settings.class, ThreadContext.class);
+            ObfResponse obfResponse = (ObfResponse) ct.newInstance(orig, settings, threadContext);
             return obfResponse.getActionResponse();
 
         } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {

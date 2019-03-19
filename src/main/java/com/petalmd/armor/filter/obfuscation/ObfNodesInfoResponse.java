@@ -23,6 +23,7 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.plugins.PluginInfo;
@@ -36,7 +37,7 @@ import java.io.IOException;
 public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfResponse{
 
 
-    public ObfNodesInfoResponse(NodesInfoResponse response, Settings settings) {
+    public ObfNodesInfoResponse(final NodesInfoResponse response, final Settings settings, final ThreadContext threadContext) {
         super(response.getClusterName(), response.getNodes(),response.failures());
     }
 

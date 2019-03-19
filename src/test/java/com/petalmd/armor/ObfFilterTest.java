@@ -27,6 +27,7 @@ import io.searchbox.cluster.NodesInfo;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Map;
@@ -120,6 +121,59 @@ public class ObfFilterTest extends AbstractScenarioTest {
         }
         System.out.println(restu.v1().getJsonString());
     }
+
+
+    @Test
+    public void GetIndexFilterWithAllowedAliasesTest() throws Exception {
+
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false,"ceo" );
+
+        final Settings settings =  Settings.builder().putList("armor.actionrequestfilter.names", "indicesadmin")
+                .putList("armor.actionrequestfilter.indicesadmin.allowed_actions", "indices:admin*")
+                .putList("armor.obfuscation.filter.getindexresponse.remove","mappings.post_date","indices.ceo")
+                .put(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED,true)
+                .put(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS,false)
+                .put(authSettings).build();
+
+        startES(settings);
+        setupTestData("ac_rules_22.json");
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
+
+
+            @Override
+            public String getRestMethodName() {
+                return "GET";
+            }
+
+            @Override
+            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
+                //fastest way to have a GET on an index
+                return "/internal";
+            }
+
+        });
+
+        assert(restu.v1().isSucceeded());
+        //verify that the mapping is not present
+        assert(!restu.v1().getJsonString().contains("post_date"));
+        //assert that the indice ceo is not present
+        assert(!restu.v1().getJsonString().contains("ceo"));
+        //assert that the aliases are empty.
+        for (Map.Entry<String,JsonElement> element : restu.v1().getJsonObject().entrySet()) {
+            if (element.getValue().getAsJsonObject() != null) {
+                JsonObject jObj = element.getValue().getAsJsonObject();
+                Assert.assertFalse(jObj.get("aliases").getAsJsonObject().has("crucial"));
+            }
+        }
+        System.out.println(restu.v1().getJsonString());
+    }
+
 
 
     @Test
