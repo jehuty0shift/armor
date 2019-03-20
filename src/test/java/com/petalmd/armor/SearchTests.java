@@ -1,9 +1,13 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.petalmd.armor.tests.ClearScroll;
 import com.petalmd.armor.util.ConfigConstants;
+import io.searchbox.action.Action;
 import io.searchbox.client.JestResult;
+import io.searchbox.client.config.ElasticsearchVersion;
 import io.searchbox.core.MultiSearch;
 import io.searchbox.core.Search;
 import io.searchbox.indices.settings.UpdateSettings;
@@ -89,6 +93,56 @@ public class SearchTests extends AbstractScenarioTest {
         Assert.assertEquals(3, resultCount);
     }
 
+
+    @Test
+    public void scrollClear() throws Exception {
+        final boolean wrongPassword = false;
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String[] indices = new String[]{"internal"};
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "scroll", "forbidden")
+                .putList("armor.actionrequestfilter.scroll.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear", "indices:data/read/search")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AGGREGATION_FILTER_ENABLED, true)
+                .put(authSettings).build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_23.json");
+
+        Map<String, String> scrollParameters = new HashMap<>();
+        scrollParameters.put("scroll", "1m");
+        scrollParameters.put("size", "1");
+
+        final Tuple<JestResult, HttpResponse> resulttu = executeSearchWithScroll("ac_query_matchall.json", indices, null,
+                true, false, scrollParameters);
+
+        final JestResult result = resulttu.v1();
+
+        final Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
+
+        int resultCount = result.getJsonObject().getAsJsonObject("hits").getAsJsonArray("hits").size();
+
+        Assert.assertEquals(1, resultCount);
+        final String scrollId = result.getJsonObject().get("_scroll_id").getAsString();
+
+        //Try to delete all scroll
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> resulttu2 = client.executeE( (new ClearScroll.Builder("_all")).build());
+        Assert.assertFalse(resulttu2.v1().isSucceeded());
+        Assert.assertTrue(resulttu2.v1().getResponseCode() == 403);
+
+        //Try to delete one scrollId
+
+        final Tuple<JestResult, HttpResponse> resulttu3 = client.executeE( (new ClearScroll.Builder(scrollId)).build());
+        Assert.assertTrue(resulttu3.v1().isSucceeded());
+        Assert.assertTrue(resulttu3.v1().getResponseCode() == 200);
+
+    }
 
     @Test
     public void searchAliasWildcard() throws Exception {
