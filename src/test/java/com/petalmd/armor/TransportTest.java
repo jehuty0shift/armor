@@ -255,7 +255,7 @@ public class TransportTest extends AbstractUnitTest {
         }
 
         try (Client unauthClient = tc.filterWithHeader(new HashMap<>())){
-            unauthClient.index(new IndexRequest(indices[0], "test").source(new HashMap())).actionGet();
+            unauthClient.index(new IndexRequest("marketing", "test").source(new HashMap())).actionGet();
             Assert.fail();
         } catch (final RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("Unauthenticated request"));

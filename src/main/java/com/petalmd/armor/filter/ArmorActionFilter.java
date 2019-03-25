@@ -430,6 +430,7 @@ public class ArmorActionFilter implements ActionFilter {
     }
 
 
+
     private void addType(final IndicesRequest request, final List<String> typesl, final String action) {
 
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
