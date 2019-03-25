@@ -18,10 +18,12 @@
 
 package com.petalmd.armor;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.elasticsearch.common.inject.CreationException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 
+@ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class UnixTest extends AbstractScenarioTest {
 
     @Test(expected = CreationException.class)
