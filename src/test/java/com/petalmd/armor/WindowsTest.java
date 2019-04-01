@@ -38,7 +38,7 @@ public class WindowsTest extends AbstractScenarioTest {
                 .put("armor.authentication.spnego.login_config_filepath", System.getProperty("java.security.auth.login.config"))
                 .put("armor.authentication.authentication_backend.impl", "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
                 .put("armor.authentication.authentication_backend.cache.enable", "false")
-                .put("armor.waffle.windows_auth_provider_impl", MockWindowsAuthProvider.class)
+                .put("armor.waffle.windows_auth_provider_impl", "MockWindowsAuthProvider.class")
                 .put("armor.authentication.authorizer", "com.petalmd.armor.authorization.waffle.WaffleAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "false")
 

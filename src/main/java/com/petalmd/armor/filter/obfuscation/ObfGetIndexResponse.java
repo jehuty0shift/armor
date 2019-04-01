@@ -57,18 +57,12 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
     final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;
     final private ImmutableOpenMap<String, Settings> settings;
     final private ImmutableOpenMap<String, Settings> defaultSettings;
-    final private ThreadContext threadContext;
     final private GetIndexResponse response;
 
     static private final String ITEMS_TO_OBFUSCATE = "armor.obfuscation.filter.getindexresponse.remove";
 
     public ObfGetIndexResponse(final GetIndexResponse response, final Settings armorSettings, final ThreadContext threadContext) {
         this.response = response;
-        this.threadContext = threadContext;
-//
-//        TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
-//
-//        evaluator.
 
         User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
         TokenEvaluator evaluator = threadContext.getTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR);
@@ -82,8 +76,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
             }
         }
 
-        final List<String> defaultList = Arrays.asList("aliases");
-        List<String> itemsToObfuscate = armorSettings.getAsList(ITEMS_TO_OBFUSCATE, defaultList);
+        List<String> itemsToObfuscate = armorSettings.getAsList(ITEMS_TO_OBFUSCATE, Collections.emptyList());
 
         List<String> indicesToObfuscate = new ArrayList<>();
         List<String> aliasesToObfuscate = new ArrayList<>();
@@ -163,7 +156,10 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                     }
                     if (canAdd && entities != null) {
                         boolean canAddSub = false;
-                        for (String aliasAllowed : entities.getAliases()) {
+                        Set<String> entitiesAllowed = new HashSet<>();
+                        entitiesAllowed.addAll(entities.getAliases());
+                        entitiesAllowed.addAll(entities.getIndices());
+                        for (String aliasAllowed : entitiesAllowed) {
                             if(SecurityUtil.isWildcardMatch(aliasMetaData.alias(),aliasAllowed,false)) {
                                 canAddSub = true;
                                 break;

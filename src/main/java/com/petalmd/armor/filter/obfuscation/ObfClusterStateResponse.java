@@ -39,7 +39,9 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
         ImmutableOpenMap.Builder<String, ClusterState.Custom> obfCustomsBuilder = ImmutableOpenMap.builder();
 
-        return new ClusterState(state.getClusterName(), obfVersion, obfStateUUID, obfMetaData, obfRTable, obfNodes, obfClusterBlocks, obfCustomsBuilder.build(), false);
+        int obfMinimumMasterNodes = state.getMinimumMasterNodesOnPublishingMaster();
+
+        return new ClusterState(state.getClusterName(), obfVersion, obfStateUUID, obfMetaData, obfRTable, obfNodes, obfClusterBlocks, obfCustomsBuilder.build(), obfMinimumMasterNodes, false);
     }
 
 
