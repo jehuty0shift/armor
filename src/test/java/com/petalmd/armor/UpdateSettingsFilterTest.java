@@ -29,7 +29,7 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
 
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","updatesettings")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
-                .putList("armor.actionrequestfilter.updatesettings.allowed_actions","indices:admin/get", "indices:admin/settings/update", "indices:admin/close", "indices:admin/open", "indices:monitor/settings/get")
+                .putList("armor.actionrequestfilter.updatesettings.allowed_actions","indices:admin/get", "indices:admin/settings/update", "indices:admin/close*", "indices:admin/open", "indices:admin/mapping/put", "indices:monitor/settings/get")
                 .put(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, true)
                 .putList(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED, "analysis", "index.refresh_interval")
                 .put(authSettings)
