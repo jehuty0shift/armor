@@ -20,6 +20,7 @@ grant {
   permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
   permission java.io.FilePermission "${deployment.system.security.cacerts}", "read,readlink";
   permission java.security.SecurityPermission "createAccessControlContext";
+  permission java.net.SocketPermission "*", "accept,resolve,listen,connect";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
   permission java.lang.RuntimePermission "accessDeclaredMembers";
   permission java.lang.RuntimePermission "createSecurityManager";
