@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>6.7.2-1-SNAPSHOT</version>
+    <version>6.8.0-1</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -45,13 +45,13 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>6.7.2</elasticsearch.version>
+        <elasticsearch.version>6.8.0</elasticsearch.version>
         <apache.ds.version>2.0.0-M24</apache.ds.version>
         <apache.ds.api.version>1.0.0</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <lucene.maven.version>7.6.0</lucene.maven.version>
+        <lucene.maven.version>7.7.0</lucene.maven.version>
     </properties>
 
     <scm>
@@ -105,13 +105,13 @@
         <dependency>
             <groupId>org.codelibs.elasticsearch.module</groupId>
             <artifactId>lang-painless</artifactId>
-            <version>6.7.1</version>
+            <version>6.7.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.codelibs.elasticsearch.module</groupId>
             <artifactId>analysis-common</artifactId>
-            <version>6.7.1</version>
+            <version>6.7.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>

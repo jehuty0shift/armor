@@ -319,6 +319,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SCROLL_CLEAR_ALLOW_ALL,false,Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //ssl HTTP
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));

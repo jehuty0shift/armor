@@ -5,6 +5,7 @@ import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
+import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -24,9 +25,11 @@ import org.elasticsearch.threadpool.ThreadPool;
 public class ClearScrollFilter extends AbstractActionFilter {
 
     protected final Logger log = LogManager.getLogger(ClearScrollFilter.class);
+    private final boolean canScrollClearAll;
 
     public ClearScrollFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
+        canScrollClearAll = settings.getAsBoolean(ConfigConstants.ARMOR_SCROLL_CLEAR_ALLOW_ALL,false);
     }
 
 
@@ -40,7 +43,7 @@ public class ClearScrollFilter extends AbstractActionFilter {
             final ThreadContext threadContext = threadpool.getThreadContext();
 
             User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-            if (csRequest.scrollIds().isEmpty() || csRequest.scrollIds().contains("_all")) {
+            if (!canScrollClearAll && (csRequest.scrollIds().isEmpty() || csRequest.scrollIds().contains("_all"))) {
                 log.warn("attempt to clear all scroll from user " + user.getName());
                 throw new ForbiddenException("_all is not allowed for scroll Ids parameters");
             }

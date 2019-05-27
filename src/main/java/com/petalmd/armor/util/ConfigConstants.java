@@ -88,6 +88,7 @@ public final class ConfigConstants {
     public static final String ARMOR_OBFUSCATION_FILTER_ENABLED = "armor.obfuscation.filter.enabled";
     public static final String ARMOR_OBFUSCATION_FILTERS = "armor.obfuscation.filter.";
     public static final String ARMOR_REWRITE_GET_AS_SEARCH = "armor.rewrite_get_as_search";
+    public static final String ARMOR_SCROLL_CLEAR_ALLOW_ALL = "armor.scroll_clear.allow_all";
     public static final String ARMOR_SSL_TRANSPORT_HTTP_ENABLED = "armor.ssl.transport.http.enabled";
     public static final String ARMOR_SSL_TRANSPORT_HTTP_ENFORCE_CLIENTAUTH = "armor.ssl.transport.http.enforce_clientauth";
     public static final String ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH = "armor.ssl.transport.http.keystore_filepath";

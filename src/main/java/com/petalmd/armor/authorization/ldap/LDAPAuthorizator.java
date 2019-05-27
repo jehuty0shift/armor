@@ -304,12 +304,12 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             }
 
         } catch (LdapException | CursorException | AuthException e) {
-            if ((e instanceof AuthException) && ((AuthException)e).type == AuthException.ExceptionType.ERROR) {
+            if ((e instanceof AuthException) && ((AuthException)e).type == AuthException.ExceptionType.NOT_FOUND) {
                 log.debug(e.toString(), e);
             } else {
                 log.error(e.toString(), e);
+                throw new AuthException(e);
             }
-            throw new AuthException(e);
         } finally {
             if (result != null) {
                 try {
