@@ -31,7 +31,7 @@ public class FilterHelper {
 
     public static void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 
-        List<String> irIndices = Arrays.asList(ir.indices());
+        List<String> irIndices = ir.indices() == null? new ArrayList<>():Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
         if (log.isDebugEnabled()) {

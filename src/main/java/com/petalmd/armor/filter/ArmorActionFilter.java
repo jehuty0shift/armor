@@ -205,8 +205,10 @@ public class ArmorActionFilter implements ActionFilter {
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
                     FilterHelper.replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
                 } else {
-                    ci.addAll(FilterHelper.getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
-                    aliases.addAll(FilterHelper.getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    if (ir.indices() != null) {
+                        ci.addAll(FilterHelper.getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                        aliases.addAll(FilterHelper.getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    }
                 }
 
 
