@@ -153,7 +153,7 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
                         .putList("armor.authentication.proxy.trusted_ips", "*")
                         .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
                         .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
+                                "com.petalmd.armor.authentication.backend.ldap.LDAPAuthenticationBackend")
                 .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")

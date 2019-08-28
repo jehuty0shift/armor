@@ -78,12 +78,10 @@ public class ArmorInfoAction extends BaseRestHandler {
 
                 builder.startObject();
 
-                builder.field("status", "running");
                 builder.field("enabled", settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, false).toString());
                 builder.field("isLoopback", isLoopback);
-                builder.field("resolvedAddress", resolvedAddress);
+                builder.field("resolvedAddress", resolvedAddress.toString());
                 builder.field("available", available);
-
 
                 builder.endObject();
                 if (available) {
