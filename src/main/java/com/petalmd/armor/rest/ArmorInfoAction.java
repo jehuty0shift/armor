@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,15 +13,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.rest;
 
+import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -35,18 +38,20 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 public class ArmorInfoAction extends BaseRestHandler {
 
     private final Settings settings;
+    private final ArmorConfigService armorConfigService;
 
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
-                           final ArmorService service) {
+                           final ArmorConfigService armorConfigService) {
         super(settings);
         controller.registerHandler(GET, "/_armor", this);
+        this.armorConfigService = armorConfigService;
         this.settings = settings;
     }
 
     @Override
     public String getName() {
-        return "armor";
+        return "armor_info_action";
     }
 
     @Override
@@ -61,18 +66,31 @@ public class ArmorInfoAction extends BaseRestHandler {
             BytesRestResponse response;
             final XContentBuilder builder = restChannel.newBuilder();
 
+            boolean available;
             try {
-                
+                final BytesReference securityConfig = armorConfigService.getSecurityConfiguration();
+                available = securityConfig != null && securityConfig.length() > 0;
+            } catch (ElasticsearchException e) {
+                available = false;
+            }
+
+            try {
+
                 builder.startObject();
 
-                builder.field("armor.status", "running");
-                builder.field("armor.enabled",settings.get(ConfigConstants.ARMOR_ENABLED));
-                builder.field("armor.isloopback", isLoopback);
-                builder.field("armor.resolvedaddress", resolvedAddress);
+                builder.field("status", "running");
+                builder.field("enabled", settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, false).toString());
+                builder.field("isLoopback", isLoopback);
+                builder.field("resolvedAddress", resolvedAddress);
+                builder.field("available", available);
+
 
                 builder.endObject();
-
-                response = new BytesRestResponse(RestStatus.OK, builder);
+                if (available) {
+                    response = new BytesRestResponse(RestStatus.OK, builder);
+                } else {
+                    response = new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, builder);
+                }
             } catch (final Exception e1) {
                 builder.startObject();
                 builder.field("error", e1.toString());

@@ -30,6 +30,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -51,17 +52,13 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
 
     @Inject
     public ArmorConfigService(final Settings settings, final Client client, final AuditListener auditListener) {
-        super(settings);
+        super();
         this.client = client;
         this.auditListener = auditListener;
  //       this.threadPool = threadPool;
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
 
-    }
-
-    public String getSecurityConfigurationIndex() {
-        return securityConfigurationIndex;
     }
 
     public BytesReference getSecurityConfiguration() {
@@ -77,30 +74,28 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
 
     //blocking
     private void reloadConfig() {
-        client.prepareGet(securityConfigurationIndex, "ac", "ac").setRefresh(true).execute(new ActionListener<GetResponse>() {
 
-            @Override
-            public void onResponse(final GetResponse response) {
+        try {
+            log.debug("retrieving Security configuration document");
+            GetResponse getResponse = client.prepareGet(securityConfigurationIndex, "ac", "ac").setRefresh(true).get(TimeValue.timeValueSeconds(10));
 
-                if (response.isExists() && !response.isSourceEmpty()) {
-                    securityConfiguration = response.getSourceAsBytesRef();
-                    latch.countDown();
-                    log.debug("Security configuration reloaded");
-
-                }
+            if (getResponse.isExists() && !getResponse.isSourceEmpty()) {
+                securityConfiguration = getResponse.getSourceAsBytesRef();
+                latch.countDown();
+                log.debug("Security configuration reloaded");
+            } else {
+                throw new IllegalStateException("Document does not yet exists !");
             }
+        } catch (Exception e) {
+            if (e instanceof IndexNotFoundException) {
+                log.error(
+                        "Tried to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
+                        e.toString());
+            } else {
+                log.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
 
-            @Override
-            public void onFailure(final Exception e) {
-                if (e instanceof IndexNotFoundException) {
-                    log.debug(
-                            "Tried to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
-                            e.toString());
-                } else {
-                    log.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
-                }
             }
-        });
+        }
     }
 
     private void configAuditListener(){
@@ -134,12 +129,14 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
         this.scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         this.scheduler.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(new Reload(), 5, 1, TimeUnit.SECONDS);
+        log.info("ArmorConfigService started");
     }
 
     @Override
     protected void doStop() throws ElasticsearchException {
         FutureUtils.cancel(this.scheduledFuture);
         this.scheduler.shutdown();
+        log.info("ArmorConfigService stopped");
     }
 
     @Override

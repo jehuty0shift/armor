@@ -59,7 +59,7 @@ public class ArmorService extends AbstractLifecycleComponent {
     public ArmorService(final Settings settings, final ClusterService clusterService,
             final Authorizator authorizator, final AuthenticationBackend authenticationBackend, final HTTPAuthenticator httpAuthenticator,
             final SessionStore sessionStore, final AuditListener auditListener) {
-        super(settings);
+        super();
         this.settings = settings;
         //securityConfigurationIndex = settings
         //        .get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
