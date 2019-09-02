@@ -18,10 +18,11 @@
 
 package com.petalmd.armor.rest;
 
-import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -35,12 +36,14 @@ import static org.elasticsearch.rest.RestRequest.Method.GET;
 public class ArmorInfoAction extends BaseRestHandler {
 
     private final Settings settings;
+    private final ArmorConfigService armorConfigService;
 
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
-                           final ArmorService service) {
+                           final ArmorConfigService armorConfigService) {
         super(settings);
         controller.registerHandler(GET, "/_armor", this);
+        this.armorConfigService = armorConfigService;
         this.settings = settings;
     }
 
@@ -59,20 +62,36 @@ public class ArmorInfoAction extends BaseRestHandler {
                 BytesRestResponse response;
                 final XContentBuilder builder = restChannel.newBuilder();
 
+                boolean available;
+                try {
+                    BytesReference securityConfiguration = armorConfigService.getSecurityConfiguration();
+                    if(securityConfiguration != null && securityConfiguration.length() > 0) {
+                        available = true;
+                    } else {
+                        available = false;
+                    }
+                } catch (Exception e) {
+                    available = false;
+                }
+
                 try {
 
                     //TODO : To Delete ? Authentication is done in REST Wrapper
 
                     builder.startObject();
 
-                    builder.field("armor.status", "running");
-                    builder.field("armor.enabled",settings.get(ConfigConstants.ARMOR_ENABLED));
+                    builder.field("armor.enabled",settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED,false).toString());
                     builder.field("armor.isloopback", isLoopback);
-                    builder.field("armor.resolvedaddress", resolvedAddress);
+                    builder.field("armor.resolvedaddress", resolvedAddress.toString());
+                    builder.field("available", available);
 
                     builder.endObject();
 
-                    response = new BytesRestResponse(RestStatus.OK, builder);
+                    if (available) {
+                        response = new BytesRestResponse(RestStatus.OK, builder);
+                    } else {
+                        response = new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, builder);
+                    }
                 } catch (final Exception e1) {
                     builder.startObject();
                     builder.field("error", e1.toString());

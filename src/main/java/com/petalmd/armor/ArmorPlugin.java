@@ -249,7 +249,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         if (!enabled) {
             return Collections.emptyList();
         } else {
-            return Collections.singletonList(new ArmorInfoAction(settings, restController, Objects.requireNonNull(armorService)));
+            return Collections.singletonList(new ArmorInfoAction(settings, restController, Objects.requireNonNull(armorConfigService)));
         }
     }
 
