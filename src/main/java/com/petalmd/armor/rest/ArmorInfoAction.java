@@ -19,9 +19,10 @@
 package com.petalmd.armor.rest;
 
 import com.petalmd.armor.service.ArmorConfigService;
-import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -39,6 +40,8 @@ public class ArmorInfoAction extends BaseRestHandler {
 
     private final Settings settings;
     private final ArmorConfigService armorConfigService;
+    private static final Logger log = LogManager.getLogger(ArmorInfoAction.class);
+
 
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
@@ -67,12 +70,14 @@ public class ArmorInfoAction extends BaseRestHandler {
             final XContentBuilder builder = restChannel.newBuilder();
 
             boolean available;
+            log.info("retrieving Security Configuration...");
             try {
                 final BytesReference securityConfig = armorConfigService.getSecurityConfiguration();
                 available = securityConfig != null && securityConfig.length() > 0;
             } catch (ElasticsearchException e) {
                 available = false;
             }
+            log.info("retrieved Security Configuration.");
 
             try {
 
@@ -95,6 +100,7 @@ public class ArmorInfoAction extends BaseRestHandler {
                 builder.endObject();
                 response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
             }
+            log.info("Armor available: {}",available);
             restChannel.sendResponse(response);
         };
     }

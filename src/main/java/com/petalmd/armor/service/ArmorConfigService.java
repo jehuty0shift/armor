@@ -23,7 +23,6 @@ import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -64,6 +63,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     public BytesReference getSecurityConfiguration() {
         try {
             if (!latch.await(1, TimeUnit.MINUTES)) {
+                log.info("Is reload task terminated ? {}", scheduledFuture.isCancelled());
                 throw new ElasticsearchException("Security configuration cannot be loaded for unknown reasons");
             }
         } catch (final InterruptedException e) {
@@ -76,12 +76,22 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private void reloadConfig() {
 
         try {
+            boolean first = securityConfiguration == null;
+
+            if(first) {
+                log.info("retrieving Security configuration document for the first time");
+            }
+
             log.debug("retrieving Security configuration document");
             GetResponse getResponse = client.prepareGet(securityConfigurationIndex, "ac", "ac").setRefresh(true).get(TimeValue.timeValueSeconds(10));
+
 
             if (getResponse.isExists() && !getResponse.isSourceEmpty()) {
                 securityConfiguration = getResponse.getSourceAsBytesRef();
                 latch.countDown();
+                if (first) {
+                    log.info("Security Configuration loaded with size {}",securityConfiguration.length());
+                }
                 log.debug("Security configuration reloaded");
             } else {
                 throw new IllegalStateException("Document does not yet exists !");
