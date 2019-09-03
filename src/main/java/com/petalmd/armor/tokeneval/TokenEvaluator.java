@@ -77,7 +77,9 @@ public class TokenEvaluator {
         for (ACRule acl : acRules.getAcl()) {
             boolean shouldAddEntities = false;
             //check User names
-            if (acl.getUsers() != null && acl.getUsers().contains(user.getName())) {
+            if (acl.getUsers() != null && 
+                    acl.getUsers().stream()
+                            .anyMatch((aclUsername) -> (aclUsername.equals(user.getName()) || SecurityUtil.isWildcardMatch(user.getName(),aclUsername,false)))) {
                 shouldAddEntities = true;
             }
             //check roles
