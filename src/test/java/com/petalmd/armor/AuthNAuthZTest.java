@@ -35,16 +35,15 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
     public boolean wrongPwd;
 
 
-
     @Test
-    public void testLdapAuth_TT() throws Exception{
+    public void testLdapAuth_TT() throws Exception {
         cacheEnabled = true;
         wrongPwd = true;
         testLdapAuth();
     }
 
     @Test
-    public void testLdapAuth_TF() throws Exception{
+    public void testLdapAuth_TF() throws Exception {
         cacheEnabled = true;
         wrongPwd = false;
         testLdapAuth();
@@ -148,12 +147,11 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
         ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = cacheEnabled(cacheEnabled)
-                .put("armor.authentication.http_authenticator.impl",
-                        "com.petalmd.armor.authentication.http.proxy.HTTPProxyAuthenticator")
-                        .putList("armor.authentication.proxy.trusted_ips", "*")
-                        .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
-                        .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.ldap.LDAPAuthenticationBackend")
+                .put("armor.authentication.http_authenticator.impl", "com.petalmd.armor.authentication.http.proxy.HTTPProxyAuthenticator")
+                .putList("armor.authentication.proxy.trusted_ips", "*")
+                .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
+                .put("armor.authentication.authentication_backend.impl",
+                        "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
                 .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                 .put("armor.authentication.ldap.username_attribute", "uid")

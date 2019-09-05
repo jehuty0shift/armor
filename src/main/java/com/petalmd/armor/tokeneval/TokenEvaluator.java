@@ -77,19 +77,20 @@ public class TokenEvaluator {
         for (ACRule acl : acRules.getAcl()) {
             boolean shouldAddEntities = false;
             //check User names
-            if (acl.getUsers() != null && 
-                    acl.getUsers().stream()
-                            .anyMatch((aclUsername) -> (aclUsername.equals(user.getName()) || SecurityUtil.isWildcardMatch(user.getName(),aclUsername,false)))) {
+            if (acl.getUsers() != null  &&
+                    acl.getUsers().stream().anyMatch(
+                            (aclUN) -> (aclUN.equals(user.getName()) || (aclUN.contains("*") && SecurityUtil.isWildcardMatch(user.getName(),aclUN,false))))) {
                 shouldAddEntities = true;
             }
             //check roles
             if (shouldAddEntities == false && !user.getRoles().isEmpty() && acl.getRoles() != null) {
-                for (String role : acl.getRoles()) {
-                    if (user.getRoles().contains(role)) {
-                        //one role found is enough
-                        break;
+                shouldAddEntities = acl.getRoles().stream().anyMatch((r) -> {
+                    if (r.contains("*")) {
+                        return user.getRoles().stream().anyMatch((ur) ->  (SecurityUtil.isWildcardMatch(ur,r,false)));
+                     } else {
+                        return user.getRoles().contains(r);
                     }
-                }
+                });
             }
             if (shouldAddEntities) {
                 if (acl.getAliases() != null && !acl.getAliases().isEmpty()) {
