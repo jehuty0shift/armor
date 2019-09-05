@@ -503,7 +503,6 @@ public class SearchTests extends AbstractScenarioTest {
         Map json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 403);
 
-
         //test on  forbidden indice + allowed alias
         final String[] indices2 = new String[]{"cto", "cxo"};
         final Tuple<JestResult, HttpResponse> resulttu2 = executeSearch("ac_query_matchall.json", indices2, null,

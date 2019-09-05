@@ -10,10 +10,10 @@
         "*"
       ],
       "users":[
-        "*"
+        "toto*"
       ],
       "roles":[
-        "*"
+        "hello"
       ],
       "indices":[
         "public"
