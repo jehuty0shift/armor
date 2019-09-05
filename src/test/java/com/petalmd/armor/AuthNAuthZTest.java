@@ -65,13 +65,6 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
     }
 
     @Test
-    public void testProxyAuth_TT() throws Exception {
-        cacheEnabled = true;
-        wrongPwd = true;
-        testProxyAuth();
-    }
-
-    @Test
     public void testProxyAuth_TF() throws Exception {
         cacheEnabled = true;
         wrongPwd = false;
@@ -82,13 +75,6 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
     public void testProxyAuth_FF() throws Exception {
         cacheEnabled = false;
         wrongPwd = false;
-        testProxyAuth();
-    }
-
-    @Test
-    public void testProxyAuth_FT() throws Exception {
-        cacheEnabled = false;
-        wrongPwd = true;
         testProxyAuth();
     }
 
