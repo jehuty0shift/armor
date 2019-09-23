@@ -83,11 +83,14 @@ public class ArmorInfoAction extends BaseRestHandler {
 
                 builder.startObject();
 
-                builder.field("enabled", settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, false).toString());
+                final Boolean enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, false);
+                builder.field("enabled", enabled.toString());
                 builder.field("isLoopback", isLoopback);
                 builder.field("resolvedAddress", resolvedAddress.toString());
                 builder.field("available", available);
-
+                if(log.isDebugEnabled()) {
+                    log.debug("enabled {}, isLoopback {}, resolvedAddress {}, available {}", enabled, isLoopback, resolvedAddress, available);
+                }
                 builder.endObject();
                 if (available) {
                     response = new BytesRestResponse(RestStatus.OK, builder);
