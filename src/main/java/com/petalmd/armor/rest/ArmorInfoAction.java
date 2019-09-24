@@ -21,7 +21,9 @@ package com.petalmd.armor.rest;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -37,6 +39,7 @@ public class ArmorInfoAction extends BaseRestHandler {
 
     private final Settings settings;
     private final ArmorConfigService armorConfigService;
+    protected final Logger log = ESLoggerFactory.getLogger(ArmorInfoAction.class);
 
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
@@ -63,6 +66,7 @@ public class ArmorInfoAction extends BaseRestHandler {
                 final XContentBuilder builder = restChannel.newBuilder();
 
                 boolean available;
+                log.info("retrieving Security Configuration");
                 try {
                     BytesReference securityConfiguration = armorConfigService.getSecurityConfiguration();
                     if(securityConfiguration != null && securityConfiguration.length() > 0) {
@@ -74,18 +78,23 @@ public class ArmorInfoAction extends BaseRestHandler {
                     available = false;
                 }
 
+                log.info("retrieved Security Configuration");
                 try {
 
                     //TODO : To Delete ? Authentication is done in REST Wrapper
 
                     builder.startObject();
 
-                    builder.field("armor.enabled",settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED,false).toString());
-                    builder.field("armor.isloopback", isLoopback);
-                    builder.field("armor.resolvedaddress", resolvedAddress.toString());
+                    final Boolean enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED,false);
+                    builder.field("enabled",enabled);
+                    builder.field("isloopback", isLoopback);
+                    builder.field("resolvedAddress", resolvedAddress.toString());
                     builder.field("available", available);
 
                     builder.endObject();
+                    if(log.isDebugEnabled()) {
+                        log.debug("enabled {}, isLoopback {}, resolvedAdress {}, available {}", enabled, isLoopback, resolvedAddress, available);
+                    }
 
                     if (available) {
                         response = new BytesRestResponse(RestStatus.OK, builder);
