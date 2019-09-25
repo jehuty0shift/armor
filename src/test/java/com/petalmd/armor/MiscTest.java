@@ -184,6 +184,54 @@ public class MiscTest extends AbstractUnitTest {
     }
 
     @Test
+    public void clusterHealthNoIndices() throws Exception {
+        final Settings settings = Settings
+                .builder()
+                .put("armor.authentication.authorizer.impl",
+                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
+                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@root:secret")
+                .put("armor.authentication.authorizer.cache.enable", "true")
+                .put("armor.authentication.authentication_backend.impl",
+                        "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
+                .put("armor.authentication.authentication_backend.cache.enable", "true")
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions",
+                        "cluster:monitor/main",
+                        "cluster:monitor/state",
+                        "cluster:monitor/health",
+                        "cluster:monitor/nodes/info")
+                .putList("armor.actionrequestfilter.readonly.forbidden_actions",
+                        "cluster:admin*",
+                        "cluster:monitor/nodes",
+                        "cluster:monitor/nodes/hot_threads",
+                        "cluster:monitor/nodes/liveness",
+                        "cluster:monitor/nodes/stats",
+                        "cluster:monitor/stats",
+                        "cluster:monitor/task")
+                .put("armor.aggregation_filter.enabled", true)
+                .put("armor.action.cache.filter.enabled", true)
+                .putList("armor.action.cache.filter.actions", "cluster:monitor/nodes/info*")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .putList("armor.obfuscation.filter.getindexresponse.remove", "aliases", "settings.index.routing.allocation.require.new_box_type", "settings.index.merge.scheduler.max_thread_count", "settings.index.merge.scheduler.max_merge_count")
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put("armor.indices.updatesettingsfilter.enabled", true)
+                .putList("armor.indices.updatesettingsfilter.allowed_settings", "analysis", "index.refresh_interval")
+                .build();
+
+        startES(settings);
+        username = "jacksonm";
+        password = "secret";
+        setupTestData("ac_rules_execute_all.json");
+
+        final JestClient client = getJestClient(getServerUri(false), username, password);
+
+        Tuple<JestResult, HttpResponse> jResult = ((HeaderAwareJestHttpClient) client).executeE(new Health.Builder().timeout(10).build());
+
+        Assert.assertEquals(jResult.v2().getStatusLine().getStatusCode(), 200);
+    }
+
+    @Test
     public void reindexTest() throws Exception {
 
         final boolean wrongPassword = false;
@@ -245,13 +293,13 @@ public class MiscTest extends AbstractUnitTest {
         final JestClient client = getJestClient(getServerUri(false), username, password);
 
 
-        final JestResult jr = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type",ContentType.APPLICATION_JSON).build());
+        final JestResult jr = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type", ContentType.APPLICATION_JSON).build());
 
         Assert.assertTrue(!jr.isSucceeded());
         Assert.assertTrue(jr.getResponseCode() == 403);
 
         //with the magic header now it should be allowed
-        final JestResult jr2 = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type",ContentType.APPLICATION_JSON).setHeader("kibana", "myreallyawesomekibanaheadervalue").build());
+        final JestResult jr2 = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type", ContentType.APPLICATION_JSON).setHeader("kibana", "myreallyawesomekibanaheadervalue").build());
 
         Assert.assertTrue(jr2.isSucceeded());
         Assert.assertTrue(jr2.getResponseCode() == 201);

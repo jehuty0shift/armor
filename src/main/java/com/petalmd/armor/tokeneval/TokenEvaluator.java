@@ -75,22 +75,29 @@ public class TokenEvaluator {
         //retrieve entities
 
         for (ACRule acl : acRules.getAcl()) {
+            log.trace("checking rule {}", acl.get__Comment__() != null ? acl.get__Comment__() : "unknown");
+            log.trace("acl Users {}, acl Roles {}",acl.getUsers(), acl.getRoles());
             boolean shouldAddEntities = false;
             //check User names
-            if (acl.getUsers() != null  &&
+            if (acl.getUsers() != null &&
                     acl.getUsers().stream().anyMatch(
-                            (aclUN) -> (aclUN.equals(user.getName()) || (aclUN.contains("*") && SecurityUtil.isWildcardMatch(user.getName(),aclUN,false))))) {
+                            (aclUN) -> (aclUN.equals(user.getName()) || (aclUN.contains("*") && SecurityUtil.isWildcardMatch(user.getName(), aclUN, false))))) {
+                log.trace("rule user {} matches", acl.getUsers());
                 shouldAddEntities = true;
             }
             //check roles
             if (shouldAddEntities == false && !user.getRoles().isEmpty() && acl.getRoles() != null) {
-                shouldAddEntities = acl.getRoles().stream().anyMatch((r) -> {
+                if (acl.getRoles().stream().anyMatch((r) -> {
                     if (r.contains("*")) {
-                        return user.getRoles().stream().anyMatch((ur) ->  (SecurityUtil.isWildcardMatch(ur,r,false)));
-                     } else {
+                        return user.getRoles().stream().anyMatch((ur) -> (SecurityUtil.isWildcardMatch(ur, r, false)));
+                    } else {
                         return user.getRoles().contains(r);
                     }
-                });
+                })) {
+                    log.trace("rule roles {} matches", acl.getRoles());
+
+                    shouldAddEntities = true;
+                }
             }
             if (shouldAddEntities) {
                 if (acl.getAliases() != null && !acl.getAliases().isEmpty()) {
@@ -295,10 +302,9 @@ public class TokenEvaluator {
             //-- Aliases -------------------------------------------
 
 
-
-            Set<String> aliasesToCheck = acRule.aliases!=null?new HashSet<>(acRule.aliases):new HashSet<>();
-            if(indicesLikeAliases) {
-                if(acRule.indices!= null && !acRule.indices.isEmpty()) {
+            Set<String> aliasesToCheck = acRule.aliases != null ? new HashSet<>(acRule.aliases) : new HashSet<>();
+            if (indicesLikeAliases) {
+                if (acRule.indices != null && !acRule.indices.isEmpty()) {
                     aliasesToCheck.addAll(acRule.indices);
                 }
             }

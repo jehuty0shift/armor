@@ -18,10 +18,6 @@ public class RulesEntities {
         aliases = new HashSet<>();
     }
 
-    public void addIndex(String index){
-        indices.add(index);
-    }
-
     public void addIndices(Collection<String> newIndices) {
         indices.addAll(newIndices);
         indices.remove("*");
@@ -30,10 +26,6 @@ public class RulesEntities {
     public void addAliases(Collection<String> newAliases) {
         aliases.addAll(newAliases);
         aliases.remove("*");
-    }
-
-    public void addAlias(String alias) {
-        aliases.add(alias);
     }
 
     public Set<String> getAliases() {
