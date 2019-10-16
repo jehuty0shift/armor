@@ -62,7 +62,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
 
     public BytesReference getSecurityConfiguration() {
         try {
-            if (!latch.await(1, TimeUnit.MINUTES)) {
+            if (!latch.await(15, TimeUnit.SECONDS)) {
                 log.info("Is reload task terminated ? {}", scheduledFuture.isCancelled());
                 throw new ElasticsearchException("Security configuration cannot be loaded for unknown reasons");
             }

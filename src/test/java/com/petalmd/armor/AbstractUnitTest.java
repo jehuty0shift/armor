@@ -659,6 +659,69 @@ public abstract class AbstractUnitTest {
                 .actionGet();
     }
 
+
+
+    protected final void setupTestDataWithFilteredAliasWithStreams(final String armorConfig) throws Exception {
+
+        CreateIndexRequestBuilder indexFinancialBuilder = esNode1.client().admin().indices().prepareCreate("financial");
+        indexFinancialBuilder.addMapping("sensitivestuff",
+                "    { \"properties\":" +
+                        "        {\"user\": " +
+                        "             {\"type\" : \"keyword\" }" +
+                        "        ," +
+                        "         \"structure\":" +
+                        "             {\"properties\" : " +
+                        "                  { \"thesubfield2\" : { \"type\" : \"keyword\" } } } }" +
+                        "     }"
+                , XContentType.JSON);
+        CreateIndexResponse responseFinancial = indexFinancialBuilder.get();
+        CreateIndexRequestBuilder indexCeoBuilder = esNode1.client().admin().indices().prepareCreate("ceo");
+        indexCeoBuilder.addMapping("internal",
+                "    { \"properties\":" +
+                        "        {\"user\": " +
+                        "             {\"type\" : \"keyword\" }" +
+                        "        ," +
+                        "         \"structure\" :" +
+                        "             {\"properties\" : " +
+                        "                  { \"thesubfield2\" : { \"type\" : \"keyword\" } } } }" +
+                        "     }"
+                , XContentType.JSON);
+        CreateIndexResponse responseCeo = indexCeoBuilder.get();
+        Assert.assertTrue(responseFinancial.isAcknowledged());
+        Assert.assertTrue(responseCeo.isAcknowledged());
+        setupTestData(armorConfig);
+        executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
+        executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);
+        executeIndex("dummy_content4.json", "dev", "beta", "t1p_9", true, true);
+        executeIndex("dummy_content5.json", "dev", "beta", "t1p_10", true, true);
+        executeIndex("dummy_content6.json", "dev", "beta", "t1p_11", true, true);
+        executeIndex("dummy_content7.json", "dev", "beta", "t1p_12", true, true);
+        executeIndex("dummy_content8.json", "dev", "beta", "t1p_13", true, true);
+
+
+        esNode1.client().admin().indices()
+                .prepareAliases()
+                .addAlias(new String[]{"financial", "dev"}, "filtered", "{\n" +
+                        "          \"bool\" : {\n" +
+                        "            \"minimum_should_match\" : 1,\n" +
+                        "            \"should\" : [\n" +
+                        "              {\n" +
+                        "                \"term\" : {\n" +
+                        "                  \"streams\" : \"streamId1\"\n" +
+                        "                }\n" +
+                        "              },\n" +
+                        "              {\n" +
+                        "                \"term\" : {\n" +
+                        "                  \"streams\" : \"streamId2\"\n" +
+                        "                }\n" +
+                        "              }\n" +
+                        "            ]\n" +
+                        "          }\n" +
+                        "        }\n")
+                .execute()
+                .actionGet();
+    }
+
     private static class JaasCredentials implements Credentials {
 
         @Override
