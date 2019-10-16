@@ -105,7 +105,7 @@ public class ArmorRestShield {
             return true;
         }
 
-        if(request.method() == RestRequest.Method.GET && request.path().startsWith("_armor")) {
+        if(request.method() == RestRequest.Method.GET && request.path().startsWith("/_armor")) {
             log.debug("checking armor status, will allow");
             return true;
         }
