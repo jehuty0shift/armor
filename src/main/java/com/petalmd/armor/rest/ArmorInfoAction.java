@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.rest;
@@ -52,6 +52,7 @@ public class ArmorInfoAction extends BaseRestHandler {
                            final ArmorConfigService armorConfigService) {
         super(settings);
         controller.registerHandler(GET, "/_armor", this);
+        controller.registerHandler(POST, "/_armor/local/maintenance", this);
         this.armorConfigService = armorConfigService;
         this.settings = settings;
     }
@@ -103,7 +104,7 @@ public class ArmorInfoAction extends BaseRestHandler {
                 response = new BytesRestResponse(RestStatus.GONE, builder);
             } else {
                 //should be available
-                if(hasSecurityConf) {
+                if (hasSecurityConf) {
                     response = new BytesRestResponse(RestStatus.OK, builder);
                 } else {
                     response = new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, builder);
@@ -126,9 +127,9 @@ public class ArmorInfoAction extends BaseRestHandler {
         BytesRestResponse response;
         final XContentBuilder builder = restChannel.newBuilder();
 
-        if(!restRequest.hasContent()) {
+        if (!restRequest.hasContent()) {
             builder.startObject();
-            builder.field("error","maintenance call needs a payload");
+            builder.field("error", "maintenance call needs a payload");
             builder.endObject();
 
             response = new BytesRestResponse(RestStatus.BAD_REQUEST, builder);
@@ -137,9 +138,9 @@ public class ArmorInfoAction extends BaseRestHandler {
         }
 
         XContentParser contentParser = restRequest.contentParser();
-        if(XContentParser.Token.START_OBJECT == contentParser.nextToken()) {
+        if (XContentParser.Token.START_OBJECT == contentParser.nextToken()) {
             while (XContentParser.Token.END_OBJECT != contentParser.nextToken()) {
-                if(XContentParser.Token.FIELD_NAME == contentParser.currentToken()) {
+                if (XContentParser.Token.FIELD_NAME == contentParser.currentToken()) {
                     String currentFieldName = contentParser.currentName();
                     if ("maintenance_enabled".equals(currentFieldName)) {
                         if (XContentParser.Token.VALUE_BOOLEAN == contentParser.nextToken()) {
@@ -157,7 +158,7 @@ public class ArmorInfoAction extends BaseRestHandler {
         }
 
         builder.startObject();
-        builder.field("error","the content is not right (expected field 'maintenance_enabled'");
+        builder.field("error", "the content is not right (expected field 'maintenance_enabled'");
         builder.endObject();
         response = new BytesRestResponse(RestStatus.BAD_REQUEST, builder);
 
