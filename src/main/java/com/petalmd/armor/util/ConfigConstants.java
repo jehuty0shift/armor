@@ -85,6 +85,7 @@ public final class ConfigConstants {
     public static final String ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED = "armor.indices.updatesettingsfilter.allowed_settings";
     public static final String ARMOR_KIBANA_HELPER_ENABLED = "armor.kibana.filter.enabled";
     public static final String ARMOR_KEFLA_FILTER_ENABLED = "armor.kefla.filter.enabled";
+    public static final String ARMOR_KEFLA_PLUGIN_ENDPOINT = "armor.kefla.plugin.endpoint";
     public static final String ARMOR_KEY_PATH = "armor.key_path";
     public static final String ARMOR_OBFUSCATION_FILTER_ENABLED = "armor.obfuscation.filter.enabled";
     public static final String ARMOR_OBFUSCATION_FILTERS = "armor.obfuscation.filter.";

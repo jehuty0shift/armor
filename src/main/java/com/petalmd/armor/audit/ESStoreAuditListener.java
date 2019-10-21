@@ -226,8 +226,8 @@ public class ESStoreAuditListener implements AuditListener {
                             log.error("creation of audit index failed due to IOException", e);
                         }
                     } else {
-                        log.warn("the audit index does not Exists");
-                        auditIndexCreated.set(false);
+                        log.warn("the audit index does exist");
+                        auditIndexCreated.set(true);
                     }
                 }
             } catch (Exception e) {

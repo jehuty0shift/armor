@@ -401,44 +401,16 @@ public abstract class AbstractActionFilter implements ActionFilter {
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }
+            //put aliases for Kefla Filter
+            if(threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
+                threadContext.putTransient(ArmorConstants.ARMOR_KEFLA_ALIASES, aliases);
+            }
             return eval;
         } catch (MalformedConfigurationException ex) {
             log.warn("Error in configuration");
             return null;
         }
     }
-
-    //works also with alias of an alias!
-//    protected List<String> resolveAliases(final Collection<String> indices) {
-//
-//        final List<String> result = new ArrayList<String>();
-//
-//        final SortedMap<String, AliasOrIndex> aliases = clusterService.state().metaData().getAliasAndIndexLookup();
-//
-//        for (String index : indices) {
-//
-//            final AliasOrIndex indexAliases = aliases.get(index);
-//
-//            if (!indexAliases.isAlias()) {
-//                result.add(index);
-//                log.trace("{} is an concrete index", index);
-//                continue;
-//            }
-//
-//            log.trace("{} is an alias and points to -> {}", index, indexAliases.getIndices());
-//
-//            final Iterable<Tuple<String, AliasMetaData>> iterable = ((AliasOrIndex.Alias) indexAliases).getConcreteIndexAndAliasMetaDatas();
-//
-//            for (final Iterator<Tuple<String, AliasMetaData>> iterator = iterable.iterator(); iterator.hasNext(); ) {
-//                final Tuple<String, AliasMetaData> entry = iterator.next();
-//                result.add(entry.v1());
-//            }
-//
-//        }
-//
-//        return result;
-//
-//    }
 
     protected List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
 

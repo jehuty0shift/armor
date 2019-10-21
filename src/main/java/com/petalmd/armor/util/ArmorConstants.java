@@ -16,6 +16,7 @@ public final class ArmorConstants {
     public static final String ARMOR_ACTION_FILTER_BYPASS = "armor_action_filter_bypass";
     public static final String ARMOR_DELETE_BY_QUERY_START = "armor_action_deletebyquery_start";
     public static final String ARMOR_FIELD_CAPS_ACTION_START = "armor_action_fieldcap_start";
+    public static final String ARMOR_KEFLA_ALIASES = "armor_kefla_aliases";
     public static final String ARMOR_RESOLVED_REST_ADDRESS = "armor_resolved_rest_address";
     public static final String ARMOR_UPDATE_BY_QUERY_START = "armor_action_updatebyquery_start";
     public static final String ARMOR_FILTER = "armor_filter";

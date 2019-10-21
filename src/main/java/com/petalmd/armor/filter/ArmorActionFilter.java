@@ -281,6 +281,10 @@ public class ArmorActionFilter implements ActionFilter {
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }
+            //put aliases for Kefla Filter
+            if(threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
+                threadContext.putTransient(ArmorConstants.ARMOR_KEFLA_ALIASES, aliases);
+            }
             //copyContextToHeader(request);
         } else {
             eval = threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR);
