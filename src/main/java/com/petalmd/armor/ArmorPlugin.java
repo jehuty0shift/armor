@@ -399,6 +399,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //Kefla
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_USER, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         return settings;
     }

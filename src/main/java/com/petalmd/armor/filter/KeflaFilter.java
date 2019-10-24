@@ -31,7 +31,6 @@ import java.util.SortedMap;
 public class KeflaFilter extends AbstractActionFilter {
 
     private static final Logger log = LogManager.getLogger(KeflaFilter.class);
-    private final Settings settings;
     private boolean enabled;
     private final String graylogEndpoint;
     public final List<String> actions = ImmutableList.of(
@@ -42,7 +41,6 @@ public class KeflaFilter extends AbstractActionFilter {
 
     public KeflaFilter(final Settings settings, final ArmorService armorService, final ArmorConfigService armorConfigService, final ClusterService clusterService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
-        this.settings = settings;
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false);
         graylogEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
         if (graylogEndpoint.isBlank()) {
@@ -81,7 +79,7 @@ public class KeflaFilter extends AbstractActionFilter {
         // retrieve filter from aliases
         SortedMap<String, AliasOrIndex> aliasMap = clusterService.state().metaData().getAliasAndIndexLookup();
 
-        // retrieve mapping from Graylog or from ThreadContext
+        // retrieve mapping from Graylog or from Cache
 
 
         // install Listener according to action and mappings

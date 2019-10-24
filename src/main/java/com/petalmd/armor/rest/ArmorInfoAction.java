@@ -35,7 +35,6 @@ import org.elasticsearch.rest.*;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -87,14 +86,14 @@ public class ArmorInfoAction extends BaseRestHandler {
         final XContentBuilder builder = restChannel.newBuilder();
 
         boolean hasSecurityConf;
-            log.info("retrieving Security Configuration...");
+            log.debug("retrieving Security Configuration...");
             try {
                 final BytesReference securityConfig = armorConfigService.getSecurityConfiguration();
                 hasSecurityConf = securityConfig != null && securityConfig.length() > 0;
             } catch (ElasticsearchException e) {
                 hasSecurityConf = false;
             }
-            log.info("retrieved Security Configuration.");
+            log.debug("retrieved Security Configuration.");
 
         try {
 
