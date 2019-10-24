@@ -123,7 +123,7 @@ public class ArmorInfoAction extends BaseRestHandler {
             builder.endObject();
             response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
         }
-        log.info("Armor available: {}", hasSecurityConf);
+        log.debug("Armor available: {}", hasSecurityConf);
         restChannel.sendResponse(response);
 
     }
