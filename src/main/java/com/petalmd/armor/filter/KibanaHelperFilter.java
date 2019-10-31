@@ -33,6 +33,11 @@ public class KibanaHelperFilter extends AbstractActionFilter {
         log.info("Kibana Helper Filter is {}", enabled?"enabled":"disabled");
     }
 
+    @Override
+    public int order() {
+        return super.order();
+    }
+
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
         if (!enabled) {
             chain.proceed(task, action, request, listener);

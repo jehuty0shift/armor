@@ -43,6 +43,7 @@ public class KeflaRestType {
         DATE("date"),
         GEO("geo_point"),
         INTEGER("integer"),
+        IP("ip"),
         KEYWORD("keyword"),
         LONG("long"),
         TEXT("text");
@@ -101,6 +102,8 @@ public class KeflaRestType {
                     this.fields = ImmutableMap.of("geo", new KeflaRestType("geo"));
                 } else if (fieldName.endsWith("_bool")) {
                     this.type = ESType.BOOL.value;
+                } else if (fieldName.endsWith("_ip")) {
+                  this.type = ESType.IP.value;
                 } else {
                     this.type = ESType.KEYWORD.value;
                 }

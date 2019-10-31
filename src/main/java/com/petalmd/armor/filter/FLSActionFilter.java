@@ -79,6 +79,11 @@ public class FLSActionFilter extends AbstractActionFilter {
     }
 
     @Override
+    public int order() {
+        return Integer.MIN_VALUE + 11;
+    }
+
+    @Override
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 
         if (filterMap.size() == 0) {

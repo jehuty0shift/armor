@@ -76,7 +76,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
     protected final ThreadPool threadpool;
 
     @Override
-    public final int order() {
+    public int order() {
         return Integer.MIN_VALUE;
     }
 

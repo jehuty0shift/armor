@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.filter;
@@ -43,7 +43,7 @@ public class RequestActionFilter extends AbstractActionFilter {
 
     @Inject
     public RequestActionFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService,armorService, armorConfigService, armorService.getAuditListener(), threadPool);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
 
         final List<String> arFilters = settings.getAsList(ConfigConstants.ARMOR_ACTIONREQUESTFILTER);
         for (final String filterName : arFilters) {
@@ -58,6 +58,11 @@ public class RequestActionFilter extends AbstractActionFilter {
     }
 
     @Override
+    public int order() {
+        return Integer.MIN_VALUE + 7;
+    }
+
+    @Override
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 
         if (filterMap.size() == 0) {
@@ -67,7 +72,7 @@ public class RequestActionFilter extends AbstractActionFilter {
 
         final ThreadContext threadContext = threadpool.getThreadContext();
 
-        for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext();) {
+        for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext(); ) {
 
             final Entry<String, Tuple<List<String>, List<String>>> entry = it.next();
 

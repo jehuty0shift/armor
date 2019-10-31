@@ -30,6 +30,7 @@ import com.petalmd.armor.authorization.GuavaCachingAuthorizator;
 import com.petalmd.armor.authorization.NonCachingAuthorizator;
 import com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator;
 import com.petalmd.armor.filter.*;
+import com.petalmd.armor.filter.kefla.KeflaEngine;
 import com.petalmd.armor.http.DefaultSessionStore;
 import com.petalmd.armor.http.NullSessionStore;
 import com.petalmd.armor.http.SessionStore;
@@ -103,6 +104,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private Client client;
     private ClusterService clusterService;
     private HTTPAuthenticator httpAuthenticator;
+    private KeflaEngine keflaEngine;
     private NamedXContentRegistry xContentRegistry;
     private SessionStore sessionStore;
     private ThreadPool threadPool;
@@ -223,6 +225,10 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         armorConfigService = new ArmorConfigService(settings, client, auditListener);
         componentsList.add(armorConfigService);
 
+        //create Kefla Engine Service
+        keflaEngine = new KeflaEngine(settings, clusterService);
+        componentsList.add(keflaEngine);
+
         log.info("added " + componentsList.size() + " components.");
         log.info(authenticationBackend.getClass().getName());
         return componentsList;
@@ -242,6 +248,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new IndicesUpdateSettingsFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new KeflaFilter(settings, keflaEngine, armorService, armorConfigService, clusterService, threadPool));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }

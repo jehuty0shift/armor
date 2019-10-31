@@ -32,6 +32,10 @@ public class ClearScrollFilter extends AbstractActionFilter {
         canScrollClearAll = settings.getAsBoolean(ConfigConstants.ARMOR_SCROLL_CLEAR_ALLOW_ALL,false);
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 4;
+    }
 
     @Override
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {

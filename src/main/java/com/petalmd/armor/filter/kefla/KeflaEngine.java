@@ -17,10 +17,7 @@ import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -59,12 +56,13 @@ public class KeflaEngine extends AbstractLifecycleComponent {
     protected void doStart() {
         //start scheduler
         if (settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false)) {
+            //first Update
+            scheduler.scheduleAtFixedRate(this::updateEngine,1,10, TimeUnit.SECONDS);
             log.info("Kefla Engine started");
         }
-        scheduler.scheduleAtFixedRate(this::updateEngine,1,10, TimeUnit.SECONDS);
     }
 
-    public Map<String, Map<String, Map<String, KeflaRestType>>> getFieldsForStream(List<String> streamIds) {
+    public Map<String, Map<String, Map<String, KeflaRestType>>> getFieldsForStream(Collection<String> streamIds) {
         Map<String, Map<String, Map<String, KeflaRestType>>> strIndicesFieldResp = new HashMap<>();
         List<String> streamIdsToRetrieve = new ArrayList<>();
         for (String streamId : streamIds) {
@@ -108,7 +106,8 @@ public class KeflaEngine extends AbstractLifecycleComponent {
 
     private void updateEngine() {
         //first update the default index
-        int max = Integer.parseInt(currentDefaultIndex.substring(9));
+        String[] defaultSplit = currentDefaultIndex.split("_");
+        int max = Integer.parseInt(defaultSplit[defaultSplit.length -1]);
         String indexMax = currentDefaultIndex;
         for (IndexMetaData iMetadata : clusterService.state().metaData()) {
             if(iMetadata.getIndex().getName().startsWith("graylog2_")){

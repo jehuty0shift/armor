@@ -56,6 +56,10 @@ public class ActionCacheFilter extends AbstractActionFilter {
         actionsCache = new HashMap<>(cacheablesActions.size());
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 8;
+    }
 
     @Override
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {

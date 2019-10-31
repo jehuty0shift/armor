@@ -52,6 +52,10 @@ public class ObfuscationFilter extends AbstractActionFilter {
         log.info("ObfuscationFilter is " + (enabled ? "enabled" : "disabled"));
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 3;
+    }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
         if (!enabled) {

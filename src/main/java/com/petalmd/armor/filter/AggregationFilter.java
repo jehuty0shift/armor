@@ -59,6 +59,10 @@ public class AggregationFilter extends AbstractActionFilter {
         this.mapper = new ObjectMapper();
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 5;
+    }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 

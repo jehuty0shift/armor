@@ -1,0 +1,48 @@
+{
+  "indices_stream_fields": {
+    "dev": {
+      "streamId1": {
+        "user": {
+          "type": "keyword",
+          "fields": null,
+          "ignore_malformed": null,
+          "index": null,
+          "format": null,
+          "norms": null,
+          "fielddata": null,
+          "analyzer": null
+        },
+        "post_date": {
+          "type": "date",
+          "fields": null,
+          "ignore_malformed": null,
+          "index": null,
+          "format": null,
+          "norms": null,
+          "fielddata": null,
+          "analyzer": null
+        },
+        "message": {
+          "type": "text",
+          "fields": null,
+          "ignore_malformed": null,
+          "index": null,
+          "format": null,
+          "norms": false,
+          "fielddata": null,
+          "analyzer": "standard"
+        },
+        "thesubfield2": {
+          "type": "keyword",
+          "fields": null,
+          "ignore_malformed": null,
+          "index": null,
+          "format": null,
+          "norms": null,
+          "fielddata": null,
+          "analyzer": null
+        }
+      }
+    }
+  }
+}

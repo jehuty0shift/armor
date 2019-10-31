@@ -78,7 +78,7 @@ public class ArmorActionFilter implements ActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 1;
+        return Integer.MIN_VALUE + 2;
     }
 
     @Override

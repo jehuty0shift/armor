@@ -53,6 +53,10 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
         log.debug("allowed Settings are {}",allowedSettings.toString());
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 6;
+    }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
         //proceed if not enabled

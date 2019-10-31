@@ -80,6 +80,12 @@ public class DLSActionFilter extends AbstractActionFilter {
         this.rewriteGetAsSearch = settings.getAsBoolean(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH, true);
     }
 
+
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 10;
+    }
+
     @Override
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 

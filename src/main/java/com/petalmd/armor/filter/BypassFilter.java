@@ -31,6 +31,11 @@ public class BypassFilter extends AbstractActionFilter {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE+1;
+    }
+
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
 
         ThreadContext tContext = threadpool.getThreadContext();
