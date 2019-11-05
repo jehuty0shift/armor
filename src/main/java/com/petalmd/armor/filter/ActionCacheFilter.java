@@ -58,7 +58,7 @@ public class ActionCacheFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 8;
+        return Integer.MIN_VALUE + 7;
     }
 
     @Override

@@ -49,7 +49,7 @@ public class KeflaFilter extends AbstractActionFilter {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false);
         graylogEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
-        if (graylogEndpoint.isBlank()) {
+        if (this.enabled && graylogEndpoint.isBlank()) {
             log.error("Graylog Endpoint has not been configured, deactivating Kefla");
             enabled = false;
         }

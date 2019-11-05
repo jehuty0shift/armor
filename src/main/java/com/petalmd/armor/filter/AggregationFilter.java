@@ -61,7 +61,7 @@ public class AggregationFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 5;
+        return Integer.MIN_VALUE + 6;
     }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {

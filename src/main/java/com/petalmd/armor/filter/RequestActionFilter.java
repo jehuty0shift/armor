@@ -59,7 +59,7 @@ public class RequestActionFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 7;
+        return Integer.MIN_VALUE + 2;
     }
 
     @Override

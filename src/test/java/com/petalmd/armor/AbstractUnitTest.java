@@ -572,6 +572,10 @@ public abstract class AbstractUnitTest {
     }
 
     protected final void setupTestData(final String armorConfig) throws Exception {
+
+        executeIndex(armorConfig, "armor", "ac", "ac", true, true);
+
+
         executeIndex("dummy_content.json", "ceo", "internal", "tp_1", true, true);
         executeIndex("dummy_content.json", "cto", "internal", "tp_1", true, true);
         executeIndex("dummy_content.json", "marketing", "flyer", "tp_2", true, true);
@@ -608,8 +612,6 @@ public abstract class AbstractUnitTest {
                 .execute()
                 .actionGet();
         Assert.assertTrue(alias3.isAcknowledged());
-
-        executeIndex(armorConfig, "armor", "ac", "ac", true, true);
 
         log.info("Cluster Data has been setup");
     }

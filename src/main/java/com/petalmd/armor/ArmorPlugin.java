@@ -241,12 +241,12 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         if (!clientBool) {
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
+            actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ArmorActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ObfuscationFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ClearScrollFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new AggregationFilter(settings, clusterService, threadPool, armorService, armorConfigService, xContentRegistry));
             actionFilters.add(new IndicesUpdateSettingsFilter(settings, clusterService, threadPool, armorService, armorConfigService));
-            actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new KeflaFilter(settings, keflaEngine, armorService, armorConfigService, clusterService, threadPool));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));

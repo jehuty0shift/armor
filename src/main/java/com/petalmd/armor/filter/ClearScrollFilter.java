@@ -34,7 +34,7 @@ public class ClearScrollFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 4;
+        return Integer.MIN_VALUE + 5;
     }
 
     @Override

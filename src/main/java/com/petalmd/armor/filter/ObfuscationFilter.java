@@ -54,7 +54,7 @@ public class ObfuscationFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 3;
+        return Integer.MIN_VALUE + 4;
     }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
