@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -21,7 +22,8 @@ public class KeflaResponseFactory {
     public KeflaResponseFactory() {
         hubMap = Map.of(
                 GetMappingsAction.NAME, KeflaGetMappingsResponse.class,
-                GetFieldMappingsAction.NAME, KeflaGetFieldMappingsResponse.class
+                GetFieldMappingsAction.NAME, KeflaGetFieldMappingsResponse.class,
+                FieldCapabilitiesAction.NAME, KeflaFieldCapabilitiesResponse.class
         );
     }
 

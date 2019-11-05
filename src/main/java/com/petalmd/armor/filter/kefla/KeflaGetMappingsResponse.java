@@ -44,7 +44,7 @@ public class KeflaGetMappingsResponse implements KeflaResponse {
                     Map<String, Object> filteredTypeMapping = new HashMap<>();
                     //create properties object
                     Map<String, Object> newPropertiesMap = new HashMap<>();
-                    newPropertiesMap.put("properties",filteredTypeMapping);
+                    newPropertiesMap.put("properties", filteredTypeMapping);
                     //Iter over {"properties" : { ... }}
                     for (Map.Entry<String, Object> propField : propertiesMap.entrySet()) {
                         if (allowedMapping.containsKey(propField.getKey())) {

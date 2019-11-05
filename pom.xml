@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>6.8.2-3</version>
+    <version>6.8.4-1</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -45,13 +45,13 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>6.8.2</elasticsearch.version>
+        <elasticsearch.version>6.8.4</elasticsearch.version>
         <apache.ds.version>2.0.0-M24</apache.ds.version>
         <apache.ds.api.version>1.0.0</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <lucene.maven.version>7.7.0</lucene.maven.version>
+        <lucene.maven.version>7.7.2</lucene.maven.version>
     </properties>
 
     <scm>
@@ -88,7 +88,10 @@
             <id>jspresso.org</id>
             <url>http://repository.jspresso.org/maven2/</url>
         </repository>
-
+         <repository>
+            <id>maven2-repo1</id>
+            <url>http://repo1.maven.org/maven2/</url>
+        </repository>
     </repositories>
 
     <dependencies>

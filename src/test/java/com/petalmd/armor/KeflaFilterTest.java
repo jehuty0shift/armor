@@ -8,9 +8,9 @@ import com.mashape.unirest.request.body.RequestBodyEntity;
 import com.petalmd.armor.filter.kefla.KeflaUtils;
 import com.petalmd.armor.tests.GetFieldMappingsAction;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.Action;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
+import io.searchbox.fields.FieldCapabilities;
 import io.searchbox.indices.mapping.GetMapping;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
@@ -27,6 +27,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.modules.junit4.PowerMockRunnerDelegate;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -195,7 +196,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
         final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetFieldMappingsAction.Builder())
                 .addIndex(indices)
                 .addType("beta")
-                .setFields(List.of("user","previous_club"))
+                .setFields(List.of("user", "previous_club"))
                 .build()
         );
 
@@ -215,5 +216,77 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
     }
 
+
+    @Test
+    public void getFieldCapabilitiesForAlias() throws Exception {
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String indices = "filtered";
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "reader", "forbidden")
+                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/field_caps", "indices:data/read/mapping*", "indices:admin/mappings/fields/get*")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
+                .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(authSettings).build();
+
+        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
+        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
+        com.mashape.unirest.http.HttpResponse<JsonNode> httpRes = Mockito.mock(com.mashape.unirest.http.HttpResponse.class);
+
+        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
+        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
+
+        Mockito.when(rbe.asJson()).thenReturn(httpRes);
+
+        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
+
+
+        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
+
+
+        startES(settings);
+
+        setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
+
+        JestClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE(new FieldCapabilities.Builder(Arrays.asList("user", "previous_club", "message"))
+                .setIndex(indices)
+                .build());
+
+        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
+        Assert.assertTrue(resulttu.v1().getJsonObject()
+                .getAsJsonObject("fields")
+                .getAsJsonObject("user")
+                .getAsJsonObject("text")
+                .getAsJsonArray("indices").size() == 1);
+        Assert.assertTrue(resulttu.v1().isSucceeded());
+        Assert.assertTrue(resulttu.v1().getJsonObject()
+                .getAsJsonObject("fields")
+                .getAsJsonObject("user")
+                .getAsJsonObject("text")
+                .getAsJsonArray("indices")
+                .get(0)
+                .getAsString().equals("dev"));
+        Assert.assertTrue(resulttu.v1().getJsonObject()
+                .getAsJsonObject("fields")
+                .getAsJsonObject("message")
+                .has("text"));
+
+        Assert.assertFalse(resulttu.v1().getJsonObject()
+                .getAsJsonObject("fields")
+                .getAsJsonObject("message")
+                .getAsJsonObject("text").has("indices"));
+        Assert.assertFalse(resulttu.v1()
+                .getJsonObject()
+                .getAsJsonObject("fields")
+                .has("previous_club"));
+
+    }
 
 }

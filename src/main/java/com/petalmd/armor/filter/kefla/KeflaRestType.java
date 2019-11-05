@@ -103,7 +103,7 @@ public class KeflaRestType {
                 } else if (fieldName.endsWith("_bool")) {
                     this.type = ESType.BOOL.value;
                 } else if (fieldName.endsWith("_ip")) {
-                  this.type = ESType.IP.value;
+                    this.type = ESType.IP.value;
                 } else {
                     this.type = ESType.KEYWORD.value;
                 }
