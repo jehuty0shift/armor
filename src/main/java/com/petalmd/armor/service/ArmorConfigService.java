@@ -102,8 +102,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
                         "Tried to refresh security configuration but it failed due to {} - This might be ok if security setup not complete yet.",
                         e.toString());
             } else {
-                log.error("Tried to refresh security configuration but it failed due to {}", e, e.toString());
-
+                log.warn("Tried to refresh security configuration but it failed due to {}", e, e.toString());
             }
         }
     }
