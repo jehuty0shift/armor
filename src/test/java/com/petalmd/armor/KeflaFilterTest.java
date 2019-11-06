@@ -102,7 +102,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
         final String indices = "filtered";
 
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "reader", "forbidden")
-                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/field_caps", "indices:data/read/mapping*", "indices:admin/mappings/fields/get*")
+                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/field_caps", "indices:data/read/mapping*", "indices:admin/mappings/get", "indices:admin/mappings/fields/get*")
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
