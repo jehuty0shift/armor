@@ -26,23 +26,23 @@ public class KeflaUtils {
 
     public static Map<String, Map<String, Map<String, KeflaRestType>>> strFieldMapFromJsonObject(JSONObject jsonObj) {
         Map<String, Map<String, Map<String, KeflaRestType>>> streamFieldMap = new HashMap<>();
-        if (!jsonObj.has("indices_stream_fields")) ;
-        JSONObject indicesObj = jsonObj.getJSONObject("indices_stream_fields");
-        for (String index : indicesObj.keySet()) {
-            JSONObject indexMap = indicesObj.getJSONObject(index);
-            for (String stream : indexMap.keySet()) {
-                Map<String, Map<String, KeflaRestType>> indexFieldType = streamFieldMap.computeIfAbsent(stream, str -> new HashMap<>());
-                Map<String, KeflaRestType> krtMap = indexFieldType.computeIfAbsent(index, i -> new HashMap<>());
-                JSONObject fieldMap = indexMap.getJSONObject(stream);
-                for (String field : fieldMap.keySet()) {
-                    if (field.equals("_id")) {
-                        continue;
+        if (jsonObj.has("indices_stream_fields")) {
+            JSONObject indicesObj = jsonObj.getJSONObject("indices_stream_fields");
+            for (String index : indicesObj.keySet()) {
+                JSONObject indexMap = indicesObj.getJSONObject(index);
+                for (String stream : indexMap.keySet()) {
+                    Map<String, Map<String, KeflaRestType>> indexFieldType = streamFieldMap.computeIfAbsent(stream, str -> new HashMap<>());
+                    Map<String, KeflaRestType> krtMap = indexFieldType.computeIfAbsent(index, i -> new HashMap<>());
+                    JSONObject fieldMap = indexMap.getJSONObject(stream);
+                    for (String field : fieldMap.keySet()) {
+                        if (field.equals("_id")) {
+                            continue;
+                        }
+                        krtMap.put(field, new KeflaRestType(field));
                     }
-                    krtMap.put(field, new KeflaRestType(field));
                 }
             }
         }
-
         return streamFieldMap;
     }
 

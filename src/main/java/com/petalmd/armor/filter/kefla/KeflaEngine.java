@@ -3,6 +3,7 @@ package com.petalmd.armor.filter.kefla;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.petalmd.armor.util.ConfigConstants;
 import kong.unirest.*;
+import kong.unirest.json.JSONException;
 import kong.unirest.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +14,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -35,7 +38,6 @@ public class KeflaEngine extends AbstractLifecycleComponent {
     private String currentDefaultIndex;
 
 
-
     public KeflaEngine(final Settings settings, final ClusterService clusterService) {
         super();
         this.settings = settings;
@@ -53,8 +55,11 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         //start scheduler
         if (settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false)) {
             //first Update
-            scheduler.scheduleAtFixedRate(this::updateEngine,1,10, TimeUnit.SECONDS);
-            Unirest.config().setObjectMapper(new JacksonObjectMapper());
+            scheduler.scheduleAtFixedRate(this::updateEngine, 1, 10, TimeUnit.SECONDS);
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                Unirest.config().setObjectMapper(new JacksonObjectMapper());
+                return null;
+            });
             log.info("Kefla Engine started");
         }
     }
@@ -73,8 +78,8 @@ public class KeflaEngine extends AbstractLifecycleComponent {
             retrieveFieldsFromStream(streamIdsToRetrieve);
         }
         //fill unknown streams with default fields.
-        for(String streamId : streamIdsToRetrieve) {
-            if(streamIndicesFieldMap.containsKey(streamId)) {
+        for (String streamId : streamIdsToRetrieve) {
+            if (streamIndicesFieldMap.containsKey(streamId)) {
                 strIndicesFieldResp.put(streamId, streamIndicesFieldMap.get(streamId));
             } else {
                 strIndicesFieldResp.put(streamId, KeflaUtils.buildDefaultMapping(currentDefaultIndex));
@@ -85,31 +90,48 @@ public class KeflaEngine extends AbstractLifecycleComponent {
 
 
     private void retrieveFieldsFromStream(List<String> strIdsToRet) {
-        HttpRequestWithBody httpReq = Unirest.post(graylogEndpoint + "/api/plugins/com.ovh.graylog/mapping/fields");
-        FieldsRequest fReq = new FieldsRequest();
-        fReq.streams = strIdsToRet;
-        try {
-            log.debug("retrieving fields for {}", strIdsToRet);
-            HttpResponse<JsonNode> response = httpReq.basicAuth(graylogUser, graylogPassword).body(fReq).asJson();
-            JSONObject jsonObj = response.getBody().getObject();
-            Map<String, Map<String, Map<String, KeflaRestType>>> newStrIndFieldMap = KeflaUtils.strFieldMapFromJsonObject(jsonObj);
-            log.debug("we extracted {} new streams",newStrIndFieldMap.size());
-            log.trace("here are the new fields {}",newStrIndFieldMap);
-            streamIndicesFieldMap.putAll(newStrIndFieldMap);
-        } catch (UnirestException ex) {
-            log.error("couldn't retrieve stream fields for streams {}", strIdsToRet,ex);
-        }
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            HttpRequestWithBody httpReq = Unirest.post(graylogEndpoint + "/api/plugins/com.ovh.graylog/mapping/fields");
+            FieldsRequest fReq = new FieldsRequest();
+            fReq.streams = strIdsToRet;
+            try {
+                log.debug("Retrieving fields for {}", strIdsToRet);
+                HttpResponse<JsonNode> response = httpReq
+                        .basicAuth(graylogUser, graylogPassword)
+                        .header("Content-Type", "application/json")
+                        .header("X-Requested-By", "Armor")
+                        .body(fReq)
+                        .asJson();
+                JSONObject jsonObj = response.getBody().getObject();
+                if (log.isDebugEnabled()) {
+                    log.debug("Received the following JSON {}", jsonObj.toString());
+                }
+                Map<String, Map<String, Map<String, KeflaRestType>>> newStrIndFieldMap = KeflaUtils.strFieldMapFromJsonObject(jsonObj);
+                if (!newStrIndFieldMap.isEmpty()) {
+                    log.debug("We extracted {} new streams", newStrIndFieldMap.size());
+                    log.trace("Here are the new fields {}", newStrIndFieldMap);
+                    streamIndicesFieldMap.putAll(newStrIndFieldMap);
+                } else {
+                    log.warn("No stream in response ! {}", jsonObj.toString());
+                }
+            } catch (UnirestException ex) {
+                log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
+            } catch (JSONException ex) {
+                log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
+            }
+            return null;
+        });
     }
 
     private void updateEngine() {
         //first update the default index
         String[] defaultSplit = currentDefaultIndex.split("_");
-        int max = Integer.parseInt(defaultSplit[defaultSplit.length -1]);
+        int max = Integer.parseInt(defaultSplit[defaultSplit.length - 1]);
         String indexMax = currentDefaultIndex;
         for (IndexMetaData iMetadata : clusterService.state().metaData()) {
-            if(iMetadata.getIndex().getName().startsWith("graylog2_")){
+            if (iMetadata.getIndex().getName().startsWith("graylog2_")) {
                 String indexName = iMetadata.getIndex().getName();
-                if(Integer.parseInt(currentDefaultIndex.substring(9)) > max) {
+                if (Integer.parseInt(currentDefaultIndex.substring(9)) > max) {
                     indexMax = indexName;
                 }
             }
