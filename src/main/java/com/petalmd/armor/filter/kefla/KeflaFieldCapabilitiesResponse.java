@@ -27,6 +27,9 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
         Map<String, Map<String, FieldCapabilities>> responseMap = fcr.get();
         newResponseMap = new HashMap<>();
 
+        log.debug("got the following fieldCap response Map ({} entries) {}", responseMap.size(), responseMap);
+
+
         for (Map.Entry<String, Map<String, FieldCapabilities>> respMapEntry : responseMap.entrySet()) {
             final String fieldName = respMapEntry.getKey();
             final Map<String, FieldCapabilities> newFCapMap = new HashMap<>();
@@ -35,33 +38,42 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
                 final String type = fCapMap.getKey();
                 FieldCapabilities fCap = fCapMap.getValue();
                 String[] indices = fCap.indices();
-                boolean shouldAddField = true;
+                boolean shouldAddForAll = true;
                 // handle null case by checking all indices :-)
                 // if the field is present in all allowed indices, we add it with the same null values for indices,
                 // if not, we only add it for the indices that contain the field.
                 if (indices == null) {
+                    log.debug("indices is null, checking all indices one by one");
                     List<String> tempNewIndices = new ArrayList<>();
                     for (String index : allowedIndexMap.keySet()) {
                         if (!allowedIndexMap.get(index).containsKey(fieldName)) {
+                            log.debug("field {} is not present in index {}", fieldName, index);
                             //the field is not present in all indices. but we continue to check the others
-                            shouldAddField = false;
+                            shouldAddForAll = false;
                         } else {
+                            log.debug("field {} is present in index {}", fieldName, index);
                             //we add it in this list in case we cannot add it in all indices.
                             tempNewIndices.add(index);
                         }
                     }
-                    if (!shouldAddField && !tempNewIndices.isEmpty()) {
+                    if (!shouldAddForAll && !tempNewIndices.isEmpty()) {
+                        log.debug("we added {} new indices", tempNewIndices.size());
                         newIndices.addAll(tempNewIndices);
                     }
                 } else {
+                    log.debug("the indices list is not null, checking only these indices");
                     for (String index : indices) {
                         if (allowedIndexMap.containsKey(index)
                                 && allowedIndexMap.get(index).containsKey(fieldName)) {
+                            log.debug("we add the field {} for index {}", fieldName, index);
                             newIndices.add(index);
                         }
                     }
                 }
-                if (!newIndices.isEmpty() && indices != null) {
+                //we add the field uniquely for indices where it should be present
+                //even if it was present in other indices (because it was likely for different streams).
+                if (!newIndices.isEmpty()) {
+                    log.debug("adding a non available field cap for field {}", fieldName);
                     List<String> nonAggregatables = fCap.nonAggregatableIndices() == null ? null : Arrays.asList(fCap.nonAggregatableIndices()).stream().filter(s -> newIndices.contains(s)).collect(Collectors.toList());
                     List<String> nonSearchables = fCap.nonSearchableIndices() == null ? null : Arrays.asList(fCap.nonSearchableIndices()).stream().filter(s -> newIndices.contains(s)).collect(Collectors.toList());
                     FieldCapabilities newFCap = new FieldCapabilities(
@@ -73,13 +85,15 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
                             nonAggregatables == null ? null : nonAggregatables.toArray(new String[nonAggregatables.size()]),
                             nonSearchables == null ? null : nonSearchables.toArray(new String[nonSearchables.size()]));
                     newFCapMap.put(type, newFCap);
-                } else if (indices == null && shouldAddField) {
+                } else if (indices == null && shouldAddForAll) {
+                    log.debug("adding a all available FieldCap for field {}", fieldName);
                     FieldCapabilities newFCap = new FieldCapabilities(fieldName, type, fCap.isSearchable(), fCap.isAggregatable());
                     newFCapMap.put(type, newFCap);
                 }
 
             }
             if (!newFCapMap.isEmpty()) {
+                log.debug("fieldCap map is {}", newFCapMap.size());
                 newResponseMap.put(fieldName, newFCapMap);
             }
         }

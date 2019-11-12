@@ -131,7 +131,8 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         for (IndexMetaData iMetadata : clusterService.state().metaData()) {
             if (iMetadata.getIndex().getName().startsWith("graylog2_")) {
                 String indexName = iMetadata.getIndex().getName();
-                if (Integer.parseInt(currentDefaultIndex.substring(9)) > max) {
+                log.trace("checking if index {} is greater than {}",indexName, indexMax);
+                if (Integer.parseInt(indexName.substring(9)) > max) {
                     indexMax = indexName;
                 }
             }
