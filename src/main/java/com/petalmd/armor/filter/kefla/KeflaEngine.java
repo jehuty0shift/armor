@@ -1,12 +1,9 @@
 package com.petalmd.armor.filter.kefla;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
-import com.mashape.unirest.request.HttpRequestWithBody;
 import com.petalmd.armor.util.ConfigConstants;
+import kong.unirest.*;
+import kong.unirest.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -14,7 +11,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
-import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.*;
@@ -58,6 +54,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         if (settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false)) {
             //first Update
             scheduler.scheduleAtFixedRate(this::updateEngine,1,10, TimeUnit.SECONDS);
+            Unirest.config().setObjectMapper(new JacksonObjectMapper());
             log.info("Kefla Engine started");
         }
     }

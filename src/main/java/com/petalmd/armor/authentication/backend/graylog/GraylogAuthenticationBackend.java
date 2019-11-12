@@ -18,22 +18,21 @@
 
 package com.petalmd.armor.authentication.backend.graylog;
 
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
-import org.apache.logging.log4j.Logger;
+import kong.unirest.HttpResponse;
+import kong.unirest.JsonNode;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
@@ -50,7 +49,7 @@ public class GraylogAuthenticationBackend
         }
         log.info("using following endpoint for Graylog Authentication : " + this.graylogAPIEndpoint, new Object[0]);
         int routesNeeded = settings.getAsInt("http.netty.worker_count", 32);
-        Unirest.setConcurrency(routesNeeded > 200 ? routesNeeded : 200, routesNeeded / 2);
+        Unirest.config().concurrency(routesNeeded > 200 ? routesNeeded : 200, routesNeeded / 2);
     }
 
     @Override

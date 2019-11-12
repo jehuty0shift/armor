@@ -188,11 +188,16 @@
 
 
         <dependency>
-            <groupId>com.mashape.unirest</groupId>
+            <groupId>com.konghq</groupId>
             <artifactId>unirest-java</artifactId>
-            <version>1.4.9</version>
+            <version>3.1.04</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.konghq</groupId>
+            <artifactId>unirest-objectmapper-jackson</artifactId>
+            <version>3.1.04</version>
+        </dependency>
         <!-- Only test scoped dependencies hereafter -->
 
         <dependency>
@@ -466,7 +471,7 @@
                 <inherited>true</inherited>
                 <configuration>
                     <excludes>
-                        <exclude>**/*cobertura*</exclude>
+                        <exclude>**/*coertura*</exclude>
                     </excludes>
                     <archive>
                         <manifest>

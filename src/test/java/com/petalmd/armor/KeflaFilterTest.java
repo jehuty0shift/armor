@@ -1,10 +1,6 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.request.HttpRequestWithBody;
-import com.mashape.unirest.request.body.RequestBodyEntity;
 import com.petalmd.armor.filter.kefla.KeflaUtils;
 import com.petalmd.armor.tests.GetFieldMappingsAction;
 import com.petalmd.armor.util.ConfigConstants;
@@ -12,6 +8,7 @@ import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.fields.FieldCapabilities;
 import io.searchbox.indices.mapping.GetMapping;
+import kong.unirest.*;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.compress.CompressedXContent;
@@ -111,7 +108,9 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
         RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        com.mashape.unirest.http.HttpResponse<JsonNode> httpRes = Mockito.mock(com.mashape.unirest.http.HttpResponse.class);
+        Config uniConfig = Mockito.mock(Config.class);
+        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
+
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
@@ -121,7 +120,8 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
 
-
+        Mockito.when(Unirest.config()).thenReturn(uniConfig);
+        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
         Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
 
 
@@ -173,7 +173,8 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
         RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        com.mashape.unirest.http.HttpResponse<JsonNode> httpRes = Mockito.mock(com.mashape.unirest.http.HttpResponse.class);
+        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
+        Config uniConfig = Mockito.mock(Config.class);
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
@@ -183,7 +184,8 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
 
-
+        Mockito.when(Unirest.config()).thenReturn(uniConfig);
+        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
         Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
 
 
@@ -235,7 +237,8 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
         RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        com.mashape.unirest.http.HttpResponse<JsonNode> httpRes = Mockito.mock(com.mashape.unirest.http.HttpResponse.class);
+        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
+        Config uniConfig = Mockito.mock(Config.class);
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
@@ -245,7 +248,8 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
 
-
+        Mockito.when(Unirest.config()).thenReturn(uniConfig);
+        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
         Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
 
 

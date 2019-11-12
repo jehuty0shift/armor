@@ -3,7 +3,7 @@ package com.petalmd.armor.filter.kefla;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.xcontent.XContentHelper;
-import org.json.JSONObject;
+import kong.unirest.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
