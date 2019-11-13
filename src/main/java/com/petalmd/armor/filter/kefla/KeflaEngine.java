@@ -30,7 +30,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(KeflaEngine.class);
     private final ScheduledThreadPoolExecutor scheduler;
     private final Settings settings;
-    private final String graylogEndpoint;
+    private final String graylogApiEndpoint;
     private final String graylogUser;
     private final String graylogPassword;
     private final Map<String, Map<String, Map<String, KeflaRestType>>> streamIndicesFieldMap;
@@ -42,7 +42,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         super();
         this.settings = settings;
         scheduler = (ScheduledThreadPoolExecutor) Executors.newScheduledThreadPool(1, EsExecutors.daemonThreadFactory(settings, "kefla_engine"));
-        graylogEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
+        graylogApiEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
         graylogUser = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_USER, "");
         graylogPassword = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_PASSWORD, "");
         streamIndicesFieldMap = new ConcurrentHashMap<>();
@@ -91,7 +91,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
 
     private void retrieveFieldsFromStream(List<String> strIdsToRet) {
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            HttpRequestWithBody httpReq = Unirest.post(graylogEndpoint + "/api/plugins/com.ovh.graylog/mapping/fields");
+            HttpRequestWithBody httpReq = Unirest.post(graylogApiEndpoint + "/plugins/com.ovh.graylog/mapping/fields");
             FieldsRequest fReq = new FieldsRequest();
             fReq.streams = strIdsToRet;
             try {

@@ -38,15 +38,27 @@ public class KeflaRestType {
     public String analyzer;
 
     public enum ESType {
+        ALL("_all"),
         BOOL("boolean"),
         DOUBLE("double"),
         DATE("date"),
+        FIELD_NAMES("_field_names"),
         GEO("geo_point"),
+        ID("_id"),
+        INDEX("_index"),
+        IGNORED("_ignored"),
         INTEGER("integer"),
         IP("ip"),
         KEYWORD("keyword"),
         LONG("long"),
-        TEXT("text");
+        PARENT("_parent"),
+        ROUTING("_routing"),
+        SEQ_NO("_seq_no"),
+        SOURCE("_source"),
+        TEXT("text"),
+        TYPE("_type"),
+        UID("_uid"),
+        VERSION("_version");
 
         public final String value;
 
@@ -83,8 +95,41 @@ public class KeflaRestType {
                 this.type = ESType.KEYWORD.value;
                 this.index = false;
                 break;
-            case "line":
-                this.type = ESType.LONG.value;
+            case "_routing":
+                this.type = ESType.ROUTING.value;
+                break;
+            case "_index":
+                this.type = ESType.INDEX.value;
+                break;
+            case "_type":
+                this.type = ESType.TYPE.value;
+                break;
+            case "_all":
+                this.type = ESType.ALL.value;
+                break;
+            case "_ignored":
+                this.type = ESType.IGNORED.value;
+                break;
+            case "_seq_no":
+                this.type = ESType.SEQ_NO.value;
+                break;
+            case "_parent":
+                this.type = ESType.PARENT.value;
+                break;
+            case "_field_names":
+                this.type = ESType.FIELD_NAMES.value;
+                break;
+            case "_source":
+                this.type = ESType.SOURCE.value;
+                break;
+            case "_id":
+                this.type = ESType.ID.value;
+                break;
+            case "_version":
+                this.type = ESType.VERSION.value;
+                break;
+            case "_uid":
+                this.type = ESType.UID.value;
                 break;
             default:
                 if (fieldName.equals("geo")) {

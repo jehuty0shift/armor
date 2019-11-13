@@ -40,6 +40,20 @@ public class KeflaUtils {
                         }
                         krtMap.put(field, new KeflaRestType(field));
                     }
+                    //add default fields and meta-fields.
+                    krtMap.put("streams",new KeflaRestType("streams"));
+                    krtMap.put("_all",new KeflaRestType("_all"));
+                    krtMap.put("_field_names",new KeflaRestType("_field_names"));
+                    krtMap.put("_id",new KeflaRestType("_id"));
+                    krtMap.put("_index",new KeflaRestType("_index"));
+                    krtMap.put("_ignored",new KeflaRestType("_ignored"));
+                    krtMap.put("_parent",new KeflaRestType("_parent"));
+                    krtMap.put("_routing",new KeflaRestType("_routing"));
+                    krtMap.put("_seq_no",new KeflaRestType("_seq_no"));
+                    krtMap.put("_source",new KeflaRestType("_source"));
+                    krtMap.put("_type",new KeflaRestType("_type"));
+                    krtMap.put("_uid",new KeflaRestType("_uid"));
+                    krtMap.put("_version",new KeflaRestType("_version"));
                 }
             }
         }
