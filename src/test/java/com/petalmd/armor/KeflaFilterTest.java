@@ -114,6 +114,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -178,6 +179,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -242,6 +244,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
