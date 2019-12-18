@@ -39,7 +39,8 @@
             "ceo"
          ],
          "aliases":[
-            "filtered"
+            "filtered",
+            "unfiltered"
          ],
          "filters_bypass": ["actionrequestfilter.forbidden"],
          "filters_execute": ["actionrequestfilter.reader"]

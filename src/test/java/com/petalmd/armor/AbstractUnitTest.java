@@ -722,6 +722,12 @@ public abstract class AbstractUnitTest {
                         "        }\n")
                 .execute()
                 .actionGet();
+
+        esNode1.client().admin().indices()
+                .prepareAliases()
+                .addAlias(new String[]{"financial", "dev"}, "unfiltered", Map.of())
+                .execute()
+                .actionGet();
     }
 
     private static class JaasCredentials implements Credentials {

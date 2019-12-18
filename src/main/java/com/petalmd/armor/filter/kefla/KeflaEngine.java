@@ -90,37 +90,39 @@ public class KeflaEngine extends AbstractLifecycleComponent {
 
 
     private void retrieveFieldsFromStream(List<String> strIdsToRet) {
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            HttpRequestWithBody httpReq = Unirest.post(graylogApiEndpoint + "/plugins/com.ovh.graylog/mapping/fields");
-            FieldsRequest fReq = new FieldsRequest();
-            fReq.streams = strIdsToRet;
-            try {
-                log.debug("Retrieving fields for {}", strIdsToRet);
-                HttpResponse<JsonNode> response = httpReq
-                        .basicAuth(graylogUser, graylogPassword)
-                        .header("Content-Type", "application/json")
-                        .header("X-Requested-By", "Armor")
-                        .body(fReq)
-                        .asJson();
-                JSONObject jsonObj = response.getBody().getObject();
-                if (log.isDebugEnabled()) {
-                    log.debug("Received the following JSON {}", jsonObj.toString());
+        if(!strIdsToRet.isEmpty()) {
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                HttpRequestWithBody httpReq = Unirest.post(graylogApiEndpoint + "/plugins/com.ovh.graylog/mapping/fields");
+                FieldsRequest fReq = new FieldsRequest();
+                fReq.streams = strIdsToRet;
+                try {
+                    log.debug("Retrieving fields for {}", strIdsToRet);
+                    HttpResponse<JsonNode> response = httpReq
+                            .basicAuth(graylogUser, graylogPassword)
+                            .header("Content-Type", "application/json")
+                            .header("X-Requested-By", "Armor")
+                            .body(fReq)
+                            .asJson();
+                    JSONObject jsonObj = response.getBody().getObject();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Received the following JSON {}", jsonObj.toString());
+                    }
+                    Map<String, Map<String, Map<String, KeflaRestType>>> newStrIndFieldMap = KeflaUtils.strFieldMapFromJsonObject(jsonObj);
+                    if (!newStrIndFieldMap.isEmpty()) {
+                        log.debug("We extracted {} new streams", newStrIndFieldMap.size());
+                        log.trace("Here are the new fields {}", newStrIndFieldMap);
+                        streamIndicesFieldMap.putAll(newStrIndFieldMap);
+                    } else {
+                        log.warn("No stream in response ! {}", jsonObj.toString());
+                    }
+                } catch (UnirestException ex) {
+                    log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
+                } catch (JSONException ex) {
+                    log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
                 }
-                Map<String, Map<String, Map<String, KeflaRestType>>> newStrIndFieldMap = KeflaUtils.strFieldMapFromJsonObject(jsonObj);
-                if (!newStrIndFieldMap.isEmpty()) {
-                    log.debug("We extracted {} new streams", newStrIndFieldMap.size());
-                    log.trace("Here are the new fields {}", newStrIndFieldMap);
-                    streamIndicesFieldMap.putAll(newStrIndFieldMap);
-                } else {
-                    log.warn("No stream in response ! {}", jsonObj.toString());
-                }
-            } catch (UnirestException ex) {
-                log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
-            } catch (JSONException ex) {
-                log.error("couldn't retrieve stream fields for streams {}", strIdsToRet, ex);
-            }
-            return null;
-        });
+                return null;
+            });
+        }
     }
 
     private void updateEngine() {

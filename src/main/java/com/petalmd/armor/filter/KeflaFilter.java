@@ -91,6 +91,7 @@ public class KeflaFilter extends AbstractActionFilter {
 
         // retrieve filter from aliases
         Set<String> streamIds = new HashSet<>();
+        boolean noFilter = true;
         SortedMap<String, AliasOrIndex> aliasMap = clusterService.state().metaData().getAliasAndIndexLookup();
         for (String alias : aliases) {
             AliasOrIndex alOrInd = aliasMap.get(alias);
@@ -99,7 +100,16 @@ public class KeflaFilter extends AbstractActionFilter {
                 continue;
             }
             CompressedXContent filter = alOrInd.getIndices().get(0).getAliases().get(alias).filter();
-            streamIds.addAll(KeflaUtils.streamFromFilters(filter));
+            if (filter != null) {
+                noFilter = false;
+                streamIds.addAll(KeflaUtils.streamFromFilters(filter));
+            }
+        }
+
+        if (noFilter) {
+            log.debug("No filter found, it should be an alias of pure indexes");
+            chain.proceed(task, action, request, listener);
+            return;
         }
 
 
@@ -130,9 +140,9 @@ public class KeflaFilter extends AbstractActionFilter {
         public void onResponse(Response response) {
             Response newResponse = (Response) keflaResponseFactory.getResponse(action, response, streamIndexMap);
             if (newResponse == null) {
-                origListener.onFailure(new ElasticsearchException("Response has not been contextualized for action {}",action));
+                origListener.onFailure(new ElasticsearchException("Response has not been contextualized for action {}", action));
             } else {
-                log.debug("response is contextualized {}",newResponse.toString());
+                log.debug("response is contextualized {}", newResponse.toString());
                 origListener.onResponse(newResponse);
             }
         }

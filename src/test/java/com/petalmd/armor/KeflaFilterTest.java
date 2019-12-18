@@ -91,6 +91,71 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
 
     @Test
+    public void getMappingForUnfilteredAlias() throws Exception {
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String indices = "unfiltered";
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "reader", "forbidden")
+                .putList("armor.actionrequestfilter.reader.allowed_actions", "indices:data/read/field_caps", "indices:data/read/mapping*", "indices:admin/mappings/get", "indices:admin/mappings/fields/get*")
+                .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
+                .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(authSettings).build();
+
+        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
+        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
+        Config uniConfig = Mockito.mock(Config.class);
+        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
+
+
+        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
+        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
+
+        Mockito.when(rbe.asJson()).thenReturn(httpRes);
+
+        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
+
+        Mockito.when(Unirest.config()).thenReturn(uniConfig);
+        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
+        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
+
+
+        startES(settings);
+
+        setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
+
+        JestClient client = getJestClient(getServerUri(false), username, password);
+
+        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetMapping.Builder())
+                .addIndex(indices)
+                .build());
+
+        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
+        Assert.assertTrue(resulttu.v1().isSucceeded());
+        Assert.assertTrue(resulttu.v1().getJsonObject()
+                .getAsJsonObject("dev")
+                .getAsJsonObject("mappings")
+                .getAsJsonObject("beta")
+                .getAsJsonObject("properties")
+                .has("user"));
+        Assert.assertTrue(resulttu.v1()
+                .getJsonObject()
+                .getAsJsonObject("dev")
+                .getAsJsonObject("mappings")
+                .getAsJsonObject("beta")
+                .getAsJsonObject("properties")
+                .has("previous_club"));
+
+
+    }
+
+    @Test
     public void getMappingForAlias() throws Exception {
         username = "jacksonm";
         password = "secret";
