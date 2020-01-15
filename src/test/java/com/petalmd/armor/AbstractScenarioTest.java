@@ -62,7 +62,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                         "message").putList("armor.flsfilter.special-fields-only.source_includes", "*") //same as "" or null
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 3, new String[]{"ceo", "future"});
+        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
 
         log.debug(toPrettyJson(json));
 
@@ -92,7 +92,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                 .putList("armor.flsfilter.special-fields-only.source_includes", "message")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 3, new String[]{"ceo", "future"});
+        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
 
         log.debug(toPrettyJson(json));
 
@@ -141,7 +141,7 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                 .putList("armor.flsfilter.special-fields-only.source_includes", "message") //does have not effect because to a "field"
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall_twofields.json", 3, new String[]{"ceo",
+        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall_twofields.json", 1, new String[]{"ceo",
                 "future"});
 
         log.debug(toPrettyJson(json));
