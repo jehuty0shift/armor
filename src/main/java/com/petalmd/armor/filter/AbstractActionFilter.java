@@ -25,6 +25,7 @@ import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.Evaluator;
 import com.petalmd.armor.tokeneval.MalformedConfigurationException;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.util.ArmorConstants;
@@ -311,7 +312,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
     }
 
-    protected TokenEvaluator.Evaluator getEvaluator(final ActionRequest request, final String action, final User user, final ThreadContext threadContext) {
+    protected Evaluator getEvaluator(final ActionRequest request, final String action, final User user, final ThreadContext threadContext) {
 
         final List<String> ci = new ArrayList<String>();
         final List<String> aliases = new ArrayList<String>();
@@ -397,7 +398,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         try {
             boolean indicesLikeAliases = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_INDICES_LIKE_ALIASES,true);
-            final TokenEvaluator.Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user, indicesLikeAliases);
+            final Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user, indicesLikeAliases);
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }

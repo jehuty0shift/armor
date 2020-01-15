@@ -23,10 +23,10 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.EvalResult;
+import com.petalmd.armor.tokeneval.Evaluator;
 import com.petalmd.armor.tokeneval.RulesEntities;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
-import com.petalmd.armor.tokeneval.TokenEvaluator.Evaluator;
-import com.petalmd.armor.tokeneval.TokenEvaluator.FilterAction;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
@@ -98,8 +98,7 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain)
-            throws Exception {
+    private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) throws Exception {
         //proceeding for kibana field stats requests
         if (settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true) && (action.startsWith("cluster:monitor/") || action.contains("indices:data/read/field_stats"))) {
             chain.proceed(task, action, request, listener);
@@ -282,7 +281,7 @@ public class ArmorActionFilter implements ActionFilter {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }
             //put aliases for Kefla Filter
-            if(threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
+            if (threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_KEFLA_ALIASES, aliases);
             }
             //copyContextToHeader(request);
@@ -301,85 +300,102 @@ public class ArmorActionFilter implements ActionFilter {
         }
 
         log.trace("filter {}", filterList);
-        boolean filtered = false;
+        EvalResult evalResult = eval.evaluateAction(action, filterList, additionalRights, threadContext);
+        if (evalResult.result.equals(EvalResult.Status.FORBIDDEN)) {
+            final String item = evalResult.item;
+            final List<String> filters = new ArrayList<>(evalResult.filters);
 
-        for (String fullFilter : filterList) {
-            final String[] f = fullFilter.split(":");
-            final String ft = f[0];
-            final String fn = f[1];
-
-            log.trace("Filter {}/{}", ft, fn);
-
-            if (ft.contains("dlsfilter") || ft.contains("flsfilter")) {
-                log.trace("    {} skipped here", ft);
-                continue;
-            }
-
-            final FilterAction faction = eval.evaluateFilter(ft, fn);
-
-            if (faction == FilterAction.BYPASS) {
-                log.trace("will bypass");
-                continue;
-            }
-
-            //Action has been filtered once so if it is never allowed, it will be rejected to due DEFAULT reject behavior.
-            filtered = true;
-
-            if ("actionrequestfilter".equals(ft)) {
-
-                List<String> allowedActions = threadContext.getTransient("armor." + ft + "." + fn + ".allowed_actions");
-                if (allowedActions == null) {
-                    allowedActions = Collections.emptyList();
-                }
-
-                List<String> forbiddenActions = threadContext.getTransient("armor." + ft + "." + fn + ".forbidden_actions");
-                if (forbiddenActions == null) {
-                    forbiddenActions = Collections.emptyList();
-                }
-
-                for (final String forbiddenAction : forbiddenActions) {
-                    if (SecurityUtil.isWildcardMatch(action, forbiddenAction, false)) {
-
-                        log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, forbiddenAction);
-                        //TODO change it to add only the index that fails
-                        final List<String> itemLists = new ArrayList<>(ci);
-                        itemLists.addAll(aliases);
-                        if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
-                            threadContext.putTransient(AuditListener.AUDIT_ITEMS, itemLists);
-                        }
-                        auditListener.onMissingPrivileges(user.getName(), request, threadContext);
-                        listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction));
-                        throw new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction);
-                    }
-                }
-
-                for (final String allowedAction : allowedActions) {
-                    String allowedActionSpecial = allowedAction;
-                    for (String additionalRight : additionalRights) {
-                        if (allowedAction.startsWith(additionalRight)) {
-                            allowedActionSpecial = allowedAction.substring(additionalRight.length() + 1); //escape also the ':' separator
-                        }
-                    }
-                    if (SecurityUtil.isWildcardMatch(action, allowedActionSpecial, false)) {
-                        log.trace("Action '{}' is allowed due to {}", action, allowedAction);
-                        chain.proceed(task, action, request, listener);
-                        return;
-                    }
-                }
-            }
-        }
-        if (filtered) {
-            log.warn("Action  is forbidden due to {}", "DEFAULT");
-            final List<String> itemLists = new ArrayList<>(ci);
-            itemLists.addAll(aliases);
-            if(threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
-                threadContext.putTransient(AuditListener.AUDIT_ITEMS, itemLists);
+            log.warn("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters);
+            if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+                threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(item));
             }
             auditListener.onMissingPrivileges(user.getName(), request, threadContext);
-            listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
-            throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
+            listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters));
+            throw new ForbiddenException("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters);
         }
+
+        log.debug("Action {} is allowed for user {} on items {}", action, user.getName(), ci);
         chain.proceed(task, action, request, listener);
+//
+//        boolean filtered = false;
+//
+//        for (String fullFilter : filterList) {
+//            final String[] f = fullFilter.split(":");
+//            final String ft = f[0];
+//            final String fn = f[1];
+//
+//            log.trace("Filter {}/{}", ft, fn);
+//
+//            if (ft.contains("dlsfilter") || ft.contains("flsfilter")) {
+//                log.trace("    {} skipped here", ft);
+//                continue;
+//            }
+//
+//            final FilterAction faction = eval.evaluateFilter(ft, fn);
+//
+//            if (faction == FilterAction.BYPASS) {
+//                log.trace("will bypass");
+//                continue;
+//            }
+//
+//            //Action has been filtered once so if it is never allowed, it will be rejected to due DEFAULT reject behavior.
+//            filtered = true;
+//
+//            if ("actionrequestfilter".equals(ft)) {
+//
+//                List<String> allowedActions = threadContext.getTransient("armor." + ft + "." + fn + ".allowed_actions");
+//                if (allowedActions == null) {
+//                    allowedActions = Collections.emptyList();
+//                }
+//
+//                List<String> forbiddenActions = threadContext.getTransient("armor." + ft + "." + fn + ".forbidden_actions");
+//                if (forbiddenActions == null) {
+//                    forbiddenActions = Collections.emptyList();
+//                }
+//
+//                for (final String forbiddenAction : forbiddenActions) {
+//                    if (SecurityUtil.isWildcardMatch(action, forbiddenAction, false)) {
+//
+//                        log.warn("{}.{} Action '{}' is forbidden due to {}", ft, fn, action, forbiddenAction);
+//                        //TODO change it to add only the index that fails
+//                        final List<String> itemLists = new ArrayList<>(ci);
+//                        itemLists.addAll(aliases);
+//                        if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+//                            threadContext.putTransient(AuditListener.AUDIT_ITEMS, itemLists);
+//                        }
+//                        auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+//                        listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction));
+//                        throw new ForbiddenException("Action '{}' is forbidden due to {}", action, forbiddenAction);
+//                    }
+//                }
+//
+//                for (final String allowedAction : allowedActions) {
+//                    String allowedActionSpecial = allowedAction;
+//                    for (String additionalRight : additionalRights) {
+//                        if (allowedAction.startsWith(additionalRight)) {
+//                            allowedActionSpecial = allowedAction.substring(additionalRight.length() + 1); //escape also the ':' separator
+//                        }
+//                    }
+//                    if (SecurityUtil.isWildcardMatch(action, allowedActionSpecial, false)) {
+//                        log.trace("Action '{}' is allowed due to {}", action, allowedAction);
+//                        chain.proceed(task, action, request, listener);
+//                        return;
+//                    }
+//                }
+//            }
+//        }
+//        if (filtered) {
+//            log.warn("Action  is forbidden due to {}", "DEFAULT");
+//            final List<String> itemLists = new ArrayList<>(ci);
+//            itemLists.addAll(aliases);
+//            if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+//                threadContext.putTransient(AuditListener.AUDIT_ITEMS, itemLists);
+//            }
+//            auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+//            listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action));
+//            throw new ForbiddenException("Action '{}' is forbidden due to DEFAULT", action);
+//        }
+//        chain.proceed(task, action, request, listener);
     }
 
     private void addType(final IndicesRequest request, final List<String> typesl, final String action) {

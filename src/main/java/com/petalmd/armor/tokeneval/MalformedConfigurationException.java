@@ -18,7 +18,7 @@
 
 package com.petalmd.armor.tokeneval;
 
-public class MalformedConfigurationException extends Exception {
+public class MalformedConfigurationException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 

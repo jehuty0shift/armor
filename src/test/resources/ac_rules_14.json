@@ -55,7 +55,7 @@
       "indices":[
         "financial","marketing"
       ],
-      "filters_bypass": ["actionrequestfilter.forbidden"],
+      "filters_bypass": ["actionrequestfilter.forbidden", "actionrequestfilter.reader"],
       "filters_execute": ["actionrequestfilter.writer"]
     }
   ]

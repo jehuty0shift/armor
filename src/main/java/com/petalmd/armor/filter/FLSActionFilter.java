@@ -21,6 +21,8 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.EvalResult;
+import com.petalmd.armor.tokeneval.Evaluator;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
@@ -72,7 +74,7 @@ public class FLSActionFilter extends AbstractActionFilter {
             final List<String> sourceExcludes = settings.getAsList("armor." + filterType + "." + filterName
                     + ".source_excludes", Collections.emptyList());
 
-            filterMap.put(filterName, new Tuple<List<String>, List<String>>(sourceIncludes, sourceExcludes));
+            filterMap.put(filterName, new Tuple<>(sourceIncludes, sourceExcludes));
         }
 
         this.rewriteGetAsSearch = settings.getAsBoolean(ConfigConstants.ARMOR_REWRITE_GET_AS_SEARCH, true);
@@ -93,7 +95,7 @@ public class FLSActionFilter extends AbstractActionFilter {
 
         ThreadContext threadContext = threadpool.getThreadContext();
 
-        final List<String> _filters = new ArrayList<String>();
+        final List<String> FLSfilters = new ArrayList<>();
         for (final Iterator<Entry<String, Tuple<List<String>, List<String>>>> it = filterMap.entrySet().iterator(); it.hasNext(); ) {
 
             final Entry<String, Tuple<List<String>, List<String>>> entry = it.next();
@@ -106,13 +108,13 @@ public class FLSActionFilter extends AbstractActionFilter {
             threadContext.putTransient("armor." + filterType + "." + filterName + ".source_excludes", sourceExcludes);
 
             if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null && filterType != null) {
-                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
-                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
-                    _filters.add(filterType + ":" + filterName);
+                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + "." + filterName)) {
+                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + "." + filterName);
+                    FLSfilters.add(filterType + "." + filterName);
                 }
             } else if (filterType != null) {
-                _filters.add(filterType + ":" + filterName);
-                threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
+                FLSfilters.add(filterType + "." + filterName);
+                threadContext.putTransient(ArmorConstants.ARMOR_FILTER, FLSfilters);
             }
 
             log.trace("armor." + filterType + "." + filterName + ".source_includes", sourceIncludes);
@@ -122,7 +124,7 @@ public class FLSActionFilter extends AbstractActionFilter {
         final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
         final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
-        final TokenEvaluator.Evaluator evaluator;
+        final Evaluator evaluator;
 
         try {
             evaluator = getFromContextOrHeader(ArmorConstants.ARMOR_AC_EVALUATOR, threadContext, getEvaluator(request, action, user, threadContext));
@@ -134,11 +136,6 @@ public class FLSActionFilter extends AbstractActionFilter {
 
         if (request.remoteAddress() == null && user == null) {
             log.trace("Return on INTERNODE request");
-            return;
-        }
-
-        if (evaluator.getBypassAll() && user != null) {
-            log.trace("Return on WILDCARD for " + user);
             return;
         }
 
@@ -161,26 +158,25 @@ public class FLSActionFilter extends AbstractActionFilter {
         }
 
         //here we know that we either have a non null user or an internally authenticated internode request
-        log.trace("filter for {}", _filters);
+        log.trace("filter for {}", FLSfilters);
         List<String> sourceIncludes = new ArrayList<>();
         List<String> sourceExcludes = new ArrayList<>();
-        for (int i = 0; i < _filters.size(); i++) {
-            final String[] f = _filters.get(i).split(":");
+        EvalResult evalResult = evaluator.evaluateFLS(FLSfilters);
+
+        if(evalResult.filters.isEmpty()) {
+            chain.proceed(task,action,request,listener);
+            return;
+        }
+
+        //add the sourceInclude/Exclude for filters.
+        for (String filter : evalResult.filters) {
+            final String[] f = filter.split("\\.");
             final String ft = f[0];
             final String fn = f[1];
 
             log.trace("Apply {}/{} for {}", ft, fn, request.getClass());
-
-            final TokenEvaluator.FilterAction faction = evaluator.evaluateFilter(ft, fn);
-
-            if (faction == TokenEvaluator.FilterAction.BYPASS) {
-                log.debug("will bypass");
-                continue;
-            }
-
             sourceIncludes.addAll(filterMap.get(fn).v1());
             sourceExcludes.addAll(filterMap.get(fn).v2());
-
         }
 
         if (rewriteGetAsSearch && request instanceof GetRequest) {

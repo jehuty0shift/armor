@@ -22,18 +22,18 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.common.bytes.BytesReference;
 
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
+
+import static com.petalmd.armor.tokeneval.TokenUtil.*;
 
 public class TokenEvaluator {
 
@@ -76,7 +76,7 @@ public class TokenEvaluator {
 
         for (ACRule acl : acRules.getAcl()) {
             log.trace("checking rule {}", acl.get__Comment__() != null ? acl.get__Comment__() : "unknown");
-            log.trace("acl Users {}, acl Roles {}",acl.getUsers(), acl.getRoles());
+            log.trace("acl Users {}, acl Roles {}", acl.getUsers(), acl.getRoles());
             boolean shouldAddEntities = false;
             //check User names
             if (acl.getUsers() != null &&
@@ -134,18 +134,159 @@ public class TokenEvaluator {
         return getEvaluator(requestedIndices, requestedAliases, requestedTypes, requestedHostAddress, user, false);
     }
 
-    public Evaluator getEvaluator(List<String> requestedIndices, List<String> requestedAliases, List<String> requestedTypes,
-                                  final InetAddress requestedHostAddress, final User user, final boolean indicesLikeAliases) throws MalformedConfigurationException {
 
-        final Set<String> requestedIndicesSet = new HashSet<>();
-        final Set<String> requestedAliasesSet = new HashSet<>();
+    private ACRule acRuleIsCorrect(ACRule acRule) throws MalformedConfigurationException {
+        if (acRule.getFilters_bypass() == null) {
+            throw new MalformedConfigurationException("bypass filters missing");
+        }
 
-        if (requestedIndices == null || requestedIndices.isEmpty()) {
-            if (requestedAliases == null || requestedAliases.isEmpty()) {
-                requestedIndices = Lists.newArrayList("*");
-                requestedAliases = Lists.newArrayList("*");
+        if (acRule.getFilters_execute() == null) {
+            throw new MalformedConfigurationException("execute filters missing");
+        }
+        return acRule;
+    }
+
+    private boolean acRuleCheckUserOrRole(ACRule acRule, User user) {
+        //-- Users -------------------------------------------
+
+        if (acRule.users != null) {
+            if (!isStar(acRule.users)) {
+                if (containsWildcardPattern(acRule.users, user.getName())) {
+                    log.debug("    --> User " + user.getName() + " match");
+                    return true;
+                } else {
+                    log.debug("    User " + user.getName() + " does not match");
+                    //we have to check roles then
+                }
+
+            } else {
+                log.debug("    --> User wildcard match");
+                return true;
             }
         }
+
+        //-- Roles -------------------------------------------
+        if (acRule.roles != null) {
+            if (!isStar(acRule.roles)) {
+                for (final String role : acRule.roles) {
+                    if (containsWildcardPattern(user.getRoles(), role)) {
+                        log.debug("    --> User has role " + role + ", so we have a match");
+                        return true;
+                    } else {
+                        log.debug("    User does not have role " + role);
+                    }
+                }
+            } else {
+                log.debug("    --> Role wildcard match");
+                return true;
+            }
+        }
+        log.debug("     --> No Users and No Role matched");
+        //No user, and no roles matched
+        return false;
+    }
+
+
+    private boolean acRuleCheckNetworkOrigin(ACRule acRule, String requestedClientHostName, String requestedClientHostIp) {
+        //-- Hosts -------------------------------------------
+
+        if (requestedClientHostIp != null && requestedClientHostName != null && !isNullEmptyStar(acRule.hosts)) {
+            for (final String pInetAddress : acRule.hosts) {
+                if (SecurityUtil.isWildcardMatch(requestedClientHostName, pInetAddress, false)
+                        || SecurityUtil.isWildcardMatch(requestedClientHostIp, pInetAddress, false)) {
+                    log.debug("    --> Host address " + pInetAddress + " match");
+                    return true;
+                }
+            }
+        } else {
+            log.debug("    --> Host wildcard match");
+            return true;
+        }
+        return false;
+    }
+
+
+    private ACRule acRuleMatchAliases(ACRule acRule, Evaluator evaluator, List<String> requestedAliases, boolean indicesLikeAliases) {
+        //-- Aliases -------------------------------------------
+
+        Set<String> aliasesToCheck = acRule.aliases != null ? new HashSet<>(acRule.aliases) : new HashSet<>();
+        if (indicesLikeAliases) {
+            if (acRule.indices != null && !acRule.indices.isEmpty()) {
+                aliasesToCheck.addAll(acRule.indices);
+            }
+        }
+
+        //if it's empty and we request alias, rule do not match, skipp this rule.
+        if (aliasesToCheck.isEmpty() && !requestedAliases.isEmpty()) {
+            log.debug("we skip alias check since alias(es) are requested but rule do not have alias");
+            return acRule;
+        }
+
+        if (!isStar(aliasesToCheck)) {
+            for (final String requestedAlias : requestedAliases) {
+                for (final String pAlias : aliasesToCheck) {
+                    if (SecurityUtil.isWildcardMatch(requestedAlias, pAlias, false)) {
+                        log.debug("    --> Alias " + requestedAlias + " match " + pAlias + "");
+                        evaluator.addAliasFilters(requestedAlias, new EntityFilters(acRule));
+                    } else {
+                        log.debug("    Alias " + requestedAlias + " not match " + pAlias + "");
+                    }
+                }
+            }
+        } else {
+            log.debug("    --> Alias wildcard match");
+            requestedAliases.stream().forEach(alias -> evaluator.addAliasFilters(alias, new EntityFilters(acRule)));
+        }
+
+        return acRule;
+    }
+
+    private ACRule acRuleMatchIndices(ACRule acRule, Evaluator evaluator, List<String> requestedIndices) {
+        //if it's empty and we request indices, rule do not match, skip this rule.
+
+        if ((acRule.indices == null || acRule.indices.isEmpty()) && !requestedIndices.isEmpty()) {
+            log.debug("we skip this rule since indices are requested but rule do not have indices");
+            return acRule;
+        }
+
+        if (!isStar(acRule.indices)) {
+            for (final String requestedIndex : requestedIndices) {
+
+                for (final String pIndex : acRule.indices) {
+
+                    if (SecurityUtil.isWildcardMatch(requestedIndex, pIndex, false)) {
+                        log.debug("    -->Index " + requestedIndex + " match " + pIndex + "");
+                        evaluator.addIndexFilters(requestedIndex, new EntityFilters(acRule));
+                        log.debug("    ----> APPLY RULE for {} <---- which means the following executeFilters: {}/bypassFilters: {}", requestedIndex, acRule.getFilters_execute(), acRule.getFilters_bypass());
+                        break;
+                    } else {
+                        log.debug("    Index " + requestedIndex + " not match " + pIndex + "");
+                    }
+                }
+            }
+
+        } else {
+            log.debug("    --> Index wildcard match");
+            log.debug("    ----> APPLY RULE for {} indices <---- which means the following executeFilters: {}/bypassFilters: {}", requestedIndices.size(), acRule.getFilters_execute(), acRule.getFilters_bypass());
+            requestedIndices.stream().forEach(index -> evaluator.addIndexFilters(index, new EntityFilters(acRule)));
+        }
+
+        return acRule;
+    }
+
+    private boolean acRuleFindDefault(ACRule acRule, Evaluator evaluator) {
+        if (acRule.isDefault()) {
+            evaluator.setDefaultFilter(new EntityFilters(acRule.getFilters_bypass(), acRule.getFilters_execute()));
+            log.debug("found Default as rule {}", acRule);
+            return false;
+        }
+
+        log.debug("will evaluate RULE : {}", acRule);
+        return true;
+    }
+
+    public Evaluator getEvaluator(final List<String> requestedIndices, final List<String> requestedAliases, List<String> requestedTypes,
+                                  final InetAddress requestedHostAddress, final User user, final boolean indicesLikeAliases) throws MalformedConfigurationException {
 
         final String requestedClientHostName = requestedHostAddress == null ? null : requestedHostAddress.getHostName();
         final String requestedClientHostIp = requestedHostAddress == null ? null : requestedHostAddress.getHostAddress();
@@ -156,264 +297,40 @@ public class TokenEvaluator {
         log.debug("requestedIndices: {}", requestedIndices);
         log.debug("requestedTypes: {}", requestedTypes);
 
-        final Set<String> filtersExecute = new HashSet<String>();
-        final Set<String> filtersBypass = new HashSet<String>();
-
-
         //initialize ACRules.
         initializeACRulesIfNeeded();
 
         log.debug("Checking " + (acRules.getAcl().size() - 1) + " rules");
-        boolean foundDefault = false;
-        Set<String> defaultRulesExecute = new HashSet<>();
-        Set<String> defaultRulesBypass = new HashSet<>();
 
+        final List<String> requestedIndicesExp = new ArrayList();
+        final List<String> requestedAliasesExp = new ArrayList<>();
 
-        for (final ACRule p : acRules.acl) {
-
-            if (p.isDefault()) {
-
-                filtersExecute.addAll(p.getFilters_execute());
-                filtersBypass.addAll(p.getFilters_bypass());
-
-                defaultRulesExecute = p.getFilters_execute();
-                defaultRulesBypass = p.getFilters_bypass();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Default set to filtersExecute " + filtersExecute);
-                    log.debug("Default set to filtersBypass " + filtersBypass);
-                }
-
-                if (foundDefault) {
-                    throw new MalformedConfigurationException("More than one default configuration found");
-                }
-                foundDefault = true;
-            }
+        if ((requestedIndices == null || requestedIndices.isEmpty()) && (requestedAliases == null || requestedAliases.isEmpty())) {
+            requestedIndicesExp.add("*");
+            requestedAliasesExp.add("*");
+        } else {
+            requestedIndicesExp.addAll(requestedIndices);
+            requestedAliasesExp.addAll(requestedAliases);
         }
 
-        if (!foundDefault) {
-            throw new MalformedConfigurationException("No default configuration found");
+        final Evaluator evaluator = new Evaluator(requestedIndicesExp, requestedAliasesExp);
+
+        long acRulesHandled = acRules.acl.stream()
+                .map(acRule -> acRuleIsCorrect(acRule))
+                .filter(acRule -> acRuleFindDefault(acRule, evaluator))
+                .filter(acRule -> acRuleCheckUserOrRole(acRule, user))
+                .filter(acRule -> acRuleCheckNetworkOrigin(acRule, requestedClientHostName, requestedClientHostIp))
+                .map(acRule -> acRuleMatchAliases(acRule, evaluator, requestedAliases, indicesLikeAliases))
+                .map(acRule -> acRuleMatchIndices(acRule, evaluator, requestedIndicesExp)).count();
+
+        if (evaluator.getDefaultFilters() == null) {
+            throw new MalformedConfigurationException("No DEFAULT rule found !");
         }
 
-        int rulenum = 0;
-        boolean removedDefault = false;
-        ruleloop:
-        for (final ACRule acRule : acRules.acl) {
-            rulenum++;
-
-            if (acRule.isDefault()) {
-                continue;
-            }
-
-            if (acRule.getFilters_bypass() == null) {
-                throw new MalformedConfigurationException("bypass filters missing");
-            }
-
-            if (acRule.getFilters_execute() == null) {
-                throw new MalformedConfigurationException("execute filters missing");
-            }
-
-            requestedAliasesSet.clear();
-            requestedAliasesSet.addAll(requestedAliases);
-            requestedIndicesSet.clear();
-            requestedIndicesSet.addAll(requestedIndices);
-
-            String _role = null;
-            String _host = null;
-
-            log.debug("Check rule {}.: {}", rulenum, acRule);
-
-            boolean userMatch = false;
-            boolean roleMatch = false;
-            boolean hostMatch = false;
-
-            //-- Users -------------------------------------------
-
-            // //[] == ["...","*","..."] == missing/not-here (because empty)
-            if (!isNullEmptyStar(acRule.users)) {
-                if (containsWildcardPattern(acRule.users, user.getName())) {
-                    log.debug("    --> User " + user.getName() + " match");
-                    userMatch = true;
-                } else {
-                    log.debug("    User " + user.getName() + " does not match");
-                }
-
-            } else {
-                userMatch = true;
-                log.debug("    --> User wildcard match");
-            }
-
-            //-- Roles -------------------------------------------
-
-            if (!isNullEmptyStar(acRule.roles)) {
-                for (final String role : acRule.roles) {
-                    if (containsWildcardPattern(user.getRoles(), role)) {
-                        log.debug("    --> User has role " + role + ", so we have a match");
-                        _role = role;
-                        roleMatch = true;
-                        break;
-                    } else {
-                        log.debug("    User does not have role " + role);
-                    }
-                }
-
-                if (_role == null) {
-                    log.debug("    No role does not match");
-                }
-            } else {
-                roleMatch = true;
-                log.debug("    --> Role wildcard match");
-            }
-
-            //-- Hosts -------------------------------------------
-
-            if (requestedClientHostIp != null && requestedClientHostName != null && !isNullEmptyStar(acRule.hosts)) {
-                for (final String pinetAddress : acRule.hosts) {
-                    if (SecurityUtil.isWildcardMatch(requestedClientHostName, pinetAddress, false)
-                            || SecurityUtil.isWildcardMatch(requestedClientHostIp, pinetAddress, false)) {
-
-                        log.debug("    --> Host address " + pinetAddress + " match");
-                        _host = pinetAddress;
-                        hostMatch = true;
-                        break;
-
-                    }
-
-                }
-
-                if (_host == null) {
-
-                    log.debug("    Host address " + requestedClientHostIp + " (ip) and " + requestedClientHostName
-                            + " (hostname) does not match");
-                }
-
-            } else {
-                hostMatch = true;
-                log.debug("    --> Host wildcard match");
-            }
-
-            if (!userMatch || !roleMatch || !hostMatch) {
-                log.debug("    --> Users or roles or hosts does not match, so we skip this rule");
-                continue ruleloop;
-            } else {
-                log.debug("    Identity would match, see if aliases and indices are also ok?");
-            }
-
-            //-- Aliases -------------------------------------------
+        log.debug("we have examined {} rules", acRulesHandled);
 
 
-            Set<String> aliasesToCheck = acRule.aliases != null ? new HashSet<>(acRule.aliases) : new HashSet<>();
-            if (indicesLikeAliases) {
-                if (acRule.indices != null && !acRule.indices.isEmpty()) {
-                    aliasesToCheck.addAll(acRule.indices);
-                }
-            }
-
-            //if it's empty and we request alias, rule do not match, skipp this rule.
-            if (aliasesToCheck.isEmpty() && !requestedAliasesSet.isEmpty()) {
-                log.debug("we skip this rule since alias(es) are requested but rule do not have alias");
-                continue ruleloop;
-            }
-
-            if (!isStar(aliasesToCheck)) {
-
-                aliasloop:
-                for (final String requestedAlias : requestedAliases) {
-
-                    boolean aliasok = false;
-
-                    for (final String pAlias : aliasesToCheck) {
-
-                        if (typeAndMatch(requestedAlias, pAlias, requestedTypes)) {
-                            log.debug("    --> Alias " + requestedAlias + " match " + pAlias + "");
-                            requestedAliasesSet.remove(requestedAlias);
-                        } else {
-                            log.debug("    Alias " + requestedAlias + " not match " + pAlias + "");
-                        }
-
-                        if (requestedAliasesSet.isEmpty()) {
-                            break;
-                        }
-                    }
-                }
-
-                if (requestedAliasesSet.isEmpty()) {
-                    log.debug("All requested aliases from " + requestedAliases + " have a matching pattern");
-                } else {
-                    log.debug("Some requested alias have no matching pattern : " + requestedAliasesSet + " will skip this rule");
-                    continue ruleloop;
-                }
-
-            } else {
-                log.debug("    --> Alias wildcard match");
-            }
-
-            //-- Indices -------------------------------------------
-
-            //if it's empty and we request indices, rule do not match, skip this rule.
-            if ((acRule.indices == null || acRule.indices.isEmpty()) && !requestedIndicesSet.isEmpty()) {
-                log.debug("we skip this rule since indices are requested but rule do not have indices");
-                continue ruleloop;
-            }
-
-
-            if (!isStar(acRule.indices)) {
-
-
-                indexloop:
-                for (final String requestedIndex : requestedIndices) {
-
-                    boolean indexok = false;
-
-                    for (final String pIndex : acRule.indices) {
-
-                        if (typeAndMatch(requestedIndex, pIndex, requestedTypes)) {
-                            log.debug("    -->Index " + requestedIndex + " match " + pIndex + "");
-                            requestedIndicesSet.remove(requestedIndex);
-                        } else {
-                            log.debug("    Index " + requestedIndex + " not match " + pIndex + "");
-                        }
-
-                        if (requestedIndicesSet.isEmpty()) {
-                            //no need to continue
-                            break;
-                        }
-                    }
-
-                }
-
-                if (requestedIndicesSet.isEmpty()) {
-                    log.debug("All requested indices " + requestedIndices + " have a matching pattern");
-                } else {
-                    log.debug("These requested indices : " + requestedIndicesSet + " do not have a matching pattern, skip this rule");
-                    continue ruleloop;
-                }
-            } else {
-                log.debug("    --> Index wildcard match");
-            }
-
-            log.debug("    ----> APPLY RULE <---- which means the following executeFilters: {}/bypassFilters: {}", acRule.getFilters_execute(),
-                    acRule.getFilters_bypass());
-
-            if (!removedDefault) {
-                filtersBypass.removeAll(defaultRulesBypass);
-                filtersExecute.removeAll(defaultRulesExecute);
-                removedDefault = true;
-            }
-
-            filtersExecute.addAll(acRule.getFilters_execute());
-            filtersBypass.addAll(acRule.getFilters_bypass());
-            //if we apply one rule, we remove default rules.
-
-            if (log.isDebugEnabled()) {
-                log.debug("current execute filters: {}", filtersExecute);
-                log.debug("current bypass filters: {}", filtersBypass);
-            }
-
-        }
-        log.debug("Final executeFilters: {}/bypassFilters: {}", filtersExecute, filtersBypass);
-
-        return new Evaluator(filtersBypass, filtersExecute);
+        return evaluator;
 
     }
 
@@ -449,68 +366,6 @@ public class TokenEvaluator {
         }
 
         return false;
-    }
-
-    public static class Evaluator implements Serializable {
-
-        /**
-         *
-         */
-        private static final long serialVersionUID = 1L;
-        private final Set<String> bypassFilters;
-        private final Set<String> executeFilters;
-
-        public Evaluator(final Set<String> bypassFlters, final Set<String> executeFilters) throws MalformedConfigurationException {
-            super();
-            this.bypassFilters = bypassFlters;
-            this.executeFilters = executeFilters;
-            validateAndMerge();
-        }
-
-        private void validateAndMerge() throws MalformedConfigurationException {
-
-            if (!Collections.disjoint(bypassFilters, executeFilters)) {
-                log.warn("Identical execute and bypass filters");
-                log.warn("    bypassFilters: {}", bypassFilters);
-                log.warn("    executeFilters: {}", executeFilters);
-            }
-
-            if (bypassFilters.isEmpty() && executeFilters.isEmpty()) {
-                throw new MalformedConfigurationException("no bypass or execute filters at all");
-            }
-        }
-
-        public boolean getBypassAll() {
-            return bypassFilters.contains("*");
-        }
-
-        public boolean getExecuteAll() {
-            return executeFilters.contains("*") && bypassFilters.isEmpty();
-        }
-
-        public FilterAction evaluateFilter(final String ft, final String fn) {
-
-            final String filter = ft + "." + fn;
-
-            if (getExecuteAll()) {
-                return FilterAction.EXECUTE;
-            }
-
-            if (getBypassAll()) {
-                return FilterAction.BYPASS;
-            }
-
-            if (containsWildcardPattern(bypassFilters, filter)) {
-                return FilterAction.BYPASS;
-            }
-
-            if (containsWildcardPattern(executeFilters, filter) || executeFilters.contains("*")) {
-                return FilterAction.EXECUTE;
-            }
-
-            return FilterAction.BYPASS;
-        }
-
     }
 
     @SuppressWarnings(value = {"unused"})
@@ -617,27 +472,5 @@ public class TokenEvaluator {
                     + ", filters_execute=" + filters_execute + ", filters_bypass=" + filters_bypass + ", isDefault()=" + isDefault()
                     + ", __Comment__=\"" + __Comment__ + "\"]";
         }
-    }
-
-    private static boolean isNullEmptyStar(final Set<String> set) {
-        return set == null || set.isEmpty() || set.contains("*");
-
-    }
-
-
-    private static boolean isStar(final Set<String> set) {
-        return set != null && set.contains("*");
-    }
-
-
-    private static boolean containsWildcardPattern(final Set<String> set, final String pattern) {
-        for (final Iterator iterator = set.iterator(); iterator.hasNext(); ) {
-            final String string = (String) iterator.next();
-            if (SecurityUtil.isWildcardMatch(string, pattern, false)) {
-                return true;
-            }
-        }
-        return false;
-
     }
 }

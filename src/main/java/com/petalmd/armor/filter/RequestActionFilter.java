@@ -91,12 +91,12 @@ public class RequestActionFilter extends AbstractActionFilter {
             }
 
             if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null && filterType != null) {
-                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
-                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
+                if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + "." + filterName)) {
+                    ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + "." + filterName);
                 }
             } else if (filterType != null) {
                 final List<String> _filters = new ArrayList<String>();
-                _filters.add(filterType + ":" + filterName);
+                _filters.add(filterType + "." + filterName);
                 threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
             }
         }

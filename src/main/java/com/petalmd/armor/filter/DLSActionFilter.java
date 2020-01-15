@@ -22,6 +22,8 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.tokeneval.EvalResult;
+import com.petalmd.armor.tokeneval.Evaluator;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
@@ -99,22 +101,20 @@ public class DLSActionFilter extends AbstractActionFilter {
         if (request instanceof SearchRequest || request instanceof MultiSearchRequest || request instanceof GetRequest
                 || request instanceof MultiGetRequest) {
 
-            final List<String> _filters = new ArrayList<String>();
-            for (final Iterator<Entry<String, List<String>>> it = filterMap.entrySet().iterator(); it.hasNext(); ) {
-
-                final Entry<String, List<String>> entry = it.next();
+            final List<String> DLSfilters = new ArrayList<>();
+            for (Map.Entry<String, List<String>> entry : filterMap.entrySet()) {
 
                 final String filterName = entry.getKey();
                 final List<String> filters = entry.getValue();
 
                 if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null) {
-                    if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
-                        ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
-                        _filters.add(filterType + ":" + filterName);
+                    if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + "." + filterName)) {
+                        ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + "." + filterName);
+                        DLSfilters.add(filterType + "." + filterName);
                     }
                 } else {
-                    _filters.add(filterType + ":" + filterName);
-                    threadContext.putTransient(ArmorConstants.ARMOR_FILTER, _filters);
+                    DLSfilters.add(filterType + ":" + filterName);
+                    threadContext.putTransient(ArmorConstants.ARMOR_FILTER, DLSfilters);
                 }
 
                 threadContext.putTransient("armor." + filterType + "." + filterName + ".filters", filters);
@@ -124,7 +124,7 @@ public class DLSActionFilter extends AbstractActionFilter {
             final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
             final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
 
-            final TokenEvaluator.Evaluator evaluator;
+            final Evaluator evaluator;
 
             try {
                 evaluator = getFromContextOrHeader(ArmorConstants.ARMOR_AC_EVALUATOR, threadContext, getEvaluator(request, action, user, threadContext));
@@ -138,10 +138,12 @@ public class DLSActionFilter extends AbstractActionFilter {
                 return;
             }
 
-            if (evaluator.getBypassAll() && user != null) {
-                log.trace("Return on WILDCARD for " + user);
-                return;
-            }
+//            if (evaluator.getBypassAll() && user != null) {
+//                log.trace("Return on WILDCARD for " + user);
+//                return;
+//            }
+
+
 
             log.trace("user {}", user);
 
@@ -162,26 +164,21 @@ public class DLSActionFilter extends AbstractActionFilter {
             }
 
             //here we know that we either have a non null user or an internally authenticated internode request
-            log.trace("filter for {}", _filters);
+            log.trace("filter for {}", DLSfilters);
+            EvalResult evalResult = evaluator.evaluateDLS(DLSfilters);
 
-            for (int i = 0; i < _filters.size(); i++) {
-                final String[] f = _filters.get(i).split(":");
+            if(evalResult.filters.isEmpty()) {
+                chain.proceed(task,action,request,listener);
+                return;
+            }
+
+
+            for (String executedFilter : evalResult.filters) {
+                final String[] f = executedFilter.split("\\.");
                 final String ft = f[0];
                 final String fn = f[1];
 
-                if (!ft.contains("dlsfilter")) { //does only dls Stuff 
-                    log.trace("    {} skipped here", ft);
-                    continue;
-                }
-
                 log.trace("Apply {}/{} for {}", ft, fn, request.getClass());
-
-                final TokenEvaluator.FilterAction faction = evaluator.evaluateFilter(ft, fn);
-
-                if (faction == TokenEvaluator.FilterAction.BYPASS) {
-                    log.debug("will bypass");
-                    continue;
-                }
 
                 if (rewriteGetAsSearch && request instanceof GetRequest) {
                     log.debug("Rewrite GetRequest as SearchRequest");

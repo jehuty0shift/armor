@@ -616,7 +616,7 @@ public class SearchTests extends AbstractScenarioTest {
         final List<String> indices12 = Arrays.asList("financial", "internal");
         client = getJestClient(getServerUri(false), username, password);
         final String settingSource2 = "{\"index.refresh_interval\" : \"5s\" }";
-        final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource).addIndices(indices12).build());
+        final Tuple<JestResult, HttpResponse> resulttu12 = client.executeE(new UpdateSettings.Builder(settingSource2).addIndices(indices12).build());
         result = resulttu12.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 403);
@@ -624,7 +624,7 @@ public class SearchTests extends AbstractScenarioTest {
         final List<String> indices13 = Arrays.asList("financial", "marketing");
         client = getJestClient(getServerUri(false), username, password);
         final String settingSource3 = "{\"index.refresh_interval\" : \"5s\" }";
-        final Tuple<JestResult, HttpResponse> resulttu13 = client.executeE(new UpdateSettings.Builder(settingSource).addIndices(indices13).build());
+        final Tuple<JestResult, HttpResponse> resulttu13 = client.executeE(new UpdateSettings.Builder(settingSource3).addIndices(indices13).build());
         result = resulttu13.v1();
         json = prettyGson.fromJson(result.getJsonString(), Map.class);
         Assert.assertTrue(result.getResponseCode() == 200);
