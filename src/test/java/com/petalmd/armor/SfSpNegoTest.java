@@ -40,7 +40,7 @@ public class SfSpNegoTest extends AbstractUnitTest {
         final Settings settings = Settings
                 .builder()
                 .putList("armor.actionrequestfilter.names", "readonly")
-                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:/data/read/search")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
 
                 .put("armor.authentication.http_authenticator.impl",
                         "com.petalmd.armor.authentication.http.spnego.HTTPSpnegoAuthenticator")
@@ -71,7 +71,7 @@ public class SfSpNegoTest extends AbstractUnitTest {
 
         hcon.requestCredDeleg(true);
 
-        hcon.connect(new URL(getServerUri(false) + "/public/_search"));
+        hcon.connect(new URL(getServerUri(false) + "/internal/_search"));
 
         Assert.assertEquals(200, hcon.getResponseCode());
 

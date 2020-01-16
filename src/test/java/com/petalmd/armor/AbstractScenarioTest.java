@@ -173,10 +173,10 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
             result = executeGet(indices[0], "test", "dummy", false, false).v1();
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestGetAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to DEFAULT\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to DEFAULT\"}");
+            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}");
             result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestIndexAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to DEFAULT\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to DEFAULT\"}");
+            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}");
         } else {
 
             JestResult result = executeSearch("ac_query_matchall.json", indices, null, false, false).v1();

@@ -101,25 +101,25 @@ public class DLSActionFilter extends AbstractActionFilter {
         if (request instanceof SearchRequest || request instanceof MultiSearchRequest || request instanceof GetRequest
                 || request instanceof MultiGetRequest) {
 
-            final List<String> DLSfilters = new ArrayList<>();
+            final List<String> DLSFilters = new ArrayList<>();
             for (Map.Entry<String, List<String>> entry : filterMap.entrySet()) {
 
                 final String filterName = entry.getKey();
-                final List<String> filters = entry.getValue();
+                final List<String> documentsFiltered = entry.getValue();
 
                 if (threadContext.getTransient(ArmorConstants.ARMOR_FILTER) != null) {
                     if (!((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).contains(filterType + "." + filterName)) {
                         ((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_FILTER)).add(filterType + "." + filterName);
-                        DLSfilters.add(filterType + "." + filterName);
+                        DLSFilters.add(filterType + "." + filterName);
                     }
                 } else {
-                    DLSfilters.add(filterType + ":" + filterName);
-                    threadContext.putTransient(ArmorConstants.ARMOR_FILTER, DLSfilters);
+                    DLSFilters.add(filterType + ":" + filterName);
+                    threadContext.putTransient(ArmorConstants.ARMOR_FILTER, DLSFilters);
                 }
 
-                threadContext.putTransient("armor." + filterType + "." + filterName + ".filters", filters);
+                threadContext.putTransient("armor." + filterType + "." + filterName + ".filters", documentsFiltered);
 
-                log.trace("armor." + filterType + "." + filterName + ".filters {}", filters);
+                log.trace("armor." + filterType + "." + filterName + ".filters {}", documentsFiltered);
             }
             final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
             final String authHeader = threadContext.getHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
@@ -137,13 +137,6 @@ public class DLSActionFilter extends AbstractActionFilter {
                 log.trace("Return on INTERNODE request");
                 return;
             }
-
-//            if (evaluator.getBypassAll() && user != null) {
-//                log.trace("Return on WILDCARD for " + user);
-//                return;
-//            }
-
-
 
             log.trace("user {}", user);
 
@@ -164,8 +157,8 @@ public class DLSActionFilter extends AbstractActionFilter {
             }
 
             //here we know that we either have a non null user or an internally authenticated internode request
-            log.trace("filter for {}", DLSfilters);
-            EvalResult evalResult = evaluator.evaluateDLS(DLSfilters);
+            log.trace("filter for {}", DLSFilters);
+            EvalResult evalResult = evaluator.evaluateDLS(DLSFilters);
 
             if(evalResult.filters.isEmpty()) {
                 chain.proceed(task,action,request,listener);
