@@ -67,7 +67,7 @@ public class TokenEvaluator {
         log.trace("Configuration: " + xSecurityConfiguration.utf8ToString());
     }
 
-    public RulesEntities findEntitiesforUser(final User user) throws MalformedConfigurationException {
+    public RulesEntities findEntitiesForUser(final User user) throws MalformedConfigurationException {
         RulesEntities entities = new RulesEntities();
 
         initializeACRulesIfNeeded();

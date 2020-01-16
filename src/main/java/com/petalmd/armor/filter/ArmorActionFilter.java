@@ -190,7 +190,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             RulesEntities userRulesEntities = null;
             if (wildcardExpEnabled) {
-                userRulesEntities = evaluator.findEntitiesforUser(user);
+                userRulesEntities = evaluator.findEntitiesForUser(user);
             }
 
             if (request instanceof IndicesRequest) {

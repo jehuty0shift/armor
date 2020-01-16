@@ -18,7 +18,6 @@ package com.petalmd.armor.filter.obfuscation;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.tokeneval.MalformedConfigurationException;
 import com.petalmd.armor.tokeneval.RulesEntities;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
@@ -70,7 +69,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
         RulesEntities entities = null;
         if(evaluator != null) {
             try {
-                entities = evaluator.findEntitiesforUser(user);
+                entities = evaluator.findEntitiesForUser(user);
             } catch (MalformedConfigurationException ex) {
                 throw new ElasticsearchException("Problem in cluster configuration, contact your administrator");
             }
