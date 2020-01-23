@@ -16,6 +16,7 @@
  */
 package com.petalmd.armor;
 
+import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.audit.ESStoreAuditListener;
 import com.petalmd.armor.audit.NullStoreAuditListener;
@@ -39,6 +40,7 @@ import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
@@ -105,6 +107,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private ClusterService clusterService;
     private HTTPAuthenticator httpAuthenticator;
     private KeflaEngine keflaEngine;
+    private MongoDBService mongoDbService;
     private NamedXContentRegistry xContentRegistry;
     private SessionStore sessionStore;
     private ThreadPool threadPool;
@@ -212,6 +215,10 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             auditListener = new NullStoreAuditListener();
         }
         componentsList.add(auditListener);
+
+        //create Mongo Database
+        mongoDbService = new MongoDBService(settings);
+        componentsList.add(mongoDbService);
 
         //create Armor Service
         armorService = new ArmorService(settings, clusterService, authorizator, authenticationBackend, httpAuthenticator, sessionStore, auditListener);

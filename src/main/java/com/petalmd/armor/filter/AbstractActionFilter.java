@@ -68,7 +68,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     protected final Settings settings;
-    protected final AuthenticationBackend backend;
+    protected final AuthenticationBackend authBackend;
     protected final AuditListener auditListener;
     protected final Authorizator authorizator;
     protected final ArmorService armorService;
@@ -81,11 +81,11 @@ public abstract class AbstractActionFilter implements ActionFilter {
         return Integer.MIN_VALUE;
     }
 
-    protected AbstractActionFilter(final Settings settings, final AuthenticationBackend backend, final Authorizator authorizator,
+    protected AbstractActionFilter(final Settings settings, final AuthenticationBackend authBackend, final Authorizator authorizator,
                                    final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadpool) {
         this.settings = settings;
         this.authorizator = authorizator;
-        this.backend = backend;
+        this.authBackend = authBackend;
         this.clusterService = clusterService;
         this.armorService = armorService;
         this.armorConfigService = armorConfigService;
@@ -171,7 +171,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
                 final String username = decodedBasicHeader.split(":")[0];
                 final char[] password = decodedBasicHeader.split(":")[1].toCharArray();
 
-                authenticatedTransportUser = backend.authenticate(new AuthCredentials(username, password));
+                authenticatedTransportUser = authBackend.authenticate(new AuthCredentials(username, password));
                 authorizator.fillRoles(authenticatedTransportUser, new AuthCredentials(authenticatedTransportUser.getName(), null));
                 threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedTransportUser);
             } catch (final Exception e) {
