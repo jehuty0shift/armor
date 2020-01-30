@@ -96,6 +96,8 @@ public final class ConfigConstants {
     public static final String ARMOR_MONGODB_URI = "armor.mongodb.uri";
     public static final String ARMOR_MONGODB_ENGINE_DATABASE = "armor.mongo.engine_database";
     public static final String ARMOR_MONGODB_GRAYLOG_DATABASE = "armor.mongo.graylog_database";
+    public static final String ARMOR_KAFKA_SERVICE_ENABLED = "armor.kafka.enabled";
+    public static final String ARMOR_KAFKA_SERVICE_CLIENT_ID = "armor.kafka.client_id";
     public static final String ARMOR_OBFUSCATION_FILTER_ENABLED = "armor.obfuscation.filter.enabled";
     public static final String ARMOR_OBFUSCATION_FILTERS = "armor.obfuscation.filter.";
     public static final String ARMOR_REWRITE_GET_AS_SEARCH = "armor.rewrite_get_as_search";

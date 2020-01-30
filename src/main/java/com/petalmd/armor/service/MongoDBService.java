@@ -21,7 +21,7 @@ public class MongoDBService extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(MongoDBService.class);
     private final Settings settings;
     private boolean enabled;
-    private MongoClient mongoClient;
+    private static MongoClient mongoClient;
     private MongoDatabase engineDatabase;
     private MongoDatabase graylogDatabase;
 
@@ -30,15 +30,12 @@ public class MongoDBService extends AbstractLifecycleComponent {
         this.settings = settings;
         engineDatabase = null;
         graylogDatabase = null;
-    }
-
-
-    @Override
-    protected void doStart() {
         if (enabled) {
             final String mongoDBUriString = settings.get(ConfigConstants.ARMOR_MONGODB_URI);
             log.info("connecting to MongoDB with URI {}", mongoDBUriString);
-            mongoClient = new MongoClient(new MongoClientURI(mongoDBUriString));
+            if (!mongoDBUriString.equals("test")) {
+                mongoClient = new MongoClient(new MongoClientURI(mongoDBUriString));
+            }
             //configure Engine
             final String engineDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE);
             if (engineDatabaseName == null || engineDatabaseName.isBlank()) {
@@ -49,16 +46,22 @@ public class MongoDBService extends AbstractLifecycleComponent {
             }
 
             //configure Graylog
-            final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
-            if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
-                log.warn("Graylog Database is not provided !");
-            } else {
-                graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
-                log.info("configured graylog database {}", graylogDatabaseName);
-            }
+//            final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
+//            if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
+//                log.warn("Graylog Database is not provided !");
+//            } else {
+//                graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
+//                log.info("configured graylog database {}", graylogDatabaseName);
+//            }
         } else {
             log.info("MongoDBService is not available");
         }
+    }
+
+
+    @Override
+    protected void doStart() {
+
     }
 
     @Override
@@ -68,7 +71,9 @@ public class MongoDBService extends AbstractLifecycleComponent {
 
     @Override
     protected void doClose() throws IOException {
-        mongoClient.close();
+        if (mongoClient != null) {
+            mongoClient.close();
+        }
     }
 
     public Optional<MongoDatabase> getEngineDatabase() {
@@ -79,4 +84,7 @@ public class MongoDBService extends AbstractLifecycleComponent {
         return Optional.ofNullable(graylogDatabase);
     }
 
+    public static void setMongoClient(MongoClient newMongoClient) {
+        mongoClient = newMongoClient;
+    }
 }

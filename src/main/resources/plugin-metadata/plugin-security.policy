@@ -22,6 +22,7 @@ grant {
   permission java.security.SecurityPermission "createAccessControlContext";
   permission java.net.SocketPermission "*", "accept,resolve,listen,connect";
   permission java.net.NetPermission "getProxySelector";
+  permission java.net.NetPermission "requestPasswordAuthentication";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
    // for reading the system-wide configuration for the backlog of established sockets
   permission java.io.FilePermission "/proc/sys/net/core/somaxconn", "read";

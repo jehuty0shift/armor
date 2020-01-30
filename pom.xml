@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>6.8.4-1</version>
+    <version>6.8.6-1</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -45,7 +45,7 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>6.8.4</elasticsearch.version>
+        <elasticsearch.version>6.8.6</elasticsearch.version>
         <apache.ds.version>2.0.0-M24</apache.ds.version>
         <apache.ds.api.version>1.0.0</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
@@ -202,6 +202,12 @@
             <version>3.12.1</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>0.11.0.3</version>
+        </dependency>
+
         <!-- Only test scoped dependencies hereafter -->
 
         <dependency>
@@ -344,6 +350,17 @@
             <groupId>org.powermock</groupId>
             <artifactId>powermock-core</artifactId>
             <version>2.0.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.lordofthejars</groupId>
+            <artifactId>nosqlunit-mongodb</artifactId>
+            <version>1.0.0-rc.5</version>
+        </dependency>
+        <dependency>
+            <groupId>de.bwaldvogel</groupId>
+            <artifactId>mongo-java-server</artifactId>
+            <version>1.23.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

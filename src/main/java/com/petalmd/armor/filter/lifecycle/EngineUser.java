@@ -8,8 +8,34 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  */
 
 public class EngineUser {
-    public String username;
-    public boolean trusted;
-    public Region region;
+    private String username;
+    private boolean trusted;
+    private Region region;
 
+    public EngineUser() {
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public boolean isTrusted() {
+        return trusted;
+    }
+
+    public void setTrusted(boolean trusted) {
+        this.trusted = trusted;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public void setRegion(Region region) {
+        this.region = region;
+    }
 }

@@ -1,6 +1,5 @@
 package com.petalmd.armor.tokeneval;
 
-import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -145,6 +144,8 @@ public class Evaluator implements Serializable {
         // 1/ Default rule : If its forbidden or not explicitly allowed, forbid it
 
         //check Indices
+        log.debug("evaluating action {} with additional rights {}", action, additionalRights);
+
         for (Map.Entry<String, EntityFilters> indexFilter : indicesFilters.entrySet()) {
             String index = indexFilter.getKey();
             EntityFilters eFilters = indexFilter.getValue();
@@ -171,9 +172,9 @@ public class Evaluator implements Serializable {
     }
 
     private Optional<EvalResult> allowedActionForItem(final String item, final EntityFilters eFilters, final String action, final List<String> filters, final List<String> additionalRights, final ThreadContext threadContext) {
-        Set<String> mergeFilters = eFilters.mergeActionFilters();
+        Set<String> mergedFilters = eFilters.mergeActionFilters();
 
-        if (mergeFilters.isEmpty()) {
+        if (mergedFilters.isEmpty()) {
             if (!allowedActionForDefault(action, filters, additionalRights, threadContext)) {
                 log.warn("Action '{}' is forbidden due to {}", action, "DEFAULT");
                 return Optional.of(new EvalResult(item, EvalResult.Status.FORBIDDEN, Set.of("DEFAULT")));
@@ -183,8 +184,11 @@ public class Evaluator implements Serializable {
             }
         }
 
+        log.debug("merged action filters for item {} and action {} : {}",item, action, mergedFilters);
+
+        boolean allowed = false;
         for (String filter : filters) {
-            if (mergeFilters.stream().filter(ft -> SecurityUtil.isWildcardMatch(filter, ft, false)).findAny().isPresent()) {
+            if (mergedFilters.stream().filter(ft -> SecurityUtil.isWildcardMatch(filter, ft, false)).findAny().isPresent()) {
                 List<String> allowedActions = threadContext.getTransient("armor." + filter + ".allowed_actions");
                 if (allowedActions == null) {
                     allowedActions = Collections.emptyList();
@@ -201,12 +205,12 @@ public class Evaluator implements Serializable {
                         return Optional.of(new EvalResult(item, EvalResult.Status.FORBIDDEN, Set.of(filter)));
                     }
                 }
-                boolean allowed = false;
                 for (final String allowedAction : allowedActions) {
                     String allowedActionSpecial = allowedAction;
                     for (String additionalRight : additionalRights) {
                         if (allowedAction.startsWith(additionalRight)) {
                             allowedActionSpecial = allowedAction.substring(additionalRight.length() + 1); //escape also the ':' separator
+                            break;
                         }
                     }
                     if (SecurityUtil.isWildcardMatch(action, allowedActionSpecial, false)) {
@@ -215,10 +219,11 @@ public class Evaluator implements Serializable {
                         break;
                     }
                 }
-                if (!allowed && !allowedActionForDefault(action, filters, additionalRights, threadContext)) {
-                    return Optional.of(new EvalResult(item, EvalResult.Status.FORBIDDEN, Set.of("DEFAULT")));
-                }
+
             }
+        }
+        if (!allowed && !allowedActionForDefault(action, filters, additionalRights, threadContext)) {
+            return Optional.of(new EvalResult(item, EvalResult.Status.FORBIDDEN, Set.of("DEFAULT")));
         }
         return Optional.empty();
     }
@@ -250,6 +255,7 @@ public class Evaluator implements Serializable {
                     for (String additionalRight : additionalRights) {
                         if (allowedAction.startsWith(additionalRight)) {
                             allowedActionSpecial = allowedAction.substring(additionalRight.length() + 1); //escape also the ':' separator
+                            break;
                         }
                     }
                     if (SecurityUtil.isWildcardMatch(action, allowedActionSpecial, false)) {

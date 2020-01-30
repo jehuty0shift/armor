@@ -229,7 +229,7 @@ public class TokenEvaluator {
                         log.debug("    --> Alias " + requestedAlias + " match " + pAlias + "");
                         evaluator.addAliasFilters(requestedAlias, new EntityFilters(acRule));
                     } else {
-                        log.debug("    Alias " + requestedAlias + " not match " + pAlias + "");
+                        log.trace("    Alias " + requestedAlias + " does not match " + pAlias + "");
                     }
                 }
             }
@@ -260,7 +260,7 @@ public class TokenEvaluator {
                         log.debug("    ----> APPLY RULE for {} <---- which means the following executeFilters: {}/bypassFilters: {}", requestedIndex, acRule.getFilters_execute(), acRule.getFilters_bypass());
                         break;
                     } else {
-                        log.debug("    Index " + requestedIndex + " not match " + pIndex + "");
+                        log.trace("    Index " + requestedIndex + " does not match " + pIndex + "");
                     }
                 }
             }

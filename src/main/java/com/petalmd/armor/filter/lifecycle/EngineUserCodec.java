@@ -26,9 +26,9 @@ public class EngineUserCodec implements Codec<EngineUser> {
 
         EngineUser engineUser = new EngineUser();
 
-        engineUser.username = document.getString("username");
-        engineUser.trusted = document.getBoolean("trusted",false);
-        engineUser.region = Region.EU.value.equals(document.getString("region"))?Region.EU:Region.CA;
+        engineUser.setUsername(document.getString("username"));
+        engineUser.setTrusted(document.getBoolean("trusted",false));
+        engineUser.setRegion(Region.EU.value.equals(document.getString("region"))?Region.EU:Region.CA);
 
         return engineUser;
     }
