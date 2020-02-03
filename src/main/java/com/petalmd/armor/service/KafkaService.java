@@ -41,7 +41,7 @@ public class KafkaService extends AbstractLifecycleComponent {
             MongoCollection<KafkaConfig> collection = mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class);
             clientId = settings.get(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID);
             if(clientId == null) {
-                clientId = "client-" + Integer.toString((int)(Math.random() * 100));
+                clientId = "client-" + (int)(Math.random() * 100);
             }
             kafkaConfig = collection.find(Filters.eq("name", "configuration")).first();
             if (kafkaConfig == null || !kafkaConfig.isValid()) {
@@ -88,8 +88,10 @@ public class KafkaService extends AbstractLifecycleComponent {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
         if(kafkaConfig.securityProtocol.equals("SASL_SSL")) {
-            final String jaasConfig = "rg.apache.kafka.common.security.plain.PlainLoginModule required \\\n" +
-                    "  username=\"" + kafkaConfig.SASLPlainUsername + "\" \\\n" +
+            props.put("security.protocol", kafkaConfig.securityProtocol);
+            props.put("sasl.mechanism", "PLAIN");
+            final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
+                    "  username=\"" + kafkaConfig.SASLPlainUsername + "\" \n" +
                     "  password=\"" + kafkaConfig.SASLPlainPassword + "\"";
             props.put("sasl.jaas.config",jaasConfig);
         }

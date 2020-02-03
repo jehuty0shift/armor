@@ -1,7 +1,10 @@
 package com.petalmd.armor.filter.lifecycle;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.List;
 
 /**
  * Created by jehuty0shift on 30/01/2020.
@@ -21,16 +24,18 @@ public class IndexOperation {
     private String username;
 
     @JsonProperty
-    private String index;
+    private List<String> indices;
 
     @JsonProperty
     private Integer numberOfShards;
 
+    @JsonCreator
+    public IndexOperation(){}
 
-    public IndexOperation(Type type, String username, String index, Integer numberOfShards) {
+    public IndexOperation(Type type, String username, List<String> indices, Integer numberOfShards) {
         this.type = type;
         this.username = username;
-        this.index = index;
+        this.indices = indices;
         this.numberOfShards = numberOfShards;
     }
 
@@ -51,12 +56,12 @@ public class IndexOperation {
         this.username = username;
     }
 
-    public String getIndex() {
-        return index;
+    public List<String> getIndices() {
+        return indices;
     }
 
-    public void setIndex(String index) {
-        this.index = index;
+    public void setIndices(List<String> indices) {
+        this.indices = indices;
     }
 
     public Integer getNumberOfShards() {

@@ -16,7 +16,6 @@
  */
 package com.petalmd.armor;
 
-import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.audit.ESStoreAuditListener;
 import com.petalmd.armor.audit.NullStoreAuditListener;
@@ -40,6 +39,7 @@ import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.service.KafkaService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ArmorConstants;
@@ -106,6 +106,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private Client client;
     private ClusterService clusterService;
     private HTTPAuthenticator httpAuthenticator;
+    private KafkaService kafkaService;
     private KeflaEngine keflaEngine;
     private MongoDBService mongoDbService;
     private NamedXContentRegistry xContentRegistry;
@@ -216,9 +217,14 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         }
         componentsList.add(auditListener);
 
+        //create Kafka Service
+
         //create Mongo Database
         mongoDbService = new MongoDBService(settings);
         componentsList.add(mongoDbService);
+
+        kafkaService = new KafkaService(settings, mongoDbService);
+        componentsList.add(kafkaService);
 
         //create Armor Service
         armorService = new ArmorService(settings, clusterService, authorizator, authenticationBackend, httpAuthenticator, sessionStore, auditListener);
@@ -256,6 +262,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new IndicesUpdateSettingsFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new KeflaFilter(settings, keflaEngine, armorService, armorConfigService, clusterService, threadPool));
+            actionFilters.add(new IndexLifecycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }
@@ -303,7 +310,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.intSetting(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1,1, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDITLOG_COMPRESSION, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -333,7 +340,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_ACTIONREQUESTFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_DLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_FLSFILTERS, Setting.Property.NodeScope));  //TODO write a proper validator;
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SCROLL_CLEAR_ALLOW_ALL,false,Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SCROLL_CLEAR_ALLOW_ALL, false, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //ssl HTTP
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -417,6 +424,21 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_USER, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
 
+        //MongoDB
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_URI, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //Kafka
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //IndexLifeCycle
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.listSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER, 1000, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 1, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
+
         return settings;
     }
 
@@ -429,7 +451,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     @Override
     public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings,threadPool,networkService,pageCacheRecycler,namedWriteableRegistry,circuitBreakerService));
+        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService));
     }
 
     @Override

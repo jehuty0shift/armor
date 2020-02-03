@@ -54,7 +54,7 @@ public class KeflaFilter extends AbstractActionFilter {
             enabled = false;
         }
         this.kEngine = kEngine;
-        log.info("Kefla filter is {}enabled", enabled ? "" : "not ");
+        log.info("Kefla filter is {}", enabled ? "enabled" : "disabled");
         keflaResponseFactory = new KeflaResponseFactory();
     }
 

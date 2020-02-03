@@ -1,16 +1,12 @@
 package com.petalmd.armor.filter;
 
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
 import com.mongodb.ReadPreference;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.authentication.backend.AuthenticationBackend;
-import com.petalmd.armor.authorization.Authorizator;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.authorization.PaymentRequiredException;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
@@ -33,11 +29,12 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.client.Response;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -45,9 +42,12 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * Created by jehuty0shift on 22/01/2020.
@@ -62,8 +62,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private KafkaService kService;
     private ObjectMapper mapper;
 
-    public IndexLifecycleFilter(final Settings settings, final AuthenticationBackend authBackend, final Authorizator authorizator, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final AuditListener auditListener, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
-        super(settings, authBackend, authorizator, clusterService, armorService, armorConfigService, auditListener, threadPool);
+    public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false);
         allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS);
         if (enabled) {
@@ -82,10 +82,15 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             mapper = new ObjectMapper();
         } else {
             engineUsers = null;
+            kService = null;
         }
-
+        log.info("IndexLifeCycleFilter is {}", enabled ? "enabled" : "disabled");
     }
 
+    @Override
+    public int order() {
+        return Integer.MIN_VALUE + 10;
+    }
 
     @Override
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
@@ -93,6 +98,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         log.debug("IndexLifeCycleFilter is {}", enabled);
 
         if (!enabled || (!action.equals(CreateIndexAction.NAME) && !action.equals(DeleteIndexAction.NAME))) {
+            log.trace("not enabled or not an index creation/deletion action, skipping filter");
             chain.proceed(task, action, request, listener);
             return;
         }
@@ -109,15 +115,18 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         log.debug("action is {}", action);
         ThreadContext threadContext = threadpool.getThreadContext();
 
-        if (action.equals(CreateIndexAction.NAME)) {
+        //Check rights In Mongo
+        User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        EngineUser engineUser = engineUsers.find(Filters.eq("username", restUser.getName())).first();
+        if (engineUser == null) {
+            log.error("This user has not been found in this cluster {}", restUser.getName());
+            throw new ForbiddenException("This action is not authorized for this user");
+        }
 
-            //Check rights In Mongo
-            User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-            EngineUser engineUser = engineUsers.find(Filters.eq("username", restUser.getName())).first();
-            if (engineUser == null) {
-                log.error("This user has not been found in this cluster {}", restUser.getName());
-                throw new ForbiddenException("This action is not authorized for this user");
-            }
+        List<String> indices = Arrays.asList(((IndicesRequest) request).indices());
+        Settings indexSettings = Settings.EMPTY;
+
+        if (action.equals(CreateIndexAction.NAME)) {
 
             if (!engineUser.isTrusted()) {
                 log.error("This user {} cannot be trusted for Index creation", engineUser.getUsername());
@@ -126,7 +135,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             //Check User has rights on IndiceName
             CreateIndexRequest cir = (CreateIndexRequest) request;
-            String indexName = cir.index();
+            String indexName = indices.get(0);
             Settings cirSettings = cir.settings();
             log.debug("this trusted user {} will attempt to create index  {}", restUser.getName(), indexName);
 
@@ -140,6 +149,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 log.error("number of shards asked ({}) for index {} is too high", numberOfShards, indexName);
                 throw new ForbiddenException("number of shards asked ({}) for index {} is too high", numberOfShards, indexName);
             }
+
             //check the max num of shards for this user
             long totalShardsForUser = 0;
             for (ObjectObjectCursor<String, IndexMetaData> cursor : clusterService.state().getMetaData().getIndices()) {
@@ -166,15 +176,36 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             }
 
             newSettingsBuilder.put("index.number_of_replicas", 1);
+            newSettingsBuilder.put("index.number_of_shards", numberOfShards);
             cir.settings(newSettingsBuilder.build());
 
-            //Install the Listener,
-            //Listener (should validate by putting a message in Kafka, if failed, rollback (delete the index) and respond 5XX
+            indexSettings = newSettingsBuilder.build();
 
 
-            //Proceed
+        } else if (action.equals(DeleteIndexAction.NAME)) {
+
+            DeleteIndexRequest dir = (DeleteIndexRequest) request;
+
+            //validate names
+            Optional<String> isForbidden = Stream.of(dir.indices()).filter(k -> !k.startsWith(engineUser.getUsername())).findAny();
+            if (isForbidden.isPresent()) {
+                throw new ForbiddenException("You have no right to delete index {}", isForbidden.get());
+            }
+            //we need concrete names
+            Optional<String> isNotConcrete = Stream.of(dir.indices()).filter(k -> k.contains("*") || k.equals("_all")).findAny();
+            if (isNotConcrete.isPresent()) {
+                throw new ForbiddenException("All indices names must be fully indicated: {} is not allowed", isNotConcrete.get());
+            }
 
         }
+
+        //Install the Listener,
+        //Listener (should validate by putting a message in Kafka, if failed, rollback (delete the index) and respond 5XX
+        final IndexActionListener indexActionListener = new IndexActionListener(action, indices, indexSettings, engineUser, kService, listener, mapper);
+
+        chain.proceed(task, action, request, indexActionListener);
+        return;
+        //Proceed
 
     }
 
@@ -182,15 +213,16 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private static class IndexActionListener<Response extends ActionResponse> implements ActionListener<Response> {
 
         private String action;
-        private String indexName;
+        private List<String> indices;
         private Settings indexSettings;
         private EngineUser engineUser;
         private ObjectMapper mapper;
         private ActionListener origListener;
         private KafkaService kService;
 
-        public IndexActionListener(String action, String indexName, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
-            this.indexName = indexName;
+        public IndexActionListener(String action, List<String> indices, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
+            this.action = action;
+            this.indices = indices;
             this.engineUser = engineUser;
             this.origListener = origListener;
             this.kService = kafkaService;
@@ -203,31 +235,32 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             String topic = kService.getTopicPrefix() + "." +
                     engineUser.getRegion().value + "." +
                     "armor";
-
             try {
-                if (action.equals(CreateIndexAction.NAME)) {
-                    //report creation.
-                    int numberOfShards = indexSettings.getAsInt("index.number_of_shards", 1);
-                    IndexOperation indexOp = new IndexOperation(IndexOperation.Type.CREATE, engineUser.getUsername(), indexName, numberOfShards);
-                    String indexOpString = mapper.writeValueAsString(indexOp);
-
-                    log.info("reporting index creation {}, from user {}, with number Of Shards {}", indexName, engineUser.getUsername(), numberOfShards);
-                    if (!kService.getKafkaProducer().isPresent()) {
-                        throw new IllegalStateException("Kafka Producer is not available");
-                    }
-                    Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
-                    Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
-                    RecordMetadata rMetadata = report.get(10, TimeUnit.SECONDS);
-
-                    log.info("index creation has been successfully reported with index offset {}", rMetadata.offset());
-
-                } else if (action.equals(DeleteIndexAction.NAME)) {
-
+                IndexOperation.Type type = action.equals(CreateIndexAction.NAME) ? IndexOperation.Type.CREATE : IndexOperation.Type.DELETE;
+                //report creation.
+                int numberOfShards = indexSettings.getAsInt("index.number_of_shards", -1);
+                if (type.equals(IndexOperation.Type.CREATE) && numberOfShards < 1) {
+                    throw new ElasticsearchException("Illegal number of shards during index creation");
                 }
-            } catch (Exception ex) {
-                log.error("We couldn't report the action {} on index {} from user {}, Check if everything is Okay", action, indexName, engineUser.getUsername(), ex);
-            }
+                IndexOperation indexOp = new IndexOperation(type, engineUser.getUsername(), indices, numberOfShards);
+                String indexOpString = mapper.writeValueAsString(indexOp);
 
+                log.info("reporting index action {} on index {}, from user {}, with number Of Shards {}", type, indices, engineUser.getUsername(), numberOfShards);
+                if (!kService.getKafkaProducer().isPresent()) {
+                    throw new IllegalStateException("Kafka Producer is not available");
+                }
+
+                Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
+                Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
+                RecordMetadata rMetadata = report.get(10, TimeUnit.SECONDS);
+
+                log.info("index action {} has been successfully reported with index offset {}", type, rMetadata.offset());
+                origListener.onResponse(response);
+
+            } catch (Exception ex) {
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex);
+                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
+            }
         }
 
         @Override
