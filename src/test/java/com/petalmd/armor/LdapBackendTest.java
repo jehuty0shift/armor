@@ -29,10 +29,17 @@ import com.petalmd.armor.authorization.ldap.LDAPAuthorizator;
 import com.petalmd.armor.util.SecurityUtil;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class LdapBackendTest extends AbstractUnitTest {
+
+
+    @Before
+    public void resetLdapConnectionPool() {
+        SecurityUtil.setLdapConnectionPool(null);
+    }
 
     @Test
     public void testLdapAuthentication() throws Exception {

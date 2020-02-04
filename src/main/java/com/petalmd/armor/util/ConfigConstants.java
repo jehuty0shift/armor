@@ -59,6 +59,7 @@ public final class ConfigConstants {
     public static final String ARMOR_AUTHENTICATION_LDAP_USERBASE = "armor.authentication.ldap.userbase";
     public static final String ARMOR_AUTHENTICATION_LDAP_USERNAME_ATTRIBUTE = "armor.authentication.ldap.username_attribute";
     public static final String ARMOR_AUTHENTICATION_LDAP_USERSEARCH = "armor.authentication.ldap.usersearch";
+    public static final String ARMOR_AUTHENTICATION_LDAP_MAX_ACTIVE_CONNECTIONS = "armor.authentication.ldap.max_active_connections";
     public static final String ARMOR_AUTHENTICATION_MULTI_AUTH_BACKEND_LIST = "armor.authentication.multi.auth.backends";
     public static final String ARMOR_AUTHENTICATION_PROXY_HEADER = "armor.authentication.proxy.header";
     public static final String ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS = "armor.authentication.proxy.trusted_ips";

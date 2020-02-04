@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.authentication.backend.ldap;
@@ -23,7 +23,6 @@ import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.LdapUser;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
-import com.petalmd.armor.authorization.ldap.LDAPAuthorizator;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.directory.api.ldap.model.cursor.CursorException;
@@ -43,20 +42,21 @@ import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 
-public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBackend {
+public class LDAPAuthenticationBackend implements NonCachingAuthenticationBackend {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
+    private LdapConnection ldapConnection;
 
     @Inject
     public LDAPAuthenticationBackend(final Settings settings) {
         this.settings = settings;
+        ldapConnection = null;
     }
 
     @Override
     public User authenticate(final AuthCredentials authCreds) throws AuthException {
 
-        LdapConnection ldapConnection = null;
         final String user = authCreds.getUsername();
 
         final char[] password = authCreds.getPassword();
@@ -70,23 +70,27 @@ public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBacke
             if (sm != null) {
                 sm.checkPermission(new SpecialPermission());
             }
-            try {
-                ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
-                    @Override
-                    public LdapConnection run() throws Exception {
-                        return LDAPAuthorizator.getConnection(settings);
-                    }
-                });
-            } catch (final Exception e) {
-                log.error(e.toString(), e);
-                throw new ElasticsearchException(e.toString());
-            }
+
             final String bindDn = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, null);
 
-            if (bindDn != null) {
-                ldapConnection.bind(bindDn, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, null));
-            } else {
-                ldapConnection.anonymousBind();
+            if (ldapConnection == null || !ldapConnection.isConnected()) {
+                try {
+                    ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
+                        @Override
+                        public LdapConnection run() throws Exception {
+                            return SecurityUtil.getLdapConnection(settings);
+                        }
+                    });
+                } catch (final Exception e) {
+                    log.error(e.toString(), e);
+                    throw new AuthException("cannot get a valid Ldap Connection");
+                }
+
+                if (bindDn != null) {
+                    ldapConnection.bind(bindDn, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, null));
+                } else {
+                    ldapConnection.anonymousBind();
+                }
             }
 
             result = ldapConnection.search(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""),
@@ -106,13 +110,13 @@ public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBacke
 
             log.trace("Disconnect {}", bindDn == null ? "anonymous" : bindDn);
 
-            SecurityUtil.unbindAndCloseSilently(ldapConnection);
+            SecurityUtil.releaseConnectionSilently(ldapConnection);
 
             try {
                 ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
                     @Override
                     public LdapConnection run() throws Exception {
-                        return LDAPAuthorizator.getConnection(settings);
+                        return SecurityUtil.getLdapConnection(settings);
                     }
                 });
             } catch (final Exception e) {
@@ -135,7 +139,7 @@ public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBacke
 
             return new LdapUser(username, entry);
 
-        } catch (final LdapException  | CursorException e) {
+        } catch (final LdapException | CursorException e) {
             log.error(e.toString(), e);
             throw new AuthException(e);
         } finally {
@@ -143,11 +147,11 @@ public class  LDAPAuthenticationBackend implements NonCachingAuthenticationBacke
                 try {
                     result.close();
                 } catch (IOException e) {
-                    log.error("Couldn't close result due to IOException: ",e);
+                    log.error("Couldn't close result due to IOException: ", e);
                 }
             }
 
-            SecurityUtil.unbindAndCloseSilently(ldapConnection);
+            SecurityUtil.releaseConnectionSilently(ldapConnection);
         }
 
     }

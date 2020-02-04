@@ -21,8 +21,9 @@ package com.petalmd.armor.util;
 import com.google.common.io.BaseEncoding;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import org.apache.commons.pool.impl.GenericObjectPool;
 import org.apache.directory.api.ldap.model.exception.LdapException;
-import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.*;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
 import org.elasticsearch.ElasticsearchException;
@@ -32,14 +33,14 @@ import org.elasticsearch.rest.RestRequest;
 import javax.crypto.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.TrustManagerFactory;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.InvalidKeyException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,6 +57,8 @@ public class SecurityUtil {
 
     private static String[] ENABLED_SSL_PROTOCOLS = null;
     private static String[] ENABLED_SSL_CIPHERS = null;
+
+    private static LdapConnectionPool ldapConnectionPool;
 
     private SecurityUtil() {
 
@@ -214,24 +217,128 @@ public class SecurityUtil {
         }
     }
 
-    public static void unbindAndCloseSilently(final LdapConnection connection) {
-        if (connection == null) {
+    public static LdapConnection getLdapConnection(final Settings settings) throws KeyStoreException, NoSuchAlgorithmException,
+            CertificateException, IOException, LdapException {
+
+        if (ldapConnectionPool != null) {
+            LdapConnection ldapConnection = ldapConnectionPool.getConnection();
+            if (ldapConnection != null) {
+                return ldapConnection;
+            }
+        }
+
+        final boolean useSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED, false);
+        final boolean useStartSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED, false);
+        final LdapConnectionConfig config = new LdapConnectionConfig();
+
+        if (useSSL || useStartSSL) {
+            //## Truststore ##
+            final KeyStore ts = KeyStore.getInstance(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE,
+                    "JKS"));
+            FileInputStream trustStoreFile = new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
+                    System.getProperty("java.home") + "/lib/security/cacerts")));
+            try {
+                ts.load(trustStoreFile, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
+                        .toCharArray());
+            } finally {
+                trustStoreFile.close();
+            }
+            final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(ts);
+
+            config.setSslProtocol("TLS");
+            config.setEnabledCipherSuites(SecurityUtil.getEnabledSslCiphers());
+            config.setTrustManagers(tmf.getTrustManagers());
+        }
+
+        config.setUseSsl(useSSL);
+        config.setUseTls(useStartSSL);
+        config.setTimeout(5000L); //5 sec
+
+        final List<String> ldapHosts = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, Arrays.asList("localhost"));
+
+        boolean isValid = false;
+
+        for (String ldapHost : ldapHosts) {
+            log.trace("Connect to {}", ldapHost);
+
+            try {
+
+                final String[] split = ldapHost.split(":");
+
+                config.setLdapHost(split[0]);
+
+                if (split.length > 1) {
+                    config.setLdapPort(Integer.parseInt(split[1]));
+                } else {
+                    config.setLdapPort(useSSL ? 636 : 389);
+                }
+
+                LdapConnection ldapConnection = new LdapNetworkConnection(config);
+                ldapConnection.connect();
+                if (!ldapConnection.isConnected()) {
+                    continue;
+                } else {
+                    ldapConnection.close();
+                    isValid = true;
+                    break;
+                }
+
+            } catch (final NumberFormatException e) {
+                continue;
+            }
+        }
+
+        if (!isValid) {
+            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
+        }
+
+        DefaultLdapConnectionFactory factory = new DefaultLdapConnectionFactory(config);
+
+        factory.setTimeOut(5000L);
+
+        GenericObjectPool.Config poolConfig = new GenericObjectPool.Config();
+        poolConfig.maxActive = settings.getAsInt(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_MAX_ACTIVE_CONNECTIONS, 8);
+        ldapConnectionPool = new LdapConnectionPool(new ValidatingPoolableLdapConnectionFactory(factory), poolConfig);
+
+        LdapConnection ldapConnection = ldapConnectionPool.getConnection();
+
+        if (!ldapConnection.isConnected() ) {
+            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
+        }
+
+        return ldapConnection;
+    }
+
+    public static void releaseConnectionSilently(LdapConnection ldapConnection) {
+        if(ldapConnection == null || ldapConnectionPool == null) {
             return;
         }
-
         try {
-            connection.unBind();
-        } catch (final LdapException e) {
-            log.warn(e);
+            ldapConnectionPool.releaseConnection(ldapConnection);
+        } catch (final LdapException ex) {
+            log.warn(ex);
         }
-
-        try {
-            connection.close();
-        } catch (final IOException e) {
-            log.warn(e);
-        }
-
     }
+
+//    public static void unbindAndCloseSilently(final LdapConnection connection) {
+//        if (connection == null) {
+//            return;
+//        }
+//
+//        try {
+//            connection.unBind();
+//        } catch (final LdapException e) {
+//            log.warn(e);
+//        }
+//
+//        try {
+//            connection.close();
+//        } catch (final IOException e) {
+//            log.warn(e);
+//        }
+//
+//    }
 
     public static String getArmorSessionIdFromCookie(final RestRequest request) {
 
@@ -391,4 +498,9 @@ public class SecurityUtil {
         }
 
     }
+
+    public static void setLdapConnectionPool(LdapConnectionPool ldapConnectionPool) {
+        SecurityUtil.ldapConnectionPool = ldapConnectionPool;
+    }
+
 }

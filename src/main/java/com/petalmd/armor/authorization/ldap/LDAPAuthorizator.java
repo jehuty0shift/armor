@@ -35,6 +35,7 @@ import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapConnectionConfig;
+import org.apache.directory.ldap.client.api.LdapConnectionPool;
 import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -57,6 +58,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
     protected static final Logger log = LogManager.getLogger(LDAPAuthorizator.class);
     final Settings settings;
+    private static LdapConnectionPool ldapConnectionPool = null;
 
     @Inject
     public LDAPAuthorizator(final Settings settings) {
@@ -65,74 +67,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
     }
 
-    public static LdapConnection getConnection(final Settings settings) throws KeyStoreException, NoSuchAlgorithmException,
-            CertificateException, IOException, LdapException {
-        final boolean useSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED, false);
-        final boolean useStartSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED, false);
-        final LdapConnectionConfig config = new LdapConnectionConfig();
 
-        if (useSSL || useStartSSL) {
-            //## Truststore ##
-            final KeyStore ts = KeyStore.getInstance(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_TYPE,
-                    "JKS"));
-            FileInputStream trustStoreFile = new FileInputStream(new File(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_FILEPATH,
-                    System.getProperty("java.home") + "/lib/security/cacerts")));
-            try {
-                ts.load(trustStoreFile, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_TRUSTSTORE_PASSWORD, "changeit")
-                        .toCharArray());
-            } finally {
-                trustStoreFile.close();
-            }
-            final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            tmf.init(ts);
-
-            config.setSslProtocol("TLS");
-            config.setEnabledCipherSuites(SecurityUtil.getEnabledSslCiphers());
-            config.setTrustManagers(tmf.getTrustManagers());
-        }
-
-        config.setUseSsl(useSSL);
-        config.setUseTls(useStartSSL);
-        config.setTimeout(5000L); //5 sec
-
-        final List<String> ldapHosts = settings.getAsList(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_HOST, Arrays.asList("localhost"));
-
-        LdapConnection ldapConnection = null;
-
-        for (String ldapHost : ldapHosts) {
-            log.trace("Connect to {}", ldapHost);
-
-            try {
-
-                final String[] split = ldapHost.split(":");
-
-                config.setLdapHost(split[0]);
-
-                if (split.length > 1) {
-                    config.setLdapPort(Integer.parseInt(split[1]));
-                } else {
-                    config.setLdapPort(useSSL ? 636 : 389);
-                }
-
-                ldapConnection = new LdapNetworkConnection(config);
-                ldapConnection.connect();
-                if (!ldapConnection.isConnected()) {
-                    continue;
-                } else {
-                    break;
-                }
-
-            } catch (final NumberFormatException e) {
-                continue;
-            }
-        }
-
-        if (ldapConnection == null || !ldapConnection.isConnected()) {
-            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
-        }
-
-        return ldapConnection;
-    }
 
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds) throws AuthException {
@@ -159,7 +94,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
                     @Override
                     public LdapConnection run() throws Exception {
-                        return getConnection(settings);
+                        return SecurityUtil.getLdapConnection(settings);
                     }
                 });
             } catch (final Exception e) {
@@ -304,7 +239,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             }
 
         } catch (LdapException | CursorException | AuthException e) {
-            if ((e instanceof AuthException) && ((AuthException)e).type == AuthException.ExceptionType.NOT_FOUND) {
+            if ((e instanceof AuthException) && ((AuthException) e).type == AuthException.ExceptionType.NOT_FOUND) {
                 log.debug(e.toString(), e);
             } else {
                 log.error(e.toString(), e);
@@ -327,7 +262,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
                 }
             }
 
-            SecurityUtil.unbindAndCloseSilently(ldapConnection);
+            SecurityUtil.releaseConnectionSilently(ldapConnection);
         }
 
     }
