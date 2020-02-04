@@ -83,6 +83,9 @@ public final class ConfigConstants {
     public static final String ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES = "armor.http.xforwardedfor.trustedproxies";
     public static final String ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED = "armor.indices.updatesettingsfilter.enabled";
     public static final String ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED = "armor.indices.updatesettingsfilter.allowed_settings";
+    public static final String ARMOR_ALIAS_LIFECYCLE_ENABLED = "armor.alias_lifecycle.filter.enabled";
+    public static final String ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_ALIAS_BY_USER = "armor.alias_lifecycle.filter.max_num_of_alias_by_user";
+    public static final String ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_INDICES_BY_ALIAS = "armor.alias_lifecycle.filter.max_num_of_indices_by_alias";
     public static final String ARMOR_INDEX_LIFECYCLE_ENABLED = "armor.index_lifecycle.filter.enabled";
     public static final String ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS = "armor.index_lifecycle.filter.allowed_settings";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER = "armor.index_lifecycle.filter.max_num_of_shards_by_user";

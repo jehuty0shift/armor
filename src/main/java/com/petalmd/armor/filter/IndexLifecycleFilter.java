@@ -57,7 +57,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private static final Logger log = LogManager.getLogger(IndexLifecycleFilter.class);
 
     private boolean enabled;
-    private final List<String> allowedSettings;
+    private final List<String> allowedIndexSettings;
     private final MongoCollection<EngineUser> engineUsers;
     private KafkaService kService;
     private ObjectMapper mapper;
@@ -65,7 +65,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false);
-        allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS);
+        allowedIndexSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS);
         if (enabled) {
             if (!mongoService.getEngineDatabase().isPresent()) {
                 log.error("IndexLifeCycled need a working engine Mongo DB Database ! Disabling the filter !");
@@ -166,7 +166,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             //Remove not allowed settings
             log.debug("creating index {}", cir.index());
             Settings.Builder newSettingsBuilder = Settings.builder();
-            for (String prefix : allowedSettings) {
+            for (String prefix : allowedIndexSettings) {
                 log.debug("checking prefix {} in UpdateSettingsRequest", prefix);
                 Settings allowedSetting = cirSettings.filter((k) -> (k.startsWith(prefix)));
                 if (!allowedSetting.isEmpty()) {
