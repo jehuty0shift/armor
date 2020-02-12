@@ -380,7 +380,7 @@ public class SecurityUtil {
 
         try {
             final Class ntSystemClass = Class.forName("com.sun.security.auth.module.NTSystem");
-            final Object ntSystem = ntSystemClass.newInstance();
+            final Object ntSystem = ntSystemClass.getDeclaredConstructor().newInstance();
             final String[] groups = (String[]) ntSystemClass.getDeclaredMethod("getGroupIDs").invoke(ntSystem);
             for (final String group : groups) {
                 if (group.equals("S-1-5-32-544")) {

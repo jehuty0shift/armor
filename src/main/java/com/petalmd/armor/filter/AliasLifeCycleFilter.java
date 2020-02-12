@@ -113,36 +113,42 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         for (IndicesAliasesRequest.AliasActions aliasAction : aliasActions) {
 
+            List<String> actionsAliasesList = Arrays.asList(aliasAction.aliases());
+
             if (aliasAction.actionType().equals(IndicesAliasesRequest.AliasActions.Type.ADD)) {
                 //check that number of indices linked to an alias is not too high
                 int numberOfIndicesForAction = settings.getAsInt(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_INDICES_BY_ALIAS, 1000);
                 if (aliasAction.indices().length > numberOfIndicesForAction) {
                     log.error("trying to create an alias over {} indices. this is not allowed", numberOfIndicesForAction);
-                    throw new ForbiddenException("Alias {} span over {} indices, this is not allowed", aliasAction.aliases()[0], numberOfIndicesForAction);
+                    listener.onFailure(new ForbiddenException("Alias {} span over {} indices, this is not allowed", actionsAliasesList.get(0), numberOfIndicesForAction));
+                    return;
                 }
 
-                newAliases.add(aliasAction.aliases()[0]);
+                newAliases.add(actionsAliasesList.get(0));
             } else if (aliasAction.actionType().equals(IndicesAliasesRequest.AliasActions.Type.REMOVE)) {
-                newAliases.removeAll(Arrays.asList(aliasAction.aliases()));
-                List<String> removedAliasesList = Arrays.asList(aliasAction.aliases());
+                newAliases.removeAll(actionsAliasesList);
+                List<String> removedAliasesList = actionsAliasesList;
                 if (removedAliasesList.contains("*") || removedAliasesList.contains("_all")) {
-                    aliasAction.alias(restUser.getName()+"-a-*");
+                    aliasAction.alias(restUser.getName() + "-a-*");
+                    actionsAliasesList = Arrays.asList(aliasAction.aliases());
                 }
             }
 
-            Optional<String> forbiddenAliasName = Stream.of(aliasAction.aliases()).filter(s -> !s.startsWith(aliasPrefix)).findAny();
+            Optional<String> forbiddenAliasName = actionsAliasesList.stream().filter(s -> !s.startsWith(aliasPrefix)).findAny();
             if (forbiddenAliasName.isPresent()) {
                 log.warn("user {} tries to create an alias {}, this is not allowed.", restUser.getName(), forbiddenAliasName);
-                throw new ForbiddenException("Alias names MUST start with " + aliasPrefix);
+                listener.onFailure(new ForbiddenException("Alias names MUST start with " + aliasPrefix));
+                return;
             }
-            log.debug("aliases are {}", aliasAction.aliases());
+            log.debug("aliases are {}", actionsAliasesList);
             Optional<String> forbiddenIndexName = Stream.of(aliasAction.indices()).filter(s -> !s.startsWith(restUser.getName() + "-i-")).findAny();
             if (forbiddenIndexName.isPresent()) {
                 log.warn("user {} tries to create an alias on index {}, this is not allowed.");
-                throw new ForbiddenException("Index Names in a alias action MUST start with " + restUser.getName() + "-i-");
+                listener.onFailure(new ForbiddenException("Index Names in a alias action MUST start with " + restUser.getName() + "-i-"));
+                return;
             }
 
-            log.debug("indices are {}", aliasAction.indices());
+            log.debug("indices are {}", Arrays.asList(aliasAction.indices()));
         }
 
         log.debug("we will create {} new aliases", newAliases.size());
@@ -153,7 +159,8 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         if (numberOfAliases + newAliases.size() > maxNumberOfAliasAllowed) {
             log.error("the user {} is trying to create {} new aliases, this will exceed the maximum of {} aliases per user", restUser.getName(), newAliases.size(), maxNumberOfAliasAllowed);
-            throw new ForbiddenException("the number of alias will exceed the maximum allowed for one user : {}", maxNumberOfAliasAllowed);
+            listener.onFailure(new ForbiddenException("the number of alias will exceed the maximum allowed for one user : {}", maxNumberOfAliasAllowed));
+            return;
         }
 
         log.info("will allows {} actions for user {}", aliasActions.size(), restUser.getName());
@@ -161,7 +168,8 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         if (engineUser == null) {
             log.error("EngineUser for user {} is null, aborting the aliasAction request.", restUser.getName());
-            throw new ElasticsearchException("Impossible to complete this action right now");
+            listener.onFailure(new ElasticsearchException("Impossible to complete this action right now"));
+            return;
         }
 
         log.info("will proceed with {} alias actions for user {}", aliasActions.size(), engineUser.getUsername());
@@ -215,7 +223,9 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             log.debug("we will report {} aliasActions to Engine for user {}", resolvedAliases.size(), engineUser.getUsername());
 
             if (!kService.getKafkaProducer().isPresent()) {
-                throw new IllegalStateException("Kafka Producer is not available");
+                origListener.onFailure(new ElasticsearchException("Unexpected error on this operation"));
+                log.error("Unexpected error", new IllegalStateException("Kafka Producer is not available"));
+                return;
             }
 
             Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();

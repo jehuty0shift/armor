@@ -61,7 +61,6 @@ public class SearchTests extends AbstractScenarioTest {
 
     @Test
     public void scroll() throws Exception {
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");

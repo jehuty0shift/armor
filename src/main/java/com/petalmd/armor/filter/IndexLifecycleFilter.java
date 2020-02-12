@@ -104,12 +104,12 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         }
         if (engineUsers == null) {
             log.error("impossible to validate users, we will not continue");
-            throw new ElasticsearchException("This action cannot be fulffiled, contact the administrator");
+            throw new ElasticsearchException("This action cannot be fulfilled, contact the administrator");
         }
 
         if (kService == null) {
             log.error("impossible to report indices operation, we will not continue");
-            throw new ElasticsearchException("This action cannot be fulffiled, contact the administrator");
+            throw new ElasticsearchException("This action cannot be fulfilled, contact the administrator");
         }
 
         log.debug("action is {}", action);
@@ -141,13 +141,15 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             if (!indexName.startsWith(restUser.getName())) {
                 log.error("the user {} is not allowed to create a user with this name {}", restUser.getName(), indexName);
-                throw new ForbiddenException("The index you want to create must be in the following format {}-i-*", restUser.getName());
+                listener.onFailure(new ForbiddenException("The index you want to create must be in the following format {}-i-*", restUser.getName()));
+                return;
             }
 
             int numberOfShards = cirSettings.getAsInt("index.number_of_shards", 1);
             if (numberOfShards > settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 16)) {
                 log.error("number of shards asked ({}) for index {} is too high", numberOfShards, indexName);
-                throw new ForbiddenException("number of shards asked ({}) for index {} is too high", numberOfShards, indexName);
+                listener.onFailure(new ForbiddenException("number of shards asked ({}) for index {} is too high", numberOfShards, indexName));
+                return;
             }
 
             //check the max num of shards for this user
@@ -160,7 +162,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             if (totalShardsForUser + numberOfShards > settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER, 1000)) {
                 log.error("the number of total shards of the user {} : {} will exceed the maximum number of shards by user with the new index {} of {} shards", restUser.getName(), totalShardsForUser, indexName, numberOfShards);
-                throw new ForbiddenException("this index {} with {} shards will exceed the number of shards allowed by user", indexName, numberOfShards);
+                listener.onFailure(new ForbiddenException("this index {} with {} shards will exceed the number of shards allowed by user", indexName, numberOfShards));
+                return;
             }
 
             //Remove not allowed settings
@@ -189,12 +192,12 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             //validate names
             Optional<String> isForbidden = Stream.of(dir.indices()).filter(k -> !k.startsWith(engineUser.getUsername())).findAny();
             if (isForbidden.isPresent()) {
-                throw new ForbiddenException("You have no right to delete index {}", isForbidden.get());
+                listener.onFailure(new ForbiddenException("You have no right to delete index {}", isForbidden.get()));
             }
             //we need concrete names
             Optional<String> isNotConcrete = Stream.of(dir.indices()).filter(k -> k.contains("*") || k.equals("_all")).findAny();
             if (isNotConcrete.isPresent()) {
-                throw new ForbiddenException("All indices names must be fully indicated: {} is not allowed", isNotConcrete.get());
+                listener.onFailure(new ForbiddenException("All indices names must be fully indicated: {} is not allowed", isNotConcrete.get()));
             }
 
         }
@@ -203,9 +206,9 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         //Listener (should validate by putting a message in Kafka, if failed, rollback (delete the index) and respond 5XX
         final IndexLifeCycleListener indexLifeCycleListener = new IndexLifeCycleListener(action, indices, indexSettings, engineUser, kService, listener, mapper);
 
+        //Proceed
         chain.proceed(task, action, request, indexLifeCycleListener);
         return;
-        //Proceed
 
     }
 

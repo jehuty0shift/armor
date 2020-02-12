@@ -270,51 +270,5 @@ public class Evaluator implements Serializable {
 
     }
 
-    public void validateAndMerge() throws MalformedConfigurationException {
-//
-//        if (!Collections.disjoint(bypassFilters, executeFilters)) {
-//            log.warn("Identical execute and bypass filters");
-//            log.warn("    bypassFilters: {}", bypassFilters);
-//            log.warn("    executeFilters: {}", executeFilters);
-//        }
-//
-//        if (bypassFilters.isEmpty() && executeFilters.isEmpty()) {
-//            throw new MalformedConfigurationException("no bypass or execute filters at all");
-//        }
-    }
-//
-//    public boolean getBypassAll() {
-//        return bypassFilters.contains("*");
-//    }
-//
-//    public boolean getExecuteAll() {
-//
-//        return executeFilters.contains("*") && bypassFilters.isEmpty();
-//
-//    }
-//
-//    public TokenEvaluator.FilterAction evaluateFilter(final String ft, final String fn) {
-//
-//        final String filter = ft + "." + fn;
-//
-//        if (getExecuteAll()) {
-//            return TokenEvaluator.FilterAction.EXECUTE;
-//        }
-//
-//        if (getBypassAll()) {
-//            return TokenEvaluator.FilterAction.BYPASS;
-//        }
-//
-//        if (containsWildcardPattern(bypassFilters, filter)) {
-//            return TokenEvaluator.FilterAction.BYPASS;
-//        }
-//
-//        if (containsWildcardPattern(executeFilters, filter) || executeFilters.contains("*")) {
-//            return TokenEvaluator.FilterAction.EXECUTE;
-//        }
-//
-//        return TokenEvaluator.FilterAction.BYPASS;
-//    }
-
 }
 

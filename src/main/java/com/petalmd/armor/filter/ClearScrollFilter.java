@@ -49,7 +49,8 @@ public class ClearScrollFilter extends AbstractActionFilter {
             User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
             if (!canScrollClearAll && (csRequest.scrollIds().isEmpty() || csRequest.scrollIds().contains("_all"))) {
                 log.warn("attempt to clear all scroll from user " + user.getName());
-                throw new ForbiddenException("_all is not allowed for scroll Ids parameters");
+                listener.onFailure(new ForbiddenException("_all is not allowed for scroll Ids parameters"));
+                return;
             }
 
         }
