@@ -130,7 +130,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             if (!engineUser.isTrusted()) {
                 log.error("This user {} cannot be trusted for Index creation", engineUser.getUsername());
-                throw new PaymentRequiredException("Your current billing status rating is too low");
+                listener.onFailure(new PaymentRequiredException("Your current billing status rating is too low"));
+                return;
             }
 
             //Check User has rights on IndiceName
@@ -193,11 +194,13 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             Optional<String> isForbidden = Stream.of(dir.indices()).filter(k -> !k.startsWith(engineUser.getUsername())).findAny();
             if (isForbidden.isPresent()) {
                 listener.onFailure(new ForbiddenException("You have no right to delete index {}", isForbidden.get()));
+                return;
             }
             //we need concrete names
             Optional<String> isNotConcrete = Stream.of(dir.indices()).filter(k -> k.contains("*") || k.equals("_all")).findAny();
             if (isNotConcrete.isPresent()) {
                 listener.onFailure(new ForbiddenException("All indices names must be fully indicated: {} is not allowed", isNotConcrete.get()));
+                return;
             }
 
         }
