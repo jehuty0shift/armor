@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,19 +13,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.util;
 
-import com.google.common.io.BaseEncoding;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.apache.commons.pool.impl.GenericObjectPool;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.ldap.client.api.*;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
@@ -33,6 +32,7 @@ import org.elasticsearch.rest.RestRequest;
 import javax.crypto.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
@@ -48,17 +48,15 @@ import java.util.regex.Pattern;
 public class SecurityUtil {
 
     private static final Logger log = LogManager.getLogger(SecurityUtil.class);
-    private static final String[] PREFERRED_SSL_CIPHERS = { "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_RSA_WITH_AES_256_GCM_SHA384",
-            "TLS_CHACHA20_POLY1305_SHA256",  "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
-             "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384",
+    private static final String[] PREFERRED_SSL_CIPHERS = {"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", "TLS_RSA_WITH_AES_256_GCM_SHA384",
+            "TLS_CHACHA20_POLY1305_SHA256", "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
+            "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384", "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384",
             "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-            "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA" };
+            "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_256_CBC_SHA"};
     private static final String[] PREFERRED_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2", "TLSv1.1", "TLSv1"};
 
     private static String[] ENABLED_SSL_PROTOCOLS = null;
     private static String[] ENABLED_SSL_CIPHERS = null;
-
-    private static LdapConnectionPool ldapConnectionPool;
 
     private SecurityUtil() {
 
@@ -220,13 +218,6 @@ public class SecurityUtil {
     public static LdapConnection getLdapConnection(final Settings settings) throws KeyStoreException, NoSuchAlgorithmException,
             CertificateException, IOException, LdapException {
 
-        if (ldapConnectionPool != null) {
-            LdapConnection ldapConnection = ldapConnectionPool.getConnection();
-            if (ldapConnection != null) {
-                return ldapConnection;
-            }
-        }
-
         final boolean useSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_SSL_ENABLED, false);
         final boolean useStartSSL = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_LDAPS_STARTTLS_ENABLED, false);
         final LdapConnectionConfig config = new LdapConnectionConfig();
@@ -259,6 +250,9 @@ public class SecurityUtil {
 
         boolean isValid = false;
 
+
+        LdapConnection ldapConnection = null;
+
         for (String ldapHost : ldapHosts) {
             log.trace("Connect to {}", ldapHost);
 
@@ -274,12 +268,11 @@ public class SecurityUtil {
                     config.setLdapPort(useSSL ? 636 : 389);
                 }
 
-                LdapConnection ldapConnection = new LdapNetworkConnection(config);
+                ldapConnection = new LdapNetworkConnection(config);
                 ldapConnection.connect();
                 if (!ldapConnection.isConnected()) {
                     continue;
                 } else {
-                    ldapConnection.close();
                     isValid = true;
                     break;
                 }
@@ -293,52 +286,23 @@ public class SecurityUtil {
             throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
         }
 
-        DefaultLdapConnectionFactory factory = new DefaultLdapConnectionFactory(config);
-
-        factory.setTimeOut(5000L);
-
-        GenericObjectPool.Config poolConfig = new GenericObjectPool.Config();
-        poolConfig.maxActive = settings.getAsInt(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_MAX_ACTIVE_CONNECTIONS, 8);
-        ldapConnectionPool = new LdapConnectionPool(new ValidatingPoolableLdapConnectionFactory(factory), poolConfig);
-
-        LdapConnection ldapConnection = ldapConnectionPool.getConnection();
-
-        if (!ldapConnection.isConnected() ) {
-            throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts.toString());
-        }
-
         return ldapConnection;
     }
 
     public static void releaseConnectionSilently(LdapConnection ldapConnection) {
-        if(ldapConnection == null || ldapConnectionPool == null) {
+        if (ldapConnection == null) {
             return;
         }
         try {
-            ldapConnectionPool.releaseConnection(ldapConnection);
+            ldapConnection.unBind();
         } catch (final LdapException ex) {
-            log.warn(ex);
+            log.warn("LdapException during unbind", ex);
+        } catch (final Exception ex) {
+            log.warn("Unknown Exception during unbind",ex);
         }
+
     }
 
-//    public static void unbindAndCloseSilently(final LdapConnection connection) {
-//        if (connection == null) {
-//            return;
-//        }
-//
-//        try {
-//            connection.unBind();
-//        } catch (final LdapException e) {
-//            log.warn(e);
-//        }
-//
-//        try {
-//            connection.close();
-//        } catch (final IOException e) {
-//            log.warn(e);
-//        }
-//
-//    }
 
     public static String getArmorSessionIdFromCookie(final RestRequest request) {
 
@@ -379,7 +343,7 @@ public class SecurityUtil {
         } catch (final NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException e) {
             log.error(" error in cryptography configuration", e);
             throw new ElasticsearchException(e);
-        } catch (final IOException | IllegalBlockSizeException e){
+        } catch (final IOException | IllegalBlockSizeException e) {
             log.error(" error during deserialization", e);
             throw new ElasticsearchException(e);
         }
@@ -404,12 +368,12 @@ public class SecurityUtil {
     }
 
 
-    public static String[] getEnabledSslCiphers(){
-        return Arrays.copyOf(ENABLED_SSL_CIPHERS,ENABLED_SSL_CIPHERS.length);
+    public static String[] getEnabledSslCiphers() {
+        return Arrays.copyOf(ENABLED_SSL_CIPHERS, ENABLED_SSL_CIPHERS.length);
     }
 
-    public static String[] getEnabledSslProtocols(){
-        return Arrays.copyOf(ENABLED_SSL_PROTOCOLS,ENABLED_SSL_PROTOCOLS.length);
+    public static String[] getEnabledSslProtocols() {
+        return Arrays.copyOf(ENABLED_SSL_PROTOCOLS, ENABLED_SSL_PROTOCOLS.length);
     }
 
     private static boolean isWindowsAdmin() {
@@ -424,7 +388,7 @@ public class SecurityUtil {
                 }
             }
             return false;
-        } catch (final InstantiationException| IllegalAccessException | IllegalArgumentException | InvocationTargetException |NoSuchMethodException| ClassNotFoundException | SecurityException e) {
+        } catch (final InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException | SecurityException e) {
             return false;
         }
     }
@@ -499,8 +463,5 @@ public class SecurityUtil {
 
     }
 
-    public static void setLdapConnectionPool(LdapConnectionPool ldapConnectionPool) {
-        SecurityUtil.ldapConnectionPool = ldapConnectionPool;
-    }
 
 }

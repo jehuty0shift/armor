@@ -265,7 +265,7 @@ public class Evaluator implements Serializable {
                 }
             }
         }
-        log.warn("action {} is not explicitly allowed by DEFAULT, will reject", action);
+        log.debug("action {} is not explicitly allowed by DEFAULT, will reject", action);
         return false;
 
     }

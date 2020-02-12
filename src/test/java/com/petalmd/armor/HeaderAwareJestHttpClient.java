@@ -53,6 +53,7 @@ import java.util.Map.Entry;
 /**
  * @author Dogukan Sonmez
  * @author cihat keser
+ * @author jehuty0shift
  */
 public class HeaderAwareJestHttpClient extends AbstractJestClient implements JestClient {
 
@@ -68,7 +69,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
         final HttpUriRequest request = constructHttpMethod(clientRequest.getRestMethodName(), elasticSearchRestUrl,
                 clientRequest.getData(gson));
 
-        log.debug("reqeust method and restUrl - " + clientRequest.getRestMethodName() + " " + elasticSearchRestUrl);
+        log.debug("request method and restUrl - " + clientRequest.getRestMethodName() + " " + elasticSearchRestUrl);
 
         // add headers added to action
         if (!clientRequest.getHeaders().isEmpty()) {

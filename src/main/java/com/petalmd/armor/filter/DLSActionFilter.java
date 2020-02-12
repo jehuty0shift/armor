@@ -85,7 +85,7 @@ public class DLSActionFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 10;
+        return Integer.MIN_VALUE + 12;
     }
 
     @Override

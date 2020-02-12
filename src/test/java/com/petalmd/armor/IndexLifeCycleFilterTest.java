@@ -16,7 +16,6 @@ import io.searchbox.client.JestResult;
 import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.DeleteIndex;
 import kong.unirest.Unirest;
-import org.apache.directory.api.ldap.trigger.StoredProcedureParameter;
 import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
@@ -28,7 +27,6 @@ import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.transport.netty4.Netty4Utils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -96,7 +94,6 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
     }
 
 
-    //@Test
     public void testKafka() throws Exception {
 
         Properties props = new Properties();

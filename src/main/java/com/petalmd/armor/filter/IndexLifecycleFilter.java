@@ -201,16 +201,16 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
         //Install the Listener,
         //Listener (should validate by putting a message in Kafka, if failed, rollback (delete the index) and respond 5XX
-        final IndexActionListener indexActionListener = new IndexActionListener(action, indices, indexSettings, engineUser, kService, listener, mapper);
+        final IndexLifeCycleListener indexLifeCycleListener = new IndexLifeCycleListener(action, indices, indexSettings, engineUser, kService, listener, mapper);
 
-        chain.proceed(task, action, request, indexActionListener);
+        chain.proceed(task, action, request, indexLifeCycleListener);
         return;
         //Proceed
 
     }
 
 
-    private static class IndexActionListener<Response extends ActionResponse> implements ActionListener<Response> {
+    private static class IndexLifeCycleListener<Response extends ActionResponse> implements ActionListener<Response> {
 
         private String action;
         private List<String> indices;
@@ -220,7 +220,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         private ActionListener origListener;
         private KafkaService kService;
 
-        public IndexActionListener(String action, List<String> indices, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
+        public IndexLifeCycleListener(String action, List<String> indices, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
             this.action = action;
             this.indices = indices;
             this.engineUser = engineUser;

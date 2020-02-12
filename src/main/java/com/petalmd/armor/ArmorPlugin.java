@@ -263,6 +263,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new KeflaFilter(settings, keflaEngine, armorService, armorConfigService, clusterService, threadPool));
             actionFilters.add(new IndexLifecycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
+            actionFilters.add(new AliasLifeCycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }
@@ -439,6 +440,11 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.intSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER, 1000, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.intSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 1, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //AliasLifeCycle
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_ALIAS_BY_USER, 1000, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.intSetting(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_INDICES_BY_ALIAS, 1000, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         return settings;
     }

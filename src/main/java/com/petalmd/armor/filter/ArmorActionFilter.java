@@ -86,11 +86,11 @@ public class ArmorActionFilter implements ActionFilter {
 
         try {
             apply0(task, action, request, listener, chain);
-        } catch (final ForbiddenException e) {
-            log.error("Forbidden while apply() due to {} for action {}", e, e.toString(), action);
-            throw e;
-        } catch (IndexNotFoundException e) {
-            throw e;
+//        } catch (final ForbiddenException e) {
+//            log.error("Forbidden while apply() due to {} for action {}", e, e.toString(), action);
+//            throw e;
+//        } catch (IndexNotFoundException e) {
+//            throw e;
         } catch (Exception e) {
             log.error("Error while apply() due to {} for action {}", e, e.toString(), action);
             throw new RuntimeException(e);
@@ -98,7 +98,7 @@ public class ArmorActionFilter implements ActionFilter {
         }
     }
 
-    private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) throws Exception {
+    private void apply0(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
         //proceeding for kibana field stats requests
         if (settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true) && (action.startsWith("cluster:monitor/") || action.contains("indices:data/read/field_stats"))) {
             chain.proceed(task, action, request, listener);
@@ -219,7 +219,7 @@ public class ArmorActionFilter implements ActionFilter {
                     auditListener.onMissingPrivileges(user.getName(), request, threadContext);
 
                     listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
-                    throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+                    return;
                 }
 
             }
@@ -243,7 +243,7 @@ public class ArmorActionFilter implements ActionFilter {
                     auditListener.onMissingPrivileges(user.getName(), request, threadContext);
 
                     listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
-                    throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
+                    return;
                 }
             }
 
@@ -254,7 +254,8 @@ public class ArmorActionFilter implements ActionFilter {
                     threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(armorIndex));
                 }
                 auditListener.onMissingPrivileges(user.getName(), request, threadContext);
-                throw new ForbiddenException("Only allowed from localhost (loopback)");
+                listener.onFailure(new ForbiddenException("Only allowed from localhost (loopback)"));
+                return;
             }
 
             if (ci.contains("_all")) {
@@ -311,7 +312,7 @@ public class ArmorActionFilter implements ActionFilter {
             }
             auditListener.onMissingPrivileges(user.getName(), request, threadContext);
             listener.onFailure(new ForbiddenException("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters));
-            throw new ForbiddenException("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters);
+            return;
         }
 
         log.debug("Action {} is allowed for user {} on items {}", action, user.getName(), ci);

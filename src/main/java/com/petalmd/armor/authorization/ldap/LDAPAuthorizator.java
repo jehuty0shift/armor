@@ -58,7 +58,6 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
     protected static final Logger log = LogManager.getLogger(LDAPAuthorizator.class);
     final Settings settings;
-    private static LdapConnectionPool ldapConnectionPool = null;
 
     @Inject
     public LDAPAuthorizator(final Settings settings) {

@@ -36,11 +36,6 @@ import org.junit.Test;
 public class LdapBackendTest extends AbstractUnitTest {
 
 
-    @Before
-    public void resetLdapConnectionPool() {
-        SecurityUtil.setLdapConnectionPool(null);
-    }
-
     @Test
     public void testLdapAuthentication() throws Exception {
 

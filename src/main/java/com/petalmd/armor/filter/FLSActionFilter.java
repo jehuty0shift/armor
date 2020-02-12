@@ -82,7 +82,7 @@ public class FLSActionFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 11;
+        return Integer.MIN_VALUE + 13;
     }
 
     @Override

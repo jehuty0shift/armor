@@ -46,12 +46,10 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
-    private LdapConnection ldapConnection;
 
     @Inject
     public LDAPAuthenticationBackend(final Settings settings) {
         this.settings = settings;
-        ldapConnection = null;
     }
 
     @Override
@@ -64,6 +62,9 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
         EntryCursor result = null;
 
+
+        LdapConnection ldapConnection = null;
+
         try {
 
             SecurityManager sm = System.getSecurityManager();
@@ -73,24 +74,23 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
             final String bindDn = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_BIND_DN, null);
 
-            if (ldapConnection == null || !ldapConnection.isConnected()) {
-                try {
-                    ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
-                        @Override
-                        public LdapConnection run() throws Exception {
-                            return SecurityUtil.getLdapConnection(settings);
-                        }
-                    });
-                } catch (final Exception e) {
-                    log.error(e.toString(), e);
-                    throw new AuthException("cannot get a valid Ldap Connection");
-                }
+            try {
 
-                if (bindDn != null) {
-                    ldapConnection.bind(bindDn, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, null));
-                } else {
-                    ldapConnection.anonymousBind();
-                }
+                ldapConnection = AccessController.doPrivileged(new PrivilegedExceptionAction<LdapConnection>() {
+                    @Override
+                    public LdapConnection run() throws Exception {
+                        return SecurityUtil.getLdapConnection(settings);
+                    }
+                });
+            } catch (final Exception e) {
+                log.error(e.toString(), e);
+                throw new AuthException("cannot get a valid Ldap Connection");
+            }
+
+            if (bindDn != null) {
+                ldapConnection.bind(bindDn, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_PASSWORD, null));
+            } else {
+                ldapConnection.anonymousBind();
             }
 
             result = ldapConnection.search(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""),

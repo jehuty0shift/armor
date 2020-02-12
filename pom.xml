@@ -47,7 +47,7 @@
     <properties>
         <elasticsearch.version>6.8.6</elasticsearch.version>
         <apache.ds.version>2.0.0-M24</apache.ds.version>
-        <apache.ds.api.version>1.0.0</apache.ds.api.version>
+        <apache.ds.api.version>1.0.3</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
