@@ -110,22 +110,6 @@ public class ArmorRestShield {
             return true;
         }
 
-//        RestChannel channel = channel;
-//
-//        if (settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false)) {
-//            channel = new SessionAwareNettyHttpChannel(channel, sessionStore, settings.getAsBoolean(true));
-//        }
-
-//        if (request.hasInContext(ArmorConstants.ARMOR_FILTER) && filterType != null) {
-//            if (!((List<String>) request.getFromContext(ArmorConstants.ARMOR_FILTER)).contains(filterType + ":" + filterName)) {
-//                ((List<String>) request.getFromContext(ArmorConstants.ARMOR_FILTER)).add(filterType + ":" + filterName);
-//            }
-//        } else if (filterType != null) {
-//            final List<String> filters = new ArrayList<String>();
-//            filters.add(filterType + ":" + filterName);
-//            request.putInContext(ArmorConstants.ARMOR_FILTER, filters);
-//        }
-
         //this is needed because of a authentication attempt with kerberos could be identified as a reply
         if (threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER) != null) {
             log.trace("Already processed, execute directly");
@@ -133,14 +117,16 @@ public class ArmorRestShield {
         }
 
         //log.debug("execute filter {}", filterName == null ? "DEFAULT" : filterName);
-        log.trace("Path: {} {}", request.method(), request.path());
+        if(log.isTraceEnabled()) {
+            log.trace("Path: {} {}", request.method(), request.path());
 
-        log.trace("Headers: {}", request.getHeaders().toString());
-        try {
-            log.trace("Source: {}", request.content() == null ? "null" : request.content().utf8ToString());
-        } catch (final Exception e) {
-            log.error("Source content printing generated an Exception", e);
-            throw e;
+            log.trace("Headers: {}", request.getHeaders().toString());
+            try {
+                log.trace("Source: {}", request.content() == null ? "null" : request.content().utf8ToString());
+            } catch (final Exception e) {
+                log.error("Source content printing generated an Exception", e);
+                throw e;
+            }
         }
 
         final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
@@ -204,14 +190,6 @@ public class ArmorRestShield {
 
             threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedUser);
             threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS, resolvedAddress);
-//            String reqHeaderValue = request.header(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
-//            if(reqHeaderValue != null) {
-//                threadContext.putHeader(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST,reqHeaderValue);
-//            }
-//            reqHeaderValue = request.header(ArmorConstants.ARMOR_TRANSPORT_CREDS);
-//            if(reqHeaderValue != null) {
-//                threadContext.putHeader(ArmorConstants.ARMOR_TRANSPORT_CREDS,reqHeaderValue);
-//            }
             return true;
 
         } catch (final AuthException e1) {

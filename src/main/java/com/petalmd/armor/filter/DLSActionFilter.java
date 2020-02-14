@@ -130,7 +130,8 @@ public class DLSActionFilter extends AbstractActionFilter {
                 evaluator = getFromContextOrHeader(ArmorConstants.ARMOR_AC_EVALUATOR, threadContext, getEvaluator(request, action, user, threadContext));
             } catch (ForbiddenException e) {
                 listener.onFailure(e);
-                throw e;
+                log.error("forbidden action",e);
+                return;
             }
 
             if (request.remoteAddress() == null && user == null) {

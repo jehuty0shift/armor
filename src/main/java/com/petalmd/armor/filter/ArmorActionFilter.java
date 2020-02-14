@@ -117,12 +117,11 @@ public class ArmorActionFilter implements ActionFilter {
             log.trace("INTRANODE request");
             try {
                 chain.proceed(task, action, request, listener);
+                return;
             } catch (IndexNotFoundException e) {
                 log.warn("Missing internal Armor Index, access granted");
                 return;
             }
-
-            return;
         }
 
         AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
