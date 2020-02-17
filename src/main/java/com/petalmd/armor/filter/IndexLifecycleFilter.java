@@ -74,7 +74,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
                 engineUsers = mongoService.getEngineDatabase().get().getCollection("users")
                         .withCodecRegistry(cRegistry)
-                        .withReadPreference(ReadPreference.primary())
                         .withDocumentClass(EngineUser.class);
                 log.info("connected to Users Database");
             }

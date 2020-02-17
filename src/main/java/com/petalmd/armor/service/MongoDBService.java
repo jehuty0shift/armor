@@ -21,8 +21,8 @@ public class MongoDBService extends AbstractLifecycleComponent {
     private final Settings settings;
     private boolean enabled;
     private static MongoClient mongoClient;
-    private MongoDatabase engineDatabase;
-    private MongoDatabase graylogDatabase;
+    private static MongoDatabase engineDatabase;
+    private static MongoDatabase graylogDatabase;
 
     public MongoDBService(final Settings settings) {
         this.enabled = !settings.get(ConfigConstants.ARMOR_MONGODB_URI, "").isBlank();
@@ -45,13 +45,13 @@ public class MongoDBService extends AbstractLifecycleComponent {
             }
 
             //configure Graylog
-//            final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
-//            if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
-//                log.warn("Graylog Database is not provided !");
-//            } else {
-//                graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
-//                log.info("configured graylog database {}", graylogDatabaseName);
-//            }
+            final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
+            if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
+                log.warn("Graylog Database is not provided !");
+            } else {
+                graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
+                log.info("configured graylog database {}", graylogDatabaseName);
+            }
         } else {
             log.info("MongoDBService is not available");
         }
@@ -75,11 +75,11 @@ public class MongoDBService extends AbstractLifecycleComponent {
         }
     }
 
-    public Optional<MongoDatabase> getEngineDatabase() {
+    public static Optional<MongoDatabase> getEngineDatabase() {
         return Optional.ofNullable(engineDatabase);
     }
 
-    public Optional<MongoDatabase> getGraylogDatabase() {
+    public static Optional<MongoDatabase> getGraylogDatabase() {
         return Optional.ofNullable(graylogDatabase);
     }
 
