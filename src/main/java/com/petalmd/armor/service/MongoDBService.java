@@ -10,6 +10,8 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Optional;
 
 /**
@@ -18,7 +20,6 @@ import java.util.Optional;
 public class MongoDBService extends AbstractLifecycleComponent {
 
     private static final Logger log = LogManager.getLogger(MongoDBService.class);
-    private final Settings settings;
     private boolean enabled;
     private static MongoClient mongoClient;
     private static MongoDatabase engineDatabase;
@@ -26,32 +27,34 @@ public class MongoDBService extends AbstractLifecycleComponent {
 
     public MongoDBService(final Settings settings) {
         this.enabled = !settings.get(ConfigConstants.ARMOR_MONGODB_URI, "").isBlank();
-        this.settings = settings;
         engineDatabase = null;
         graylogDatabase = null;
         if (enabled) {
-            final String mongoDBUriString = settings.get(ConfigConstants.ARMOR_MONGODB_URI);
-            log.info("connecting to MongoDB with URI {}", mongoDBUriString);
-            if (!mongoDBUriString.equals("test")) {
-                mongoClient = new MongoClient(new MongoClientURI(mongoDBUriString));
-            }
-            //configure Engine
-            final String engineDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE);
-            if (engineDatabaseName == null || engineDatabaseName.isBlank()) {
-                log.warn("Engine Database name is not provided !");
-            } else {
-                engineDatabase = mongoClient.getDatabase(engineDatabaseName);
-                log.info("configured engine database {}", engineDatabaseName);
-            }
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                final String mongoDBUriString = settings.get(ConfigConstants.ARMOR_MONGODB_URI);
+                log.info("connecting to MongoDB with URI {}", mongoDBUriString);
+                if (!mongoDBUriString.equals("test")) {
+                    mongoClient = new MongoClient(new MongoClientURI(mongoDBUriString));
+                }
+                //configure Engine
+                final String engineDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE);
+                if (engineDatabaseName == null || engineDatabaseName.isBlank()) {
+                    log.warn("Engine Database name is not provided !");
+                } else {
+                    engineDatabase = mongoClient.getDatabase(engineDatabaseName);
+                    log.info("configured engine database {}", engineDatabaseName);
+                }
 
-            //configure Graylog
-            final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
-            if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
-                log.warn("Graylog Database is not provided !");
-            } else {
-                graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
-                log.info("configured graylog database {}", graylogDatabaseName);
-            }
+                //configure Graylog
+                final String graylogDatabaseName = settings.get(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE);
+                if (graylogDatabaseName == null || graylogDatabaseName.isBlank()) {
+                    log.warn("Graylog Database is not provided !");
+                } else {
+                    graylogDatabase = mongoClient.getDatabase(graylogDatabaseName);
+                    log.info("configured graylog database {}", graylogDatabaseName);
+                }
+                return null;
+            });
         } else {
             log.info("MongoDBService is not available");
         }

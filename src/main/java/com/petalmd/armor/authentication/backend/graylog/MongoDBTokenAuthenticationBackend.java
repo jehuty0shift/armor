@@ -12,8 +12,14 @@ import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.joda.time.Instant;
+
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 /**
  * Created by jehuty0shift on 17/02/2020.
@@ -24,24 +30,30 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
     private final MongoCollection<Document> tokenCollection;
     private final boolean enabled;
 
+    @Inject
     public MongoDBTokenAuthenticationBackend(final Settings settings) {
 
         final String mongoDBURI = settings.get(ConfigConstants.ARMOR_MONGODB_URI, "");
         if (!mongoDBURI.isBlank() && MongoDBService.getGraylogDatabase().isPresent()) {
             enabled = true;
-            tokenCollection = MongoDBService.getGraylogDatabase().get().getCollection("access_tokens");
-            tokenCollection.createIndex(new BasicDBObject("token",1), new IndexOptions().unique(true));
+            tokenCollection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () -> {
+                MongoCollection<Document> tCollection = MongoDBService.getGraylogDatabase().get().getCollection("access_tokens");
+                tCollection.createIndex(new BasicDBObject("token", 1), new IndexOptions().unique(true));
+                return tCollection;
+            });
+
         } else {
             enabled = false;
             tokenCollection = null;
         }
+        log.info("MongoDB Authentication is {}", enabled ? "enabled" : "disabled");
     }
 
 
     @Override
     public User authenticate(AuthCredentials credentials) throws AuthException {
         if (!enabled) {
-            return null;
+            throw new AuthException("MongoDB Token Authentication is disabled", AuthException.ExceptionType.ERROR);
         }
         final String password = new String(credentials.getPassword());
 
@@ -53,24 +65,34 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
 
         credentials.clear();
 
-        final Document userDocument = tokenCollection.find(Filters.eq("token", tokenValue)).first();
-
-        if (userDocument == null) {
-            log.warn("nothing found for token {}", tokenValue);
-            throw new AuthException(("Unauthorized"));
-        }
-
-        final String username = userDocument.getString("username");
-
-        // Implement last access like Graylog do
-        userDocument.put("last_access", Instant.now().toDate());
         try {
-            tokenCollection.replaceOne(Filters.eq("token", tokenValue), userDocument, new ReplaceOptions().upsert(false));
-        } catch (Exception ex) {
-            log.error("Error during last access update",ex);
-            throw new AuthException("Unexpected Error during update");
-        }
-        return new User(username);
+            User user = AccessController.doPrivileged((PrivilegedExceptionAction<User>) () -> {
+                final Document userDocument = tokenCollection.find(Filters.eq("token", tokenValue)).first();
 
+                if (userDocument == null) {
+                    log.warn("nothing found for token {}", tokenValue);
+                    throw new AuthException("Unauthorized", AuthException.ExceptionType.NOT_FOUND);
+                }
+
+                final String username = userDocument.getString("username");
+
+                // Implement last access like Graylog do
+                userDocument.put("last_access", Instant.now().toDate());
+                try {
+                    tokenCollection.replaceOne(Filters.eq("token", tokenValue), userDocument, new ReplaceOptions().upsert(false));
+                } catch (Exception ex) {
+                    log.error("Error during last access update", ex);
+                    throw new AuthException("Unexpected Error during update", AuthException.ExceptionType.ERROR);
+                }
+                return new User(username);
+            });
+
+            return user;
+        } catch (PrivilegedActionException ex) {
+            if (ex.getException() instanceof AuthException) {
+                throw (AuthException) ex.getException();
+            }
+        }
+        throw new AuthException("Unable to retrieve graylog User", AuthException.ExceptionType.NOT_FOUND);
     }
 }

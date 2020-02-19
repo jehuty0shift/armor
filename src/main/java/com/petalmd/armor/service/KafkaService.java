@@ -9,6 +9,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,6 +19,9 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedExceptionAction;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -35,15 +39,17 @@ public class KafkaService extends AbstractLifecycleComponent {
 
     public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
         this.settings = settings;
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false) | MongoDBService.getEngineDatabase().isPresent();
         if (enabled) {
             CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-            MongoCollection<KafkaConfig> collection = mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class);
+            MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () -> {
+                return MongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class);
+            });
             clientId = settings.get(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID);
-            if(clientId == null) {
-                clientId = "client-" + (int)(Math.random() * 100);
+            if (clientId == null) {
+                clientId = "client-" + (int) (Math.random() * 100);
             }
-            kafkaConfig = collection.find(Filters.eq("name", "configuration")).first();
+            kafkaConfig = AccessController.doPrivileged((PrivilegedAction<KafkaConfig>) () -> collection.find(Filters.eq("name", "configuration")).first());
             if (kafkaConfig == null || !kafkaConfig.isValid()) {
                 log.debug("couldn't find any valid KafkaConfig with the current database {}");
                 enabled = false;
@@ -87,18 +93,20 @@ public class KafkaService extends AbstractLifecycleComponent {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
-        if(kafkaConfig.securityProtocol.equals("SASL_SSL")) {
+        if (kafkaConfig.securityProtocol.equals("SASL_SSL")) {
             props.put("security.protocol", kafkaConfig.securityProtocol);
             props.put("sasl.mechanism", "PLAIN");
             final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
                     "  username=\"" + kafkaConfig.SASLPlainUsername + "\" \n" +
                     "  password=\"" + kafkaConfig.SASLPlainPassword + "\"";
-            props.put("sasl.jaas.config",jaasConfig);
+            props.put("sasl.jaas.config", jaasConfig);
         }
 
-        props.put(ProducerConfig.ACKS_CONFIG,"all");
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
 
-        kafkaProducer = new KafkaProducer<String, String>(props);
+        kafkaProducer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
+            return new KafkaProducer<String, String>(props);
+        });
 
         log.info("Kafka Producer created");
 
@@ -106,7 +114,7 @@ public class KafkaService extends AbstractLifecycleComponent {
 
     }
 
-    public String getTopicPrefix(){
+    public String getTopicPrefix() {
         return kafkaConfig.topicPrefix;
     }
 

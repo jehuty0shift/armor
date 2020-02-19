@@ -3,7 +3,6 @@ package com.petalmd.armor.filter;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
-import com.mongodb.ReadPreference;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.petalmd.armor.authentication.User;
@@ -42,6 +41,10 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -72,9 +75,10 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 engineUsers = null;
             } else {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-                engineUsers = mongoService.getEngineDatabase().get().getCollection("users")
-                        .withCodecRegistry(cRegistry)
-                        .withDocumentClass(EngineUser.class);
+                engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
+                        mongoService.getEngineDatabase().get().getCollection("users")
+                                .withCodecRegistry(cRegistry)
+                                .withDocumentClass(EngineUser.class));
                 log.info("connected to Users Database");
             }
             kService = kafkaService;
@@ -116,7 +120,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
         //Check rights In Mongo
         User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-        EngineUser engineUser = engineUsers.find(Filters.eq("username", restUser.getName())).first();
+        EngineUser engineUser = AccessController.doPrivileged((PrivilegedAction<EngineUser>) () ->
+                engineUsers.find(Filters.eq("username", restUser.getName())).first());
         if (engineUser == null) {
             log.error("This user has not been found in this cluster {}", restUser.getName());
             throw new ForbiddenException("This action is not authorized for this user");
@@ -256,14 +261,19 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
 
                 Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
-                Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
-                RecordMetadata rMetadata = report.get(10, TimeUnit.SECONDS);
+                RecordMetadata rMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                    Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
+                    return report.get(10, TimeUnit.SECONDS);
+                });
 
                 log.info("index action {} has been successfully reported with index offset {}", type, rMetadata.offset());
                 origListener.onResponse(response);
 
+            } catch (PrivilegedActionException ex) {
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
+                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
             } catch (Exception ex) {
-                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex);
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
                 origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
             }
         }

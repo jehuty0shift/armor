@@ -2,7 +2,6 @@ package com.petalmd.armor.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
-import com.mongodb.ReadPreference;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.petalmd.armor.authentication.User;
@@ -39,6 +38,10 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -68,9 +71,12 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
                 enabled = false;
             } else {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-                engineUsers = mongoService.getEngineDatabase().get().getCollection("users")
-                        .withCodecRegistry(cRegistry)
-                        .withDocumentClass(EngineUser.class);
+                engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () -> {
+                    MongoCollection<EngineUser> eUsers = mongoService.getEngineDatabase().get().getCollection("users")
+                            .withCodecRegistry(cRegistry)
+                            .withDocumentClass(EngineUser.class);
+                    return eUsers;
+                });
                 log.info("connected to Users Database");
             }
             kService = kafkaService;
@@ -163,7 +169,10 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
         }
 
         log.info("will allows {} actions for user {}", aliasActions.size(), restUser.getName());
-        EngineUser engineUser = engineUsers.find(Filters.eq("username", restUser.getName())).first();
+        EngineUser engineUser = AccessController.doPrivileged((PrivilegedAction<EngineUser>) () -> {
+            EngineUser eUser = engineUsers.find(Filters.eq("username", restUser.getName())).first();
+            return eUser;
+        });
 
         if (engineUser == null) {
             log.error("EngineUser for user {} is null, aborting the aliasAction request.", restUser.getName());
@@ -233,12 +242,18 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             try {
                 for (AliasOperation aliasOp : aliasOperations) {
                     String aliasOpString = mapper.writeValueAsString(aliasOp);
-                    Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
-                    RecordMetadata rMetadata = report.get(10, TimeUnit.SECONDS);
+                    RecordMetadata rMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                        Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
+                        return fReport.get(10, TimeUnit.SECONDS);
+                    });
+
                     log.info("index action {} has been successfully reported with index offset {}", aliasOp.getType(), rMetadata.offset());
                 }
                 origListener.onResponse(response);
 
+            } catch (PrivilegedActionException ex) {
+                log.error("Unexpected Exception during report", ex.getException());
+                origListener.onFailure(new ElasticsearchException("Unknown error during alias operations"));
             } catch (final Exception ex) {
                 log.error("Unexpected Exception during report", ex);
                 origListener.onFailure(new ElasticsearchException("Unknown error during alias operations"));

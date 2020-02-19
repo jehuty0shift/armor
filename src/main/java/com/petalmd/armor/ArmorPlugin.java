@@ -140,6 +140,16 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         final Class<? extends NonCachingAuthorizator> defaultNonCachingAuthorizatorClass = SettingsBasedAuthorizator.class;
         final Class<? extends NonCachingAuthenticationBackend> defaultNonCachingAuthenticationClass = SettingsBasedAuthenticationBackend.class;
 
+        //create Kafka Service
+
+        //create Mongo Database
+        mongoDbService = new MongoDBService(settings);
+        componentsList.add(mongoDbService);
+
+        kafkaService = new KafkaService(settings, mongoDbService);
+        componentsList.add(kafkaService);
+
+
         //create Authenticator
         try {
             this.clusterService = clusterService;
@@ -216,15 +226,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             auditListener = new NullStoreAuditListener();
         }
         componentsList.add(auditListener);
-
-        //create Kafka Service
-
-        //create Mongo Database
-        mongoDbService = new MongoDBService(settings);
-        componentsList.add(mongoDbService);
-
-        kafkaService = new KafkaService(settings, mongoDbService);
-        componentsList.add(kafkaService);
 
         //create Armor Service
         armorService = new ArmorService(settings, clusterService, authorizator, authenticationBackend, httpAuthenticator, sessionStore, auditListener);
