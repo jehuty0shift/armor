@@ -46,7 +46,7 @@ import java.util.*;
 
 
 // This class obfuscate the response obtained by GetIndexRequest.
-// It does not inheritates from GetIndexResponse because its constructor is private. Thus it uses the StreamInput writeTo and readFrom abilities.
+// It does not heritate from GetIndexResponse because its constructor is private. Thus it uses the StreamInput writeTo and readFrom abilities.
 
 public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 

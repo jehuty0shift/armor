@@ -60,7 +60,7 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
     @Override
     protected void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (this.lifecycle.started()) {
-            log.error("Unexpected error with ArmorSSLNettyHttpServer", cause);
+            log.error("Unexpected error with ArmorSSLNettyHttpServer ", cause);
             ctx.channel().close();
             return;
         }

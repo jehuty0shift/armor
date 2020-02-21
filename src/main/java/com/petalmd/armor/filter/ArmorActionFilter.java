@@ -86,11 +86,6 @@ public class ArmorActionFilter implements ActionFilter {
 
         try {
             apply0(task, action, request, listener, chain);
-//        } catch (final ForbiddenException e) {
-//            log.error("Forbidden while apply() due to {} for action {}", e, e.toString(), action);
-//            throw e;
-//        } catch (IndexNotFoundException e) {
-//            throw e;
         } catch (Exception e) {
             log.error("Error while apply() due to {} for action {}", e, e.toString(), action);
             throw new RuntimeException(e);

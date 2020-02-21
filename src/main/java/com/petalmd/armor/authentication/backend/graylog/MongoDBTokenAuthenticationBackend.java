@@ -41,7 +41,6 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
                 tCollection.createIndex(new BasicDBObject("token", 1), new IndexOptions().unique(true));
                 return tCollection;
             });
-
         } else {
             enabled = false;
             tokenCollection = null;
@@ -70,7 +69,7 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
                 final Document userDocument = tokenCollection.find(Filters.eq("token", tokenValue)).first();
 
                 if (userDocument == null) {
-                    log.warn("nothing found for token {}", tokenValue);
+                    log.debug("nothing found for token {}", tokenValue);
                     throw new AuthException("Unauthorized", AuthException.ExceptionType.NOT_FOUND);
                 }
 
@@ -81,7 +80,7 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
                 try {
                     tokenCollection.replaceOne(Filters.eq("token", tokenValue), userDocument, new ReplaceOptions().upsert(false));
                 } catch (Exception ex) {
-                    log.error("Error during last access update", ex);
+                    log.debug("Error during last access update", ex);
                     throw new AuthException("Unexpected Error during update", AuthException.ExceptionType.ERROR);
                 }
                 return new User(username);

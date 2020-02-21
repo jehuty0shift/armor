@@ -39,12 +39,12 @@ public class KafkaService extends AbstractLifecycleComponent {
 
     public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
         this.settings = settings;
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false) | MongoDBService.getEngineDatabase().isPresent();
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
         if (enabled) {
             CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-            MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () -> {
-                return MongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class);
-            });
+            MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
+                    mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class)
+            );
             clientId = settings.get(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID);
             if (clientId == null) {
                 clientId = "client-" + (int) (Math.random() * 100);

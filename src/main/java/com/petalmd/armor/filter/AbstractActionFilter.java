@@ -361,8 +361,6 @@ public abstract class AbstractActionFilter implements ActionFilter {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
                 threadContext.putTransient(AuditListener.AUDIT_ITEMS,new ArrayList<>(cirDetails.getIndices()));
                 auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
-
-                //listener.onFailure(new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user));
                 throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
             }
 
