@@ -1,5 +1,6 @@
 package com.petalmd.armor.filter;
 
+import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
@@ -53,6 +54,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -238,7 +240,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
         private final String action;
         private final List<String> indices;
-        private ClusterService clusterService;
+        private final Set<String> oldAliases;
+        private final ClusterService clusterService;
         private final Settings indexSettings;
         private final EngineUser engineUser;
         private final ObjectMapper mapper;
@@ -254,6 +257,17 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             this.mapper = mapper;
             this.indexSettings = indexSettings;
             this.clusterService = clusterService;
+            final SortedMap<String, AliasOrIndex> aliasIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
+            oldAliases = new HashSet<>();
+            if (action.equals(DeleteIndexAction.NAME)) {
+                for (String index : indices) {
+                    if (aliasIndexLookup.containsKey(index)) {
+                        AliasOrIndex.Index indexStruct = ((AliasOrIndex.Index) aliasIndexLookup.get(index));
+                        indexStruct.getIndex().getAliases().keys().forEach((Consumer<ObjectCursor<String>>) aName -> oldAliases.add(aName.value));
+                    }
+                }
+
+            }
         }
 
         @Override
@@ -262,7 +276,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                     engineUser.getRegion().value + "." +
                     "armor";
             try {
-                IndexOperation.Type type = action.equals(CreateIndexAction.NAME) ? IndexOperation.Type.CREATE : IndexOperation.Type.DELETE;
+                final IndexOperation.Type type = action.equals(CreateIndexAction.NAME) ? IndexOperation.Type.CREATE : IndexOperation.Type.DELETE;
                 //report creation.
                 int numberOfShards = indexSettings.getAsInt("index.number_of_shards", -1);
                 if (type.equals(IndexOperation.Type.CREATE) && numberOfShards < 1) {
@@ -275,60 +289,86 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 if (!kService.getKafkaProducer().isPresent()) {
                     throw new IllegalStateException("Kafka Producer is not available");
                 }
+                RecordMetadata indexRecordMetadata;
+                final Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
 
-                Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
-                RecordMetadata rMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                    Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
-                    return report.get(10, TimeUnit.SECONDS);
-                });
+                //If the operation is CREATE, we report it before reporting the creation of aliases.
+                if (type.equals(IndexOperation.Type.CREATE)) {
+                    indexRecordMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                        Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
+                        return report.get(10, TimeUnit.SECONDS);
+                    });
 
+                    log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
+                }
                 //Check aliases on this index
                 final SortedMap<String, AliasOrIndex> aliasAndIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
-                AliasOrIndex aio = aliasAndIndexLookup.get(indices.get(0));
 
-                ImmutableOpenMap<String, AliasMetaData> iom = aio.getIndices().get(0).getAliases();
+                final Set<String> aliasesToCheck;
+                if (type.equals(IndexOperation.Type.CREATE)) {
+                    aliasesToCheck = new HashSet<>();
+                    AliasOrIndex aio = aliasAndIndexLookup.get(indices.get(0));
+                    ImmutableOpenMap<String, AliasMetaData> iom = aio.getIndices().get(0).getAliases();
+                    iom.forEach(aName -> aliasesToCheck.add(aName.key));
+                } else {
+                    aliasesToCheck = oldAliases;
+                }
 
-                if (!iom.isEmpty()) {
-                    iom.forEach(aliasEntry -> {
+                if (!aliasesToCheck.isEmpty()) {
+                    for (String aliasToCheck : aliasesToCheck) {
                         try {
-                            final AliasOrIndex aliasFromMeta = aliasAndIndexLookup.get(aliasEntry.key);
-
-                            final List<String> indicesName = aliasFromMeta.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
-                            AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasEntry.key, AliasOperation.Type.ADD, indicesName);
+                            final AliasOrIndex aliasFromMeta = aliasAndIndexLookup.get(aliasToCheck);
+                            final List<String> indicesName;
+                            final AliasOperation.Type aliasOpType;
+                            if (aliasFromMeta != null) {
+                                //the alias exist, we must update it
+                                indicesName = aliasFromMeta.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
+                                aliasOpType = AliasOperation.Type.ADD;
+                            } else {
+                                //the alias does not exist anymore, we must remove it
+                                indicesName = Collections.emptyList();
+                                aliasOpType = AliasOperation.Type.REMOVE;
+                            }
+                            AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasToCheck, aliasOpType, indicesName);
                             String aliasOpString = mapper.writeValueAsString(aliasOp);
                             RecordMetadata rMetadataAlias = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
                                 Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
                                 return fReport.get(10, TimeUnit.SECONDS);
                             });
-                            log.info("index action {} has been successfully reported with index offset {}", aliasOp.getType(), rMetadataAlias.offset());
+                            log.info("alias action {} on alias {} with indices {} has been successfully reported with offset {}", aliasOp.getType(), aliasToCheck, indicesName, rMetadataAlias.offset());
                         } catch (Exception e) {
-                                log.error("The alias {} has not been reported successfully !", aliasEntry.key);
+                            log.error("The alias {} has not been reported successfully !", aliasToCheck);
                         }
+                    }
+                }
+
+                //If the operation is DELETE we report the delete after having removed the alias
+                if (type.equals(IndexOperation.Type.DELETE)) {
+                    indexRecordMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                        Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
+                        return report.get(10, TimeUnit.SECONDS);
                     });
 
+                    log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
+                }
+
+                origListener.onResponse(response);
+
+            } catch (PrivilegedActionException ex) {
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
+                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
+            } catch (
+                    Exception ex) {
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
+                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
             }
-
-            log.info("index action {} has been successfully reported with index offset {}", type, rMetadata.offset());
-            origListener.onResponse(response);
-
-        } catch(
-        PrivilegedActionException ex)
-
-        {
-            log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
-            origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
-        } catch(
-        Exception ex)
-
-        {
-            log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
-            origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
         }
-    }
 
-    @Override
-    public void onFailure(Exception e) {
-        origListener.onFailure(e);
+        @Override
+        public void onFailure(Exception e) {
+            origListener.onFailure(e);
+        }
+
+
     }
-}
 }
