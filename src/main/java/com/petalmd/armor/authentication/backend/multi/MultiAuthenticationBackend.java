@@ -7,6 +7,7 @@ import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
+import com.petalmd.armor.authentication.backend.graylog.MongoDBTokenAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -20,9 +21,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class MultiAuthenticationBackend
-implements NonCachingAuthenticationBackend {
+        implements NonCachingAuthenticationBackend {
     private final List<NonCachingAuthenticationBackend> nonCachingAuthBackends;
     protected static final Logger log = LogManager.getLogger(MultiAuthenticationBackend.class);
+    private MongoDBTokenAuthenticationBackend mongoDBTokenBackend;
 
     @Inject
     public MultiAuthenticationBackend(Settings settings) {
@@ -32,42 +34,39 @@ implements NonCachingAuthenticationBackend {
             try {
                 Class clazz = Class.forName(backend);
                 Constructor ctor = clazz.getDeclaredConstructor(Settings.class);
-                NonCachingAuthenticationBackend nonCachingBackend = (NonCachingAuthenticationBackend)ctor.newInstance(new Object[]{settings});
+                NonCachingAuthenticationBackend nonCachingBackend = (NonCachingAuthenticationBackend) ctor.newInstance(new Object[]{settings});
                 this.nonCachingAuthBackends.add(nonCachingBackend);
+                if (clazz.equals(MongoDBTokenAuthenticationBackend.class)) {
+                    mongoDBTokenBackend = (MongoDBTokenAuthenticationBackend) nonCachingBackend;
+                }
                 continue;
-            }
-            catch (ClassNotFoundException ex) {
+            } catch (ClassNotFoundException ex) {
                 this.log.warn("Class " + backend + "has not been found ! Skipping this class", ex, new Object[0]);
                 this.log.warn(ex);
                 continue;
-            }
-            catch (NoSuchMethodException ex) {
+            } catch (NoSuchMethodException ex) {
                 this.log.warn("Couldn't find suitable constructor for " + backend + " ! Skipping this class", ex, new Object[0]);
                 this.log.warn(ex);
                 continue;
-            }
-            catch (InstantiationException ex) {
+            } catch (InstantiationException ex) {
                 this.log.warn("InstantiationException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 this.log.warn(ex);
                 this.log.warn("WTF");
                 continue;
-            }
-            catch (IllegalAccessException ex) {
+            } catch (IllegalAccessException ex) {
                 this.log.warn("IllegalAccessException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 this.log.warn(ex);
                 continue;
-            }
-            catch (IllegalArgumentException ex) {
+            } catch (IllegalArgumentException ex) {
                 this.log.warn("IllegalArgumentException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 this.log.warn(ex);
                 continue;
-            }
-            catch (InvocationTargetException ex) {
+            } catch (InvocationTargetException ex) {
                 this.log.warn("InvocationTargetException: Couldn't instantiate backend " + backend + " ! Skipping this class", ex, new Object[0]);
                 ex.getCause().printStackTrace();
                 this.log.error("cause", ex.getCause());
-                this.log.error("target",ex.getTargetException());
-                this.log.error("error",ex);
+                this.log.error("target", ex.getTargetException());
+                this.log.error("error", ex);
             }
         }
     }
@@ -75,6 +74,16 @@ implements NonCachingAuthenticationBackend {
     @Override
     public User authenticate(AuthCredentials credentials) throws AuthException {
         ArrayList<AuthException> exceptions = new ArrayList<AuthException>();
+        if(credentials.getPassword() != null && Arrays.equals(credentials.getPassword(), "token".toCharArray())) {
+            log.debug("trying to authenticate first with {}",MongoDBTokenAuthenticationBackend.class.getName());
+            AuthCredentials copiedCredentials = new AuthCredentials(credentials.getUsername(), credentials.getPassword());
+            User user = mongoDBTokenBackend.authenticate(copiedCredentials);
+            credentials.clear();
+            if(user!=null) {
+                this.log.debug("Found User: " + user.getName() + " for backend " + mongoDBTokenBackend.getClass().getName());
+                return user;
+            }
+        }
         for (NonCachingAuthenticationBackend backend : this.nonCachingAuthBackends) {
             try {
                 AuthCredentials copiedCredentials;
@@ -95,8 +104,7 @@ implements NonCachingAuthenticationBackend {
                 this.log.debug("Found User: " + user.getName() + " for backend " + backend.getClass().getName(), new Object[0]);
                 credentials.clear();
                 return user;
-            }
-            catch (AuthException ex) {
+            } catch (AuthException ex) {
                 this.log.debug("This backend has not been able to authenticate the user: " + backend.getClass().getName(), ex, new Object[0]);
                 exceptions.add(ex);
                 continue;

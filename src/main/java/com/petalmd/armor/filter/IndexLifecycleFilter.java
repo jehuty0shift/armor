@@ -8,6 +8,7 @@ import com.mongodb.client.model.Filters;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.authorization.PaymentRequiredException;
+import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.IndexOperation;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
@@ -29,13 +30,17 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
@@ -45,11 +50,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -128,6 +132,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         }
 
         List<String> indices = Arrays.asList(((IndicesRequest) request).indices());
+        Optional<Set<Alias>> aliases = Optional.empty();
         Settings indexSettings = Settings.EMPTY;
 
         if (action.equals(CreateIndexAction.NAME)) {
@@ -189,6 +194,15 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             indexSettings = newSettingsBuilder.build();
 
+            //Handle aliases
+
+            if (cir.aliases().stream().anyMatch(a -> !a.name().startsWith(restUser.getName() + "-a-"))) {
+                listener.onFailure(new ForbiddenException("Alias name in create Index MUST start with " + restUser.getName() + "-a-"));
+                return;
+            }
+
+            aliases = Optional.of(cir.aliases());
+
 
         } else if (action.equals(DeleteIndexAction.NAME)) {
 
@@ -211,7 +225,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
         //Install the Listener,
         //Listener (should validate by putting a message in Kafka, if failed, rollback (delete the index) and respond 5XX
-        final IndexLifeCycleListener indexLifeCycleListener = new IndexLifeCycleListener(action, indices, indexSettings, engineUser, kService, listener, mapper);
+        final IndexLifeCycleListener indexLifeCycleListener = new IndexLifeCycleListener(action, indices, clusterService, indexSettings, engineUser, kService, listener, mapper);
 
         //Proceed
         chain.proceed(task, action, request, indexLifeCycleListener);
@@ -222,15 +236,16 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
     private static class IndexLifeCycleListener<Response extends ActionResponse> implements ActionListener<Response> {
 
-        private String action;
-        private List<String> indices;
-        private Settings indexSettings;
-        private EngineUser engineUser;
-        private ObjectMapper mapper;
-        private ActionListener origListener;
-        private KafkaService kService;
+        private final String action;
+        private final List<String> indices;
+        private ClusterService clusterService;
+        private final Settings indexSettings;
+        private final EngineUser engineUser;
+        private final ObjectMapper mapper;
+        private final ActionListener origListener;
+        private final KafkaService kService;
 
-        public IndexLifeCycleListener(String action, List<String> indices, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
+        public IndexLifeCycleListener(String action, List<String> indices, final ClusterService clusterService, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
             this.action = action;
             this.indices = indices;
             this.engineUser = engineUser;
@@ -238,6 +253,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             this.kService = kafkaService;
             this.mapper = mapper;
             this.indexSettings = indexSettings;
+            this.clusterService = clusterService;
         }
 
         @Override
@@ -266,21 +282,53 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                     return report.get(10, TimeUnit.SECONDS);
                 });
 
-                log.info("index action {} has been successfully reported with index offset {}", type, rMetadata.offset());
-                origListener.onResponse(response);
+                //Check aliases on this index
+                final SortedMap<String, AliasOrIndex> aliasAndIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
+                AliasOrIndex aio = aliasAndIndexLookup.get(indices.get(0));
 
-            } catch (PrivilegedActionException ex) {
-                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
-                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
-            } catch (Exception ex) {
-                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
-                origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
+                ImmutableOpenMap<String, AliasMetaData> iom = aio.getIndices().get(0).getAliases();
+
+                if (!iom.isEmpty()) {
+                    iom.forEach(aliasEntry -> {
+                        try {
+                            final AliasOrIndex aliasFromMeta = aliasAndIndexLookup.get(aliasEntry.key);
+
+                            final List<String> indicesName = aliasFromMeta.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
+                            AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasEntry.key, AliasOperation.Type.ADD, indicesName);
+                            String aliasOpString = mapper.writeValueAsString(aliasOp);
+                            RecordMetadata rMetadataAlias = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                                Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
+                                return fReport.get(10, TimeUnit.SECONDS);
+                            });
+                            log.info("index action {} has been successfully reported with index offset {}", aliasOp.getType(), rMetadataAlias.offset());
+                        } catch (Exception e) {
+                                log.error("The alias {} has not been reported successfully !", aliasEntry.key);
+                        }
+                    });
+
             }
-        }
 
-        @Override
-        public void onFailure(Exception e) {
-            origListener.onFailure(e);
+            log.info("index action {} has been successfully reported with index offset {}", type, rMetadata.offset());
+            origListener.onResponse(response);
+
+        } catch(
+        PrivilegedActionException ex)
+
+        {
+            log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
+            origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
+        } catch(
+        Exception ex)
+
+        {
+            log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
+            origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
         }
     }
+
+    @Override
+    public void onFailure(Exception e) {
+        origListener.onFailure(e);
+    }
+}
 }
