@@ -91,6 +91,7 @@ public final class ConfigConstants {
     public static final String ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS = "armor.index_lifecycle.filter.allowed_settings";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER = "armor.index_lifecycle.filter.max_num_of_shards_by_user";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX = "armor.index_lifecycle.filter.max_num_of_shards_by_index";
+    public static final String ARMOR_INGEST_PIPELINE_FILTER_ENABLED = "armor.ingest.pipeline.filter_enabled";
     public static final String ARMOR_KIBANA_HELPER_ENABLED = "armor.kibana.filter.enabled";
     public static final String ARMOR_KEFLA_FILTER_ENABLED = "armor.kefla.filter.enabled";
     public static final String ARMOR_KEFLA_PLUGIN_ENDPOINT = "armor.kefla.plugin.graylog.endpoint";
