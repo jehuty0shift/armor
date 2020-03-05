@@ -74,7 +74,7 @@ public class MultiAuthenticationBackend
     @Override
     public User authenticate(AuthCredentials credentials) throws AuthException {
         ArrayList<AuthException> exceptions = new ArrayList<AuthException>();
-        if(credentials.getPassword() != null && Arrays.equals(credentials.getPassword(), "token".toCharArray())) {
+        if(mongoDBTokenBackend != null && credentials.getPassword() != null && Arrays.equals(credentials.getPassword(), "token".toCharArray())) {
             log.debug("trying to authenticate first with {}",MongoDBTokenAuthenticationBackend.class.getName());
             AuthCredentials copiedCredentials = new AuthCredentials(credentials.getUsername(), credentials.getPassword());
             User user = mongoDBTokenBackend.authenticate(copiedCredentials);
