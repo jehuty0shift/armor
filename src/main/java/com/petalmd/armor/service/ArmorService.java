@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.ingest.IngestService;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -49,6 +50,7 @@ public class ArmorService extends AbstractLifecycleComponent {
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final AuditListener auditListener;
     private final ClusterService clusterService;
+    private IngestService ingestService;
     private static AtomicReference<SecretKey> secretKey = new AtomicReference<>();
     private final Authorizator authorizator;
     private final AuthenticationBackend authenticationBackend;
@@ -142,6 +144,14 @@ public class ArmorService extends AbstractLifecycleComponent {
     }
 
     public AuditListener getAuditListener() { return auditListener;}
+
+    public IngestService getIngestService() {
+        return ingestService;
+    }
+
+    public void setIngestService(final IngestService ingestService) {
+        this.ingestService = ingestService;
+    }
 
     @Override
     protected void doStart() throws ElasticsearchException {
