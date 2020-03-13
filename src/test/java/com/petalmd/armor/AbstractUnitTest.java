@@ -62,6 +62,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.indices.analysis.AnalysisModule;
+import org.elasticsearch.ingest.common.IngestCommonPlugin;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.painless.PainlessPlugin;
@@ -272,6 +273,7 @@ public abstract class AbstractUnitTest {
         list.add(ReindexPlugin.class);
         list.add(org.elasticsearch.analysis.common.CommonAnalysisPlugin.class);
         list.add(PainlessPlugin.class);
+        list.add(IngestCommonPlugin.class);
         return new ArmorNode(settings, list);
     }
 

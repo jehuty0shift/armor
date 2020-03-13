@@ -22,7 +22,7 @@ public class GetPipeline extends GenericResultAbstractAction {
 
     @Override
     public String getRestMethodName() {
-        return "PUT";
+        return "GET";
     }
 
     @Override
@@ -33,7 +33,7 @@ public class GetPipeline extends GenericResultAbstractAction {
 
     @Override
     protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
-        return super.buildURI(elasticsearchVersion) + "/" + pipelineIds.stream().collect(Collectors.joining(","));
+        return super.buildURI(elasticsearchVersion) + "/_ingest/pipeline/" + pipelineIds.stream().collect(Collectors.joining(","));
     }
 
 

@@ -56,9 +56,9 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     @Override
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
 
-        if(ingestService == null) {
+        if (ingestService == null) {
             ingestService = armorService.getIngestService();
-            if(ingestService == null && enabled) {
+            if (ingestService == null && enabled) {
                 listener.onFailure(new ForbiddenException("Ingest Service cannot be found"));
                 return;
             }
@@ -87,9 +87,11 @@ public class IngestPipelineFilter extends AbstractActionFilter {
             } catch (ForbiddenException ex) {
                 log.error("Forbidden Error during PutPipelineRequest", ex);
                 listener.onFailure(ex);
+                return;
             } catch (Exception ex) {
                 log.error("unexepected Error during PutPipelineRequest", ex);
                 listener.onFailure(new ElasticsearchException("Unexpected Error during Pipeline Creation"));
+                return;
             }
         } else if (action.equals(GetPipelineAction.NAME)) {
             GetPipelineRequest getPipelineReq = (GetPipelineRequest) request;
@@ -101,13 +103,29 @@ public class IngestPipelineFilter extends AbstractActionFilter {
             DeletePipelineRequest newDelRequest = transformDelPipeline(user, delPipelineRequest);
             chain.proceed(task, action, newDelRequest, listener);
             return;
+        } else if (action.equals(SimulatePipelineAction.NAME)) {
+            try {
+                SimulatePipelineRequest newSimPReq = transformSimulPipeline(user, (SimulatePipelineRequest) request);
+                chain.proceed(task, action, newSimPReq, listener);
+                return;
+            } catch (ForbiddenException ex) {
+                log.error("Forbidden Error during PutPipelineRequest", ex);
+                listener.onFailure(ex);
+                return;
+            } catch (Exception ex) {
+                log.error("unexepected Error during PutPipelineRequest", ex);
+                listener.onFailure(new ElasticsearchException("Unexpected Error during Pipeline Creation"));
+                return;
+
+            }
         }
 
     }
 
+
     private DeletePipelineRequest transformDelPipeline(final User user, final DeletePipelineRequest request) {
         final String pipelineToDel = request.getId();
-        log.debug("Pipeline to Delete is {}",pipelineToDel);
+        log.debug("Pipeline to Delete is {}", pipelineToDel);
         if (!pipelineToDel.startsWith(user.getName())) {
             request.setId(user.getName() + "-" + pipelineToDel);
         }
@@ -139,19 +157,13 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         List<Map<String, Object>> processorConfigs = ConfigurationUtils.readList(null, null, pipelineConfig, Pipeline.PROCESSORS_KEY);
 
 
-        Optional<List<Map<String, Object>>> optProcConfigs = validateProcessorConfigs(processorConfigs, user.getName());
+       pipelineConfig.put(Pipeline.PROCESSORS_KEY, transformProcessorConfigs(processorConfigs, user.getName()));
 
-        if (!optProcConfigs.isEmpty()) {
-            pipelineConfig.put(Pipeline.PROCESSORS_KEY, optProcConfigs.get());
-        }
 
         List<Map<String, Object>> onFailureProcessorConfigs = ConfigurationUtils.readOptionalList(null, null, pipelineConfig, Pipeline.ON_FAILURE_KEY);
-        Optional<List<Map<String, Object>>> optOnFailureProcConfigs = validateProcessorConfigs(onFailureProcessorConfigs, user.getName());
-
-        if (!optProcConfigs.isEmpty()) {
-            pipelineConfig.put(Pipeline.ON_FAILURE_KEY, optOnFailureProcConfigs);
+        if (onFailureProcessorConfigs != null) {
+                pipelineConfig.put(Pipeline.ON_FAILURE_KEY, transformProcessorConfigs(onFailureProcessorConfigs, user.getName()));
         }
-
         XContentBuilder builder = JsonXContent.contentBuilder().map(pipelineConfig);
 
         PutPipelineRequest newPPreq = new PutPipelineRequest(newId, BytesReference.bytes(builder), XContentType.JSON);
@@ -159,7 +171,41 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         return newPPreq;
     }
 
-    private Optional<List<Map<String, Object>>> validateProcessorConfigs(List<Map<String, Object>> processorConfigs, String userName) throws ForbiddenException {
+
+
+    private SimulatePipelineRequest transformSimulPipeline(final User user, final SimulatePipelineRequest request) throws Exception {
+
+        Map<String, Object> simulatePipelineConfig = XContentHelper.convertToMap(request.getSource(), false, request.getXContentType()).v2();
+
+        Map<String, Object> pipelineConfig = (Map<String, Object>) simulatePipelineConfig.get("pipeline");
+
+        // Simulate can simulate existing pipeline without providing a configuration
+        if(pipelineConfig != null) {
+            List<Map<String, Object>> processorConfigs = ConfigurationUtils.readList(null, null, pipelineConfig, Pipeline.PROCESSORS_KEY);
+
+            pipelineConfig.put(Pipeline.PROCESSORS_KEY, transformProcessorConfigs(processorConfigs, user.getName()));
+
+
+            List<Map<String, Object>> onFailureProcessorConfigs = ConfigurationUtils.readOptionalList(null, null, pipelineConfig, Pipeline.ON_FAILURE_KEY);
+            if (onFailureProcessorConfigs != null) {
+                pipelineConfig.put(Pipeline.ON_FAILURE_KEY, transformProcessorConfigs(onFailureProcessorConfigs, user.getName()));
+            }
+        }
+        XContentBuilder builder = JsonXContent.contentBuilder().map(simulatePipelineConfig);
+
+        SimulatePipelineRequest newSimPReq = new SimulatePipelineRequest(BytesReference.bytes(builder),XContentType.JSON);
+
+        // Simulate action can
+        if(request.getId() != null) {
+            final String newId =  user.getName() + "-" + request.getId();
+            log.debug("we change old pipeline id {} to  {}",request.getId(), newId);
+            newSimPReq.setId(newId);
+        }
+        return newSimPReq;
+
+    }
+
+    private List<Map<String, Object>> transformProcessorConfigs(List<Map<String, Object>> processorConfigs, String userName) throws ForbiddenException {
         boolean pipelineChanged = false;
         for (Map<String, Object> processorConfig : processorConfigs) {
             for (Map.Entry<String, Object> entry : processorConfig.entrySet()) {
@@ -184,7 +230,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                         log.warn("the script contains a ctx._index statement");
                         //verify it doesn't match any forbidden Script Pattern
                         for (Pattern pattern : forbiddenScriptPatterns) {
-                            if (pattern.matcher(source).matches()) {
+                            if (pattern.matcher(source).find()) {
                                 log.warn("this script contains a forbidden Pattern {} : {}", pattern.pattern(), source);
                                 //Cancel the request
                                 throw new ForbiddenException("The script Processor provided contains a forbidden command");
@@ -202,11 +248,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                 }
             }
         }
-        if (pipelineChanged) {
-            return Optional.of(processorConfigs);
-        } else {
-            return Optional.empty();
-        }
+        return processorConfigs;
     }
 
 
