@@ -56,13 +56,6 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     @Override
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
 
-        if (ingestService == null) {
-            ingestService = armorService.getIngestService();
-            if (ingestService == null && enabled) {
-                listener.onFailure(new ForbiddenException("Ingest Service cannot be found"));
-                return;
-            }
-        }
 
         if (!enabled || (!action.equals(DeletePipelineAction.NAME)
                 && !action.equals(PutPipelineAction.NAME)
@@ -73,6 +66,14 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         ) {
             chain.proceed(task, action, request, listener);
             return;
+        }
+
+        if (ingestService == null) {
+            ingestService = armorService.getIngestService();
+            if (ingestService == null && enabled) {
+                listener.onFailure(new ForbiddenException("Ingest Service cannot be found"));
+                return;
+            }
         }
 
         final ThreadContext threadContext = threadpool.getThreadContext();
@@ -120,6 +121,8 @@ public class IngestPipelineFilter extends AbstractActionFilter {
             }
         }
 
+        //if we don't handle the request at all
+        chain.proceed(task,action, request, listener);
     }
 
 
