@@ -6,7 +6,11 @@ import com.petalmd.armor.tests.GetPipeline;
 import com.petalmd.armor.tests.PutPipeline;
 import com.petalmd.armor.tests.SimulatePipeline;
 import com.petalmd.armor.util.ConfigConstants;
+import io.searchbox.action.BulkableAction;
 import io.searchbox.client.JestResult;
+import io.searchbox.core.Bulk;
+import io.searchbox.core.Get;
+import io.searchbox.core.Index;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -332,6 +336,151 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
     }
 
+
+    @Test
+    public void tryPutAndIndexPipelineRequest() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","lifecycle_index")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "cluster:admin/ingest/pipeline/put",
+                        "cluster:admin/ingest/pipeline/get",
+                        "cluster:admin/ingest/pipeline/delete",
+                        "indices:admin/template/put",
+                        "indices:admin/template/get",
+                        "indices:admin/template/delete",
+                        "indices:admin/aliases",
+                        "indices:data/read/scroll",
+                        "indices:data/read/scroll/clear")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
+                        "indices:admin/create",
+                        "indices:data*")
+                .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
+                .put(authSettings).build();
+
+
+        startES(settings);
+
+        setupTestData("ac_rules_28.json");
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+                "    \"description\": \"_description\",\n" +
+                "    \"processors\": [\n" +
+                "      {\n" +
+                "        \"set\" : {\n" +
+                "          \"field\" : \"field2\",\n" +
+                "          \"value\" : \"_value\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "   ]\n" +
+                "}").build();
+
+
+        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
+
+        result = client.executeE(getPipeline);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("_description"));
+
+        final String indexName = "logs-xv-12345-i-index";
+
+        Index indexPipeline1 = new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").setParameter("pipeline","test").build();
+
+        result = client.executeE(indexPipeline1);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        Get getDocument = new Get.Builder(indexName, "id1").build();
+
+        result = client.executeE(getDocument);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
+
+
+    }
+
+    @Test
+    public void tryPutAndBulkPipelineRequest() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","lifecycle_index")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "cluster:admin/ingest/pipeline/put",
+                        "cluster:admin/ingest/pipeline/get",
+                        "cluster:admin/ingest/pipeline/delete",
+                        "indices:admin/template/put",
+                        "indices:admin/template/get",
+                        "indices:admin/template/delete",
+                        "indices:admin/aliases",
+                        "indices:data/read/scroll",
+                        "indices:data/read/scroll/clear")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
+                        "indices:admin/create",
+                        "indices:data*")
+                .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
+                .put(authSettings).build();
+
+
+        startES(settings);
+
+        setupTestData("ac_rules_28.json");
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+                "    \"description\": \"_description\",\n" +
+                "    \"processors\": [\n" +
+                "      {\n" +
+                "        \"set\" : {\n" +
+                "          \"field\" : \"field2\",\n" +
+                "          \"value\" : \"_value\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "   ]\n" +
+                "}").build();
+
+
+        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
+
+        result = client.executeE(getPipeline);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("_description"));
+
+        final String indexName = "logs-xv-12345-i-index";
+
+        Bulk bulkPipeline1 = new Bulk.Builder().addAction(new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").build()).setParameter("pipeline","test").build();
+
+        result = client.executeE(bulkPipeline1);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        Get getDocument = new Get.Builder(indexName, "id1").build();
+
+        result = client.executeE(getDocument);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
+
+    }
 
     @Test
     public void testScriptPatterns() {

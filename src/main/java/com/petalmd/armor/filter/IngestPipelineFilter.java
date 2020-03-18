@@ -11,10 +11,14 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkAction;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexAction;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.ingest.*;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
@@ -79,7 +83,24 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         final ThreadContext threadContext = threadpool.getThreadContext();
         final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
 
-        if (action.equals(PutPipelineAction.NAME)) {
+        if (action.equals(BulkAction.NAME)) {
+            BulkRequest bReq = (BulkRequest) request;
+            final String globalPipeline = bReq.pipeline();
+            if(globalPipeline != null && !globalPipeline.isEmpty() && !globalPipeline.startsWith(user.getName() + "-")) {
+                bReq.pipeline(user.getName() + "-" + globalPipeline);
+            }
+            for(DocWriteRequest dwr : bReq.requests()) {
+                if (dwr instanceof IndexRequest) {
+                    IndexRequest iReq = (IndexRequest) dwr;
+                    final String pipeline = iReq.getPipeline();
+                    if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(user.getName())) {
+                        iReq.setPipeline(user.getName() + "-" + pipeline);
+                    }
+                }
+            }
+            chain.proceed(task, action, bReq, listener);
+            return;
+        } else if (action.equals(PutPipelineAction.NAME)) {
             PutPipelineRequest putPipelineRequestReq = (PutPipelineRequest) request;
             try {
                 PutPipelineRequest newPPReq = transformPutPipeline(user, putPipelineRequestReq);
@@ -119,10 +140,18 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                 return;
 
             }
+        } else if (action.equals(IndexAction.NAME)) {
+            IndexRequest iReq = (IndexRequest) request;
+            final String pipeline = iReq.getPipeline();
+            if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(user.getName())) {
+                iReq.setPipeline(user.getName() + "-" + pipeline);
+            }
+            chain.proceed(task, action, iReq, listener);
+            return;
         }
 
         //if we don't handle the request at all
-        chain.proceed(task,action, request, listener);
+        chain.proceed(task, action, request, listener);
     }
 
 
@@ -160,12 +189,12 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         List<Map<String, Object>> processorConfigs = ConfigurationUtils.readList(null, null, pipelineConfig, Pipeline.PROCESSORS_KEY);
 
 
-       pipelineConfig.put(Pipeline.PROCESSORS_KEY, transformProcessorConfigs(processorConfigs, user.getName()));
+        pipelineConfig.put(Pipeline.PROCESSORS_KEY, transformProcessorConfigs(processorConfigs, user.getName()));
 
 
         List<Map<String, Object>> onFailureProcessorConfigs = ConfigurationUtils.readOptionalList(null, null, pipelineConfig, Pipeline.ON_FAILURE_KEY);
         if (onFailureProcessorConfigs != null) {
-                pipelineConfig.put(Pipeline.ON_FAILURE_KEY, transformProcessorConfigs(onFailureProcessorConfigs, user.getName()));
+            pipelineConfig.put(Pipeline.ON_FAILURE_KEY, transformProcessorConfigs(onFailureProcessorConfigs, user.getName()));
         }
         XContentBuilder builder = JsonXContent.contentBuilder().map(pipelineConfig);
 
@@ -175,7 +204,6 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     }
 
 
-
     private SimulatePipelineRequest transformSimulPipeline(final User user, final SimulatePipelineRequest request) throws Exception {
 
         Map<String, Object> simulatePipelineConfig = XContentHelper.convertToMap(request.getSource(), false, request.getXContentType()).v2();
@@ -183,7 +211,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         Map<String, Object> pipelineConfig = (Map<String, Object>) simulatePipelineConfig.get("pipeline");
 
         // Simulate can simulate existing pipeline without providing a configuration
-        if(pipelineConfig != null) {
+        if (pipelineConfig != null) {
             List<Map<String, Object>> processorConfigs = ConfigurationUtils.readList(null, null, pipelineConfig, Pipeline.PROCESSORS_KEY);
 
             pipelineConfig.put(Pipeline.PROCESSORS_KEY, transformProcessorConfigs(processorConfigs, user.getName()));
@@ -196,12 +224,12 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         }
         XContentBuilder builder = JsonXContent.contentBuilder().map(simulatePipelineConfig);
 
-        SimulatePipelineRequest newSimPReq = new SimulatePipelineRequest(BytesReference.bytes(builder),XContentType.JSON);
+        SimulatePipelineRequest newSimPReq = new SimulatePipelineRequest(BytesReference.bytes(builder), XContentType.JSON);
 
         // Simulate action can
-        if(request.getId() != null) {
-            final String newId =  user.getName() + "-" + request.getId();
-            log.debug("we change old pipeline id {} to  {}",request.getId(), newId);
+        if (request.getId() != null) {
+            final String newId = user.getName() + "-" + request.getId();
+            log.debug("we change old pipeline id {} to  {}", request.getId(), newId);
             newSimPReq.setId(newId);
         }
         return newSimPReq;

@@ -30,6 +30,19 @@
          "aliases" : ["*"],
          "filters_bypass": ["*"],
          "filters_execute": []
+      },
+      {
+         "users":[
+            "hnelson","logs-xv-12345", "localhost"
+         ],
+         "roles":[
+            "ceo"
+         ],
+         "indices":[
+            "logs-xv-12345-i-*", "dev"
+         ],
+         "filters_bypass": ["actionrequestfilter.forbidden"],
+         "filters_execute": ["actionrequestfilter.lifecycle_index"]
       }
 
    ]
