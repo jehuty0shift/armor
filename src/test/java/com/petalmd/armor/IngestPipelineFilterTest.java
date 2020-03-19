@@ -398,6 +398,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         result = client.executeE(indexPipeline1);
 
+        System.out.println("Result 1 " + result.v1().getJsonString());
+        System.out.println("Result 2 " + result.v1().getErrorMessage());
+
         Assert.assertTrue(result.v1().isSucceeded());
 
         Get getDocument = new Get.Builder(indexName, "id1").build();
