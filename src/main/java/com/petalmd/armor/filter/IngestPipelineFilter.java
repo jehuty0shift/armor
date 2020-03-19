@@ -83,18 +83,20 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         final ThreadContext threadContext = threadpool.getThreadContext();
         final User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
 
+        final String prefix = user.getName() + "-";
+
         if (action.equals(BulkAction.NAME)) {
             BulkRequest bReq = (BulkRequest) request;
             final String globalPipeline = bReq.pipeline();
-            if(globalPipeline != null && !globalPipeline.isEmpty() && !globalPipeline.startsWith(user.getName() + "-")) {
-                bReq.pipeline(user.getName() + "-" + globalPipeline);
+            if (globalPipeline != null && !globalPipeline.isEmpty() && !globalPipeline.startsWith(prefix)) {
+                bReq.pipeline(prefix + globalPipeline);
             }
-            for(DocWriteRequest dwr : bReq.requests()) {
+            for (DocWriteRequest dwr : bReq.requests()) {
                 if (dwr instanceof IndexRequest) {
                     IndexRequest iReq = (IndexRequest) dwr;
                     final String pipeline = iReq.getPipeline();
-                    if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(user.getName())) {
-                        iReq.setPipeline(user.getName() + "-" + pipeline);
+                    if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(prefix)) {
+                        iReq.setPipeline(prefix + pipeline);
                     }
                 }
             }
@@ -143,8 +145,8 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         } else if (action.equals(IndexAction.NAME)) {
             IndexRequest iReq = (IndexRequest) request;
             final String pipeline = iReq.getPipeline();
-            if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(user.getName())) {
-                iReq.setPipeline(user.getName() + "-" + pipeline);
+            if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(prefix)) {
+                iReq.setPipeline(prefix + pipeline);
             }
             chain.proceed(task, action, iReq, listener);
             return;
@@ -158,7 +160,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     private DeletePipelineRequest transformDelPipeline(final User user, final DeletePipelineRequest request) {
         final String pipelineToDel = request.getId();
         log.debug("Pipeline to Delete is {}", pipelineToDel);
-        if (!pipelineToDel.startsWith(user.getName())) {
+        if (!pipelineToDel.startsWith(user.getName() + "-")) {
             request.setId(user.getName() + "-" + pipelineToDel);
         }
 
