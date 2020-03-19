@@ -362,6 +362,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:data/read/scroll/clear")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
                         "indices:admin/create",
+                        "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
@@ -404,9 +405,6 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         result = client.executeE(indexPipeline1);
 
-        System.out.println("Result 1 " + result.v1().getJsonString());
-        System.out.println("Result 2 " + result.v1().getErrorMessage());
-
         Assert.assertTrue(result.v1().isSucceeded());
 
         Get getDocument = new Get.Builder(indexName, "id1").build();
@@ -439,6 +437,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:data/read/scroll/clear")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
                         "indices:admin/create",
+                        "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
@@ -481,17 +480,11 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         result = client.executeE(bulkPipeline1);
 
-        System.out.println("Result 1 " + result.v1().getJsonString());
-        System.out.println("Result 1E " + result.v1().getErrorMessage());
-
         Assert.assertTrue(result.v1().isSucceeded());
 
         Get getDocument = new Get.Builder(indexName, "id1").build();
 
         result = client.executeE(getDocument);
-
-        System.out.println("Result 1 " + result.v1().getJsonString());
-        System.out.println("Result 1E " + result.v1().getErrorMessage());
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getJsonString().contains("field2"));
 
@@ -507,7 +500,6 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         Assert.assertTrue(pattern.matcher(source1).find());
         Assert.assertFalse(pattern.matcher(source2).find());
-
-
+        
     }
 }
