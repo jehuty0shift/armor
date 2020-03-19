@@ -400,7 +400,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         final String indexName = "logs-xv-12345-i-index";
 
-        Index indexPipeline1 = new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").setParameter("pipeline","test").build();
+        Index indexPipeline1 = new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").setParameter("pipeline","test").setParameter("timeout","1m").build();
 
         result = client.executeE(indexPipeline1);
 
@@ -477,9 +477,12 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         final String indexName = "logs-xv-12345-i-index";
 
-        Bulk bulkPipeline1 = new Bulk.Builder().addAction(new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").build()).setParameter("pipeline","test").build();
+        Bulk bulkPipeline1 = new Bulk.Builder().addAction(new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").build()).setParameter("pipeline","test").setParameter("timeout","1m").build();
 
         result = client.executeE(bulkPipeline1);
+
+        System.out.println("Result 1 " + result.v1().getJsonString());
+        System.out.println("Result 1E " + result.v1().getErrorMessage());
 
         Assert.assertTrue(result.v1().isSucceeded());
 
@@ -487,6 +490,8 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         result = client.executeE(getDocument);
 
+        System.out.println("Result 1 " + result.v1().getJsonString());
+        System.out.println("Result 1E " + result.v1().getErrorMessage());
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getJsonString().contains("field2"));
 
@@ -502,7 +507,6 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         Assert.assertTrue(pattern.matcher(source1).find());
         Assert.assertFalse(pattern.matcher(source2).find());
-
 
 
     }
