@@ -43,6 +43,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:admin/aliases",
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -104,6 +105,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:admin/aliases",
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -163,6 +165,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:admin/aliases",
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -232,6 +235,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:admin/aliases",
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -303,6 +307,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:admin/aliases",
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -358,6 +363,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
                         "indices:admin/create",
                         "indices:data*")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
@@ -434,6 +440,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
                         "indices:admin/create",
                         "indices:data*")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(authSettings).build();
 
