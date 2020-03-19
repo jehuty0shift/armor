@@ -161,7 +161,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         scheduler.shutdownNow();
     }
 
-    private class FieldsRequest {
+    private static class FieldsRequest {
 
         @JsonProperty
         public List<String> streams;

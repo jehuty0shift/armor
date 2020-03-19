@@ -224,7 +224,7 @@ public class ESStoreAuditListener implements AuditListener {
                         auditIndexCreated.set(true);
                     }
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 log.error("unexpected error during Audit Index Creation ", e);
             }
         }

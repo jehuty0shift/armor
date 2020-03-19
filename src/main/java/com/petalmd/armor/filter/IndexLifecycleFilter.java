@@ -2,6 +2,7 @@ package com.petalmd.armor.filter;
 
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -134,7 +135,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         }
 
         List<String> indices = Arrays.asList(((IndicesRequest) request).indices());
-        Optional<Set<Alias>> aliases = Optional.empty();
         Settings indexSettings = Settings.EMPTY;
 
         if (action.equals(CreateIndexAction.NAME)) {
@@ -202,8 +202,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 listener.onFailure(new ForbiddenException("Alias name in create Index MUST start with " + restUser.getName() + "-a-"));
                 return;
             }
-
-            aliases = Optional.of(cir.aliases());
 
 
         } else if (action.equals(DeleteIndexAction.NAME)) {
@@ -357,9 +355,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             } catch (PrivilegedActionException ex) {
                 log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
                 origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
-            } catch (
-                    Exception ex) {
-                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername());
+            } catch (JsonProcessingException | RuntimeException ex) {
+                log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex);
                 origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
             }
         }

@@ -75,10 +75,11 @@ public class KeflaGetFieldMappingsResponse extends ActionResponse implements Kef
         BytesStreamOutput bso = new BytesStreamOutput();
         try {
             writeTo(bso);
-            bso.close();
             kGfmr.readFrom(bso.bytes().streamInput());
         } catch (IOException e) {
             log.error("fatal error when deserializing mappings", e);
+        } finally {
+            bso.close();
         }
 
         return kGfmr;
@@ -102,10 +103,6 @@ public class KeflaGetFieldMappingsResponse extends ActionResponse implements Kef
                     builder.map(fieldMapping.sourceAsMap());
                     BytesReference source = BytesReference.bytes(builder);
                     out.writeBytesReference(source);
-                    //Map<String, Object> fmMap = fieldMapping.sourceAsMap();
-//                    XContentGenerator generator = JsonXContent.jsonXContent.createGenerator(out);
-//                    XContentHelper.
-//                    out.writeMap(fmMap);
                 }
             }
         }
