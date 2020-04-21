@@ -26,6 +26,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
 import org.apache.kafka.clients.producer.internals.ProduceRequestResult;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.utils.Time;
 import org.bson.Document;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -210,7 +211,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
                     result.set(offset.getAndIncrement(), 1, null);
-                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0);
+                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
                     result.done();
                     return future;
                 }

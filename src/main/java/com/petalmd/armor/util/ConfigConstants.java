@@ -98,6 +98,14 @@ public final class ConfigConstants {
     public static final String ARMOR_KEFLA_PLUGIN_USER = "armor.kefla.plugin.user";
     public static final String ARMOR_KEFLA_PLUGIN_PASSWORD = "armor.kefla.plugin.password";
     public static final String ARMOR_KEY_PATH = "armor.key_path";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG = "armor.ldp_processor.kafka.acks_config";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS = "armor.ldp_processor.kafka.bootstrap_servers";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID = "armor.ldp_processor.kafka.client_id";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC = "armor.ldp_processor.kafka.compression_codec";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE = "armor.ldp_processor.kafka.batch_size";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_ENABLED = "armor.ldp_processor.kafka.enabled";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_TOPIC = "armor.ldp_processor.kafka.topic";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL = "armor.ldp_processor.kafka_output.use_kafka_impl";
     public static final String ARMOR_MONGODB_URI = "armor.mongodb.uri";
     public static final String ARMOR_MONGODB_ENGINE_DATABASE = "armor.mongo.engine_database";
     public static final String ARMOR_MONGODB_GRAYLOG_DATABASE = "armor.mongo.graylog_database";

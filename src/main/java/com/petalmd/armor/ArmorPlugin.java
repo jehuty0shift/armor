@@ -35,6 +35,9 @@ import com.petalmd.armor.http.DefaultSessionStore;
 import com.petalmd.armor.http.NullSessionStore;
 import com.petalmd.armor.http.SessionStore;
 import com.petalmd.armor.http.netty.SSLNettyHttpServerTransport;
+import com.petalmd.armor.processor.LDPProcessor;
+import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
+import com.petalmd.armor.processor.kafka.KafkaOutputImpl;
 import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
@@ -44,10 +47,8 @@ import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
-import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -66,7 +67,6 @@ import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.ingest.IngestService;
 import org.elasticsearch.ingest.Processor;
-import org.elasticsearch.node.NodeService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.IngestPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
@@ -251,7 +251,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         //IngestService
         armorService.setIngestService(ingestService);
 
-
         log.info("added " + componentsList.size() + " components.");
         log.info(authenticationBackend.getClass().getName());
         return componentsList;
@@ -287,7 +286,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public Map<String, Processor.Factory> getProcessors(Processor.Parameters parameters) {
         ingestService = parameters.ingestService;
-        return Collections.emptyMap();
+        KafkaOutputFactory factory = KafkaOutputFactory.makeInstance(parameters.env.settings());
+        return Collections.singletonMap(LDPProcessor.TYPE, new LDPProcessor.Factory(factory));
     }
 
     @Override
@@ -472,6 +472,17 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //Ingest
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //LDP Processor
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
+
 
         return settings;
     }

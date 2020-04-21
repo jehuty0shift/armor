@@ -22,6 +22,7 @@ import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
 import org.apache.kafka.clients.producer.internals.ProduceRequestResult;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.Time;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
@@ -93,16 +94,16 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
     }
 
-
+    @Test
     public void testKafka() throws Exception {
 
         Properties props = new Properties();
 
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1.alpha.thot.ovh.com:9093");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1.alpha.thot.ovh.com:9092");
         props.put(ProducerConfig.CLIENT_ID_CONFIG, "id-1");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put("security.protocol", "SASL_SSL");
+        props.put("security.protocol", "SASL_PLAINTEXT");
         props.put("sasl.mechanism", "PLAIN");
 
         final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
@@ -189,7 +190,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
                     result.set(0, 1, null);
-                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0);
+                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
                     result.done();
                     hasSent.set(true);
                     return future;
@@ -273,7 +274,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
                     result.set(iOp.getType().equals(IndexOperation.Type.CREATE)?0:1, 1, null);
-                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0);
+                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
                     result.done();
                     return future;
                 }
