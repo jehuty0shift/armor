@@ -62,13 +62,19 @@ public class KafkaOutputImpl implements KafkaOutput {
 
     public void flush() {
         if(producer != null) {
-            producer.flush();
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                producer.flush();
+                return null;
+            });
         }
     }
 
     public void close() {
         if(producer != null) {
-            producer.close();
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                producer.close();
+                return null;
+            });
         }
     }
 
