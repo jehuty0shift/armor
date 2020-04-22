@@ -103,6 +103,7 @@ public final class ConfigConstants {
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID = "armor.ldp_processor.kafka.client_id";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC = "armor.ldp_processor.kafka.compression_codec";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE = "armor.ldp_processor.kafka.batch_size";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS = "armor.ldp_processor.kafka.linger_ms";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_ENABLED = "armor.ldp_processor.kafka.enabled";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_TOPIC = "armor.ldp_processor.kafka.topic";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL = "armor.ldp_processor.kafka_output.use_kafka_impl";

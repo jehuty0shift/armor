@@ -46,6 +46,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
 
         final LDPGelf ldpGelf = new LDPGelf();
         ldpGelf.addString("name", "C18");
+        ldpGelf.addString("X-OVH-TOKEN","ohyeah");
         ldpGelf.setTimestamp(DateTime.now());
         kafkaOutput.sendLDPGelf(ldpGelf.validate());
 
@@ -171,6 +172,35 @@ public class LDPProcessorTest extends AbstractUnitTest {
         Assert.assertTrue(result.v1().isSucceeded());
 
         Assert.assertEquals(true, hasRun.get());
+
+        //Preparing second Pipeline test
+        gelfStringList.clear();
+        gelfStringList.add("name");
+        gelfStringList.add("X-OVH-TOKEN");
+        gelfIntList.clear();
+        gelfIntList.add("universe");
+        gelfNumList.clear();
+        gelfNumList.add("power");
+
+        hasRun.set(false);
+        Consumer<LDPGelf> secondTest = (ldpGelf) -> {
+            baseConsumer.accept(ldpGelf);
+            Assert.assertEquals("Goku", ldpGelf.getDocumentMap().get("_name"));
+            Assert.assertEquals("ohyeah", ldpGelf.getDocumentMap().get("_X-OVH-TOKEN"));
+            Assert.assertEquals(9000.0,ldpGelf.getDocumentMap().get("_power_num"));
+            hasRun.set(true);
+        };
+
+        kafkaConsumer.setConsumer(secondTest);
+
+
+        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\"  }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
+        result = client.executeE(indexPipeline2);
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        Assert.assertEquals(true, hasRun.get());
+
+
 
     }
 }

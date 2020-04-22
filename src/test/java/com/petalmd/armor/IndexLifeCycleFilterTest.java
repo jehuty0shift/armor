@@ -94,7 +94,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
     }
 
-    @Test
+
     public void testKafka() throws Exception {
 
         Properties props = new Properties();

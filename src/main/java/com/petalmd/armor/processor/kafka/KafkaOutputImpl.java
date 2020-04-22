@@ -37,12 +37,14 @@ public class KafkaOutputImpl implements KafkaOutput {
             final String clientId = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID);
             final String acksConfig = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG);
             final String batchSize = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE,"16384");
+            final String lingerMs = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS,"5");
             final String compressionCodec = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC,"none");
             topic = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC);
             props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
             props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
             props.put(ProducerConfig.ACKS_CONFIG, acksConfig);
             props.put(ProducerConfig.BATCH_SIZE_CONFIG,batchSize);
+            props.put(ProducerConfig.LINGER_MS_CONFIG,lingerMs);
             props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,compressionCodec);
             props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
             props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
