@@ -98,7 +98,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     private static final Logger log = LogManager.getLogger(ArmorPlugin.class);
     private final boolean enabled;
-    private final boolean clientBool;
     private final Settings settings;
 
     private ArmorService armorService;
@@ -129,7 +128,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public ArmorPlugin(final Settings settings) {
         this.settings = settings;
         enabled = this.settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, true);
-        clientBool = !"node".equals(this.settings.get(ArmorPlugin.CLIENT_TYPE, "node"));
     }
 
     @Override
@@ -260,7 +258,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> actionFilters = new ArrayList<>();
-        if (!clientBool) {
+        if (enabled) {
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
@@ -287,6 +285,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public Map<String, Processor.Factory> getProcessors(Processor.Parameters parameters) {
         ingestService = parameters.ingestService;
         KafkaOutputFactory factory = KafkaOutputFactory.makeInstance(parameters.env.settings());
+        log.info("Add Processor LDP to processors");
         return Collections.singletonMap(LDPProcessor.TYPE, new LDPProcessor.Factory(factory));
     }
 
@@ -319,7 +318,11 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     @Override
     public UnaryOperator<RestHandler> getRestHandlerWrapper(ThreadContext threadContext) {
-        return (rh) -> armorRestShield.shield(rh);
+        if (enabled) {
+            return (rh) -> armorRestShield.shield(rh);
+        } else {
+            return (rh) -> ((request, channel, client1) -> rh.handleRequest(request, channel, client1));
+        }
     }
 
     @Override
@@ -479,7 +482,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ENABLED,false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -504,7 +507,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public Settings additionalSettings() {
         return Settings.Builder.EMPTY_SETTINGS;
     }
-
 
 
 }

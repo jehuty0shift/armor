@@ -57,13 +57,16 @@ public class KafkaOutputImpl implements KafkaOutput {
 
 
     public void initialize() {
-        if (producer == null) {
-            producer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> new KafkaProducer<String, String>(props));
+        if (enabled && producer == null) {
+
+            producer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
+                Thread.currentThread().setContextClassLoader(null);
+                return new KafkaProducer<String, String>(props); });
         }
     }
 
     public void flush() {
-        if(producer != null) {
+        if(enabled && producer != null) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 producer.flush();
                 return null;
@@ -72,7 +75,7 @@ public class KafkaOutputImpl implements KafkaOutput {
     }
 
     public void close() {
-        if(producer != null) {
+        if(enabled && producer != null) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 producer.close();
                 return null;
@@ -91,16 +94,18 @@ public class KafkaOutputImpl implements KafkaOutput {
 
         try {
 
-            String document = objMapper.writeValueAsString(ldpGelf.getDocumentMap());
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                String document = objMapper.writeValueAsString(ldpGelf.getDocumentMap());
                 producer.send(new ProducerRecord(topic, document));
                 return null;
             });
 
-        } catch (IOException ex) {
-            throw new ElasticsearchException("Couldn't serialize LDPGelf message");
         } catch (PrivilegedActionException e) {
-            throw new ElasticsearchException("Couldn't use Kafka Output due to exception", e);
+            if(e.getException() instanceof IOException) {
+                throw new ElasticsearchException("Couldn't serialize LDPGelf message",e.getException());
+            } else {
+                throw new ElasticsearchException("Couldn't use Kafka Output due to exception", e.getException());
+            }
         }
     }
 

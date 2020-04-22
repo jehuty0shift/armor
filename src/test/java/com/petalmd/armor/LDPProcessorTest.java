@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 public class LDPProcessorTest extends AbstractUnitTest {
 
 
-
     public void testKafka() throws Exception {
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ENABLED, true)
