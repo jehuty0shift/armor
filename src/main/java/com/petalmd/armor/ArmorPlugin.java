@@ -97,6 +97,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private static final String TRANSPORT_TYPE = "transport.type";
 
     private static final Logger log = LogManager.getLogger(ArmorPlugin.class);
+    private final boolean isPureClient;
     private final boolean enabled;
     private final Settings settings;
 
@@ -128,6 +129,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public ArmorPlugin(final Settings settings) {
         this.settings = settings;
         enabled = this.settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, true);
+        isPureClient = !"node".equals(settings.get(CLIENT_TYPE,"node"));
     }
 
     @Override
@@ -258,7 +260,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> actionFilters = new ArrayList<>();
-        if (enabled) {
+        if (enabled && !isPureClient) {
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
