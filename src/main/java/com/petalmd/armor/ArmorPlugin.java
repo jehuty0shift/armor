@@ -478,6 +478,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         //Ingest
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
 
+        //LDP Index
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
+
         //LDP Processor
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE, Setting.Property.NodeScope, Setting.Property.Filtered));

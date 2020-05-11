@@ -98,6 +98,7 @@ public final class ConfigConstants {
     public static final String ARMOR_KEFLA_PLUGIN_USER = "armor.kefla.plugin.user";
     public static final String ARMOR_KEFLA_PLUGIN_PASSWORD = "armor.kefla.plugin.password";
     public static final String ARMOR_KEY_PATH = "armor.key_path";
+    public static final String ARMOR_LDP_INDEX = "armor.ldp_index";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG = "armor.ldp_processor.kafka.acks_config";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS = "armor.ldp_processor.kafka.bootstrap_servers";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID = "armor.ldp_processor.kafka.client_id";

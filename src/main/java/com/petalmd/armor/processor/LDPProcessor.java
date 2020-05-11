@@ -48,7 +48,7 @@ public class LDPProcessor extends AbstractProcessor {
                 continue;
             }
 
-            if (fieldKey.equals("host")) {
+            if (fieldKey.equals("host") && ingestField.getValue() instanceof String) {
                 ldpGelf.setHost(ingestField.getValue().toString());
                 continue;
             }
@@ -82,17 +82,24 @@ public class LDPProcessor extends AbstractProcessor {
     private void addEntryToLDPGelf(final String key, final Object value, final LDPGelf ldpGelf) {
         if (value instanceof ZonedDateTime) {
             final ZonedDateTime zdtValue = (ZonedDateTime) value;
+            if (log.isDebugEnabled()) {
+                log.debug("adding key {} with Zoned Date Time value {}", key, zdtValue.toString());
+            }
             long millis = zdtValue.toInstant().getNano() / 1000000L;
             ldpGelf.addDate(key, new DateTime(millis));
         }
 
         if (value instanceof Date) {
             final Date dValue = (Date) value;
+            if (log.isDebugEnabled()) {
+                log.debug("adding key {} with Date Time value {}", key, dValue.toString());
+            }
             ldpGelf.addDate(key, new DateTime(dValue.toInstant().getNano() / 1000000L));
         }
 
         if (value instanceof Map) {
             final Map<String, Object> mapValue = (Map<String, Object>) value;
+            log.debug("adding map with {} elements", mapValue.size());
             for (Map.Entry<String, Object> mapEntry : mapValue.entrySet()) {
                 addEntryToLDPGelf(key + "_" + mapEntry.getKey(), mapEntry.getValue(), ldpGelf);
             }
@@ -102,6 +109,7 @@ public class LDPProcessor extends AbstractProcessor {
 
         if (value instanceof List) {
             List<Object> valueList = (List<Object>) value;
+            log.debug("adding list with {} elements", valueList.size());
             for (int i = 0; i < valueList.size(); i++) {
                 addEntryToLDPGelf(key + "_" + i, valueList.get(i), ldpGelf);
             }
@@ -154,9 +162,10 @@ public class LDPProcessor extends AbstractProcessor {
             final String strValue = (String) value;
             log.debug("adding key {} with String value {}", key, strValue);
             ldpGelf.addString(key, strValue);
+            return;
         }
 
-        log.warn("couldn't find the type of the value added");
+        log.warn("couldn't find the type of the value added {} and type {}", value.toString(), value.getClass().getName());
     }
 
     @Override
@@ -176,7 +185,7 @@ public class LDPProcessor extends AbstractProcessor {
 
         @Override
         public LDPProcessor create(Map<String, Processor.Factory> registry, String processorTag,
-                                          Map<String, Object> config) throws Exception {
+                                   Map<String, Object> config) throws Exception {
 
             final boolean dropMessage = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, "drop_message", true);
             final KafkaOutput kOutput = kafkaOutputFactory.getKafkaOutput();

@@ -4,6 +4,7 @@ import com.petalmd.armor.processor.kafka.KafkaOutput;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import org.joda.time.DateTime;
 
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,6 +80,13 @@ public class LDPGelf {
         return addValue(finalField, value);
     }
 
+    public LDPGelf addIP(final String field, final InetAddress ip) {
+        String finalField = field;
+        if (!finalField.endsWith("_ip")) {
+            finalField += "_ip";
+        }
+        return addValue(finalField, ip.toString());
+    }
 
     private LDPGelf addValue(final String field, final Object value) {
         String gelfField = field;
@@ -105,11 +113,25 @@ public class LDPGelf {
         }
 
         if (!document.containsKey("host")) {
-            document.put("host", "unknown");
+            if (document.containsKey("_host_hostname")) {
+                this.setHost(document.get("_host_hostname").toString());
+            } else if (document.containsKey("_host_name")) {
+                this.setHost(document.get("_host_name").toString());
+            } else {
+                document.put("host", "unknown");
+            }
         }
 
-        if(!document.containsKey("timestamp")) {
-            this.setTimestamp(DateTime.now());
+        if (!document.containsKey("timestamp")) {
+            if (document.containsKey("_@timestamp")) {
+                try {
+                    this.setTimestamp(DateTime.parse(document.get("_@timestamp").toString()));
+                } catch (Exception ex) {
+                    this.setTimestamp(DateTime.now());
+                }
+            } else {
+                this.setTimestamp(DateTime.now());
+            }
         }
 
         return this;

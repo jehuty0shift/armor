@@ -17,6 +17,7 @@ import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequ
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -25,6 +26,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,11 +38,13 @@ public class IndexTemplateFilter extends AbstractActionFilter {
     private static final Logger log = LogManager.getLogger(IndexTemplateFilter.class);
     final boolean enabled;
     private final List<String> allowedSettings;
+    private final Optional<String> ldpIndex;
 
     public IndexTemplateFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true);
         this.allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS, Arrays.asList("index.number_of_shards"));
+        this.ldpIndex = Optional.ofNullable(settings.get(ConfigConstants.ARMOR_LDP_INDEX));
     }
 
     @Override
@@ -64,6 +68,17 @@ public class IndexTemplateFilter extends AbstractActionFilter {
 
         if (action.equals(PutIndexTemplateAction.NAME)) {
             final PutIndexTemplateRequest putITReq = (PutIndexTemplateRequest) request;
+
+            //check if index is on ldp index
+            if(ldpIndex.isPresent()) {
+                if(putITReq.indices().length == 1) {
+                    final String indexName = putITReq.indices()[0];
+                    if (indexName.equals(ldpIndex.get())) {
+                        listener.onResponse(new AcknowledgedResponse(true));
+                        return;
+                    }
+                }
+            }
 
             //check template name
             if (!putITReq.name().contains(user.getName())) {

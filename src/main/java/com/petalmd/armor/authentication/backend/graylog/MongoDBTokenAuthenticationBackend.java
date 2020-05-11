@@ -3,6 +3,7 @@ package com.petalmd.armor.authentication.backend.graylog;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.*;
+import com.mongodb.client.result.UpdateResult;
 import com.petalmd.armor.authentication.AuthCredentials;
 import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;

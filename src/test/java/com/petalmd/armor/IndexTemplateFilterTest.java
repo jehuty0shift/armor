@@ -49,6 +49,38 @@ import java.util.stream.Collectors;
 @PrepareForTest({Unirest.class})
 public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
+    @Test
+    public void templateCreationOnLDPIndex() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String LDPIndexName = "ldp";
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "lifecycle_alias", "forbidden")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
+                .putList("armor.actionrequestfilter.lifecycle_alias.allowed_actions", "indices:data/read*")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:admin/template/put", "indices:admin/template/get", "indices:admin/template/delete", "indices:admin/aliases", "indices:data/read/scroll", "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_LDP_INDEX,LDPIndexName)
+                .put(authSettings).build();
+
+        startES(settings);
+        setupTestData("ac_rules_27.json");
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        String source1 = buildTemplateBody(Arrays.asList("ldp"), Collections.emptyList(), Settings.EMPTY);
+
+        PutTemplate putTemplate1 = new PutTemplate.Builder(username + "-template1", source1).build();
+
+        Tuple<JestResult, HttpResponse> result = client.executeE(putTemplate1);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
+
+    }
+
 
     @Test
     public void templateCreationWithoutIndexLifeCycle() throws Exception {
@@ -57,9 +89,6 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final String indexName = username + "-i-test-1";
-
-        final String engineDatabaseName = "engine";
 
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "lifecycle_alias", "forbidden")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")

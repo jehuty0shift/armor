@@ -113,7 +113,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                 listener.onFailure(ex);
                 return;
             } catch (Exception ex) {
-                log.error("unexepected Error during PutPipelineRequest", ex);
+                log.error("unexpected Error during PutPipelineRequest", ex);
                 listener.onFailure(new ElasticsearchException("Unexpected Error during Pipeline Creation"));
                 return;
             }
@@ -187,7 +187,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         Map<String, Object> pipelineConfig = XContentHelper.convertToMap(request.getSource(), false, request.getXContentType()).v2();
         // find processor config using Pipeline create Code,
         // Change PipelineProcessor config to call a user-prefixed processor
-        // Assert Script code does not contain any ctx._index assignement ( creates a Regexp for that)
+        // Assert Script code does not contain any ctx._index assignment ( creates a Regexp for that)
         List<Map<String, Object>> processorConfigs = ConfigurationUtils.readList(null, null, pipelineConfig, Pipeline.PROCESSORS_KEY);
 
 
