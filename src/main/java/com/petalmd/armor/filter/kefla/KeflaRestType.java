@@ -91,6 +91,9 @@ public class KeflaRestType {
                 this.type = ESType.DATE.value;
                 this.format = "yyyy-MM-dd HH:mm:ss.SS";
                 break;
+            case "X-OVH-TOKEN":
+                this.type = ESType.DATE.value;
+                break;
             case "version":
                 this.type = ESType.KEYWORD.value;
                 this.index = false;
