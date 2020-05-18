@@ -339,6 +339,28 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
         Assert.assertFalse(result.v1().isSucceeded());
         Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
 
+        //Source script is :
+        //  "source": """
+        //    ctx._index -= 'my_index';
+        //    ctx._index += 'graylog2_125';
+        //    ctx._type = '_doc';
+        //  """
+        PutPipeline putPipeline2 = new PutPipeline.Builder("test").payload("{\n" +
+                "    \"description\": \"remplace index my_index with graylog2_125 and type:_doc\",\n" +
+                "    \"processors\": [\n" +
+                "      {\n" +
+                "        \"script\": {\n" +
+                "          \"source\": \"ctx._index -= \\u0027my_index\\u0027;\\nctx._index = \\u0027graylog_2125\\u0027\\nctx._type = \\u0027_doc\\u0027;\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    ]\n" +
+                "}").build();
+
+        result = client.executeE(putPipeline);
+
+        Assert.assertFalse(result.v1().isSucceeded());
+        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+
     }
 
 

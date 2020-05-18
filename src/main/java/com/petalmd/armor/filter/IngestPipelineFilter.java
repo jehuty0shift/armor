@@ -56,7 +56,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         ldpDefaultPipeline = settings.get(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME,LDPIndexFilter.LDP_DEFAULT_PIPELINE);
         log.info("IngestPipelineFilter is {}", enabled ? "enabled" : "disabled");
         forbiddenScriptPatterns = new ArrayList<>();
-        forbiddenScriptPatterns.add(Pattern.compile(".*ctx\\._index\\s+(\\+|\\-)+=\\s+.*"));
+        forbiddenScriptPatterns.add(Pattern.compile(".*ctx\\._index\\s+(\\+|\\-)*=\\s+.*"));
     }
 
     @Override
