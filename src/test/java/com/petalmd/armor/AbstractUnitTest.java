@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.petalmd.armor;
 
@@ -61,12 +61,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.reindex.ReindexPlugin;
-import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.ingest.common.IngestCommonPlugin;
 import org.elasticsearch.node.ArmorNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.painless.PainlessPlugin;
-import org.elasticsearch.plugins.AnalysisPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.After;
@@ -209,6 +207,7 @@ public abstract class AbstractUnitTest {
                 .put("network.bind_host", "0.0.0.0").put("http.port", httpPort).put("http.enabled", true)
                 .put("network.publish_host", "127.0.0.1").put("transport.tcp.port", nodePort).put("http.cors.enabled", true)
                 .put("network.tcp.connect_timeout", "60s").put("discovery.zen.ping.unicast.hosts", "127.0.0.1:" + elasticsearchNodePort1)
+                .put(ConfigConstants.ARMOR_ENABLED, true)
                 .put(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true)/*.put("node.local", false)*/;
 
     }
@@ -604,7 +603,7 @@ public abstract class AbstractUnitTest {
         Assert.assertTrue(alias1.isAcknowledged());
         AcknowledgedResponse alias2 = esNode1.client().admin().indices()
                 .prepareAliases()
-                .addAlias(new String[]{"ceo","financial", "marketing"}, "internal")
+                .addAlias(new String[]{"ceo", "financial", "marketing"}, "internal")
                 .execute()
                 .actionGet();
         Assert.assertTrue(alias2.isAcknowledged());
@@ -662,7 +661,6 @@ public abstract class AbstractUnitTest {
                 .execute()
                 .actionGet();
     }
-
 
 
     protected final void setupTestDataWithFilteredAliasWithStreams(final String armorConfig) throws Exception {
