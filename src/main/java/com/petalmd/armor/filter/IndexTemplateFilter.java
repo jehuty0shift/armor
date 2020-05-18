@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 public class IndexTemplateFilter extends AbstractActionFilter {
 
     private static final Logger log = LogManager.getLogger(IndexTemplateFilter.class);
-    final boolean enabled;
+    private final boolean enabled;
     private final List<String> allowedSettings;
     private final Optional<String> ldpIndex;
 
@@ -45,6 +45,7 @@ public class IndexTemplateFilter extends AbstractActionFilter {
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true);
         this.allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS, Arrays.asList("index.number_of_shards"));
         this.ldpIndex = Optional.ofNullable(settings.get(ConfigConstants.ARMOR_LDP_INDEX));
+        log.info("IndexTemplateFilter is {}", enabled ? "enabled" : "disabled");
     }
 
     @Override
@@ -69,11 +70,12 @@ public class IndexTemplateFilter extends AbstractActionFilter {
         if (action.equals(PutIndexTemplateAction.NAME)) {
             final PutIndexTemplateRequest putITReq = (PutIndexTemplateRequest) request;
 
-            //check if index is on ldp index
-            if(ldpIndex.isPresent()) {
-                if(putITReq.indices().length == 1) {
+            //check if template is on ldp index
+            if (ldpIndex.isPresent()) {
+                if (putITReq.indices().length == 1) {
                     final String indexName = putITReq.indices()[0];
                     if (indexName.equals(ldpIndex.get())) {
+                        log.debug("template is on ldp index, not doing anything");
                         listener.onResponse(new AcknowledgedResponse(true));
                         return;
                     }
@@ -82,19 +84,21 @@ public class IndexTemplateFilter extends AbstractActionFilter {
 
             //check template name
             if (!putITReq.name().contains(user.getName())) {
-                log.error("PutIndexTemplateRequest of user {} has invalid name {}",user.getName(), putITReq.name());
+                log.error("PutIndexTemplateRequest of user {} has invalid name {}", user.getName(), putITReq.name());
                 listener.onFailure(new ForbiddenException("The template name MUST contains your username"));
                 return;
             }
+
             //check index names
             if (Stream.of(putITReq.indices()).anyMatch(iName -> !iName.startsWith(user.getName() + "-i-"))) {
-                log.error("PutIndexTemplateRequest of user {} has invalid index names {}",user.getName(), putITReq.indices());
-                listener.onFailure(new ForbiddenException("The template MUST only contain index names starting with " + user.getName() +"-i-"));
+                log.error("PutIndexTemplateRequest of user {} has invalid index names {}", user.getName(), putITReq.indices());
+                listener.onFailure(new ForbiddenException("The template MUST only contain index names starting with " + user.getName() + "-i-"));
                 return;
             }
+
             //check aliasesName
             if (putITReq.aliases().stream().anyMatch(aName -> !aName.name().startsWith(user.getName() + "-a-"))) {
-                log.error("PutIndexTemplateRequest of user {} has invalid aliases names {}",user.getName(), putITReq.aliases());
+                log.error("PutIndexTemplateRequest of user {} has invalid aliases names {}", user.getName(), putITReq.aliases());
                 listener.onFailure(new ForbiddenException("The aliases in template MUST start with " + user.getName() + "-a-"));
                 return;
             }
@@ -103,10 +107,10 @@ public class IndexTemplateFilter extends AbstractActionFilter {
             Settings.Builder newSettingsBuilder = Settings.builder();
             Settings templateSettings = putITReq.settings();
 
-            for(String prefix : allowedSettings) {
+            for (String prefix : allowedSettings) {
                 log.debug("checking prefix {} in PutIndexTemplateRequest", prefix);
                 final Settings filteredSetting = templateSettings.filter(k -> k.startsWith(prefix));
-                if(!filteredSetting.isEmpty()) {
+                if (!filteredSetting.isEmpty()) {
                     log.debug("keeping setting {}", filteredSetting.toString());
                     newSettingsBuilder.put(filteredSetting);
                 }
@@ -118,14 +122,17 @@ public class IndexTemplateFilter extends AbstractActionFilter {
             final GetIndexTemplatesRequest gITReq = (GetIndexTemplatesRequest) request;
 
             List<String> forbiddenTemplatesNames = Stream.of(gITReq.names()).filter(tName -> !tName.contains(user.getName())).collect(Collectors.toList());
-            if(!forbiddenTemplatesNames.isEmpty()) {
-                listener.onFailure(new ForbiddenException("Template names MUST contains " + user.getName() + " got: [" + forbiddenTemplatesNames.stream().collect(Collectors.joining(", "))+ "]" ));
+            if (!forbiddenTemplatesNames.isEmpty()) {
+                final String provided = forbiddenTemplatesNames.stream().collect(Collectors.joining(", "));
+                log.debug("the template name is not compatible it must contains username, {} provided", provided);
+                listener.onFailure(new ForbiddenException("Template names MUST contains " + user.getName() + " got: [" + provided + "]"));
                 return;
             }
 
         } else if (action.equals(DeleteIndexTemplateAction.NAME)) {
             final DeleteIndexTemplateRequest dITReq = (DeleteIndexTemplateRequest) request;
-            if(!dITReq.name().contains(user.getName())) {
+            if (!dITReq.name().contains(user.getName())) {
+                log.debug("the template name is not compatible it must contains username, {} provided", dITReq.name());
                 listener.onFailure(new ForbiddenException("Template name MUST contains " + user.getName()));
                 return;
             }

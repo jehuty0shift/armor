@@ -2,8 +2,10 @@ package com.petalmd.armor.processor;
 
 import com.petalmd.armor.processor.kafka.KafkaOutput;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
+import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.ingest.AbstractProcessor;
 import org.elasticsearch.ingest.ConfigurationUtils;
 import org.elasticsearch.ingest.IngestDocument;
@@ -16,20 +18,30 @@ import java.util.*;
 public class LDPProcessor extends AbstractProcessor {
 
     public static final String TYPE = "ldp";
+    public static final String DROP_MESSAGE_OPTION = "drop_message";
+    public static final String IS_GENERATED_OPTION = "generated";
     private static final Logger log = LogManager.getLogger(LDPProcessor.class);
     private final boolean dropMessage;
+    private final boolean generated;
     private final KafkaOutput kafkaOutput;
+    private final String ldpIndex;
 
-    public LDPProcessor(final String tag, final boolean dropMessage, final KafkaOutput kafkaOutput) {
+    public LDPProcessor(final String tag, final boolean dropMessage, final boolean generated, final KafkaOutput kafkaOutput, final String ldpIndex) {
         super(tag);
         this.kafkaOutput = kafkaOutput;
         this.dropMessage = dropMessage;
+        this.generated = generated;
+        this.ldpIndex = ldpIndex;
     }
 
     @Override
     public IngestDocument execute(IngestDocument ingestDocument) throws Exception {
         if (ingestDocument == null) {
             return null;
+        }
+        //If ldp processor has been automatically generated and does not target ldpIndex, we quit.
+        if (generated && !ingestDocument.getSourceAndMetadata().get(IngestDocument.MetaData.INDEX.getFieldName()).equals(ldpIndex)) {
+            return ingestDocument;
         }
         LDPGelf ldpGelf = new LDPGelf();
         for (Map.Entry<String, Object> ingestField : ingestDocument.getSourceAndMetadata().entrySet()) {
@@ -177,21 +189,24 @@ public class LDPProcessor extends AbstractProcessor {
     public static final class Factory implements Processor.Factory {
 
         private final KafkaOutputFactory kafkaOutputFactory;
+        private final String ldpIndex;
 
-        public Factory(final KafkaOutputFactory kafkaOutputFactory) {
+        public Factory(final KafkaOutputFactory kafkaOutputFactory, final Settings settings) {
             this.kafkaOutputFactory = kafkaOutputFactory;
+            this.ldpIndex = settings.get(ConfigConstants.ARMOR_LDP_INDEX);
         }
 
 
         @Override
         public LDPProcessor create(Map<String, Processor.Factory> registry, String processorTag,
-                                   Map<String, Object> config) throws Exception {
+                                   Map<String, Object> config) {
 
-            final boolean dropMessage = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, "drop_message", true);
+            final boolean dropMessage = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, DROP_MESSAGE_OPTION, true);
+            final boolean generated = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, IS_GENERATED_OPTION, false);
             final KafkaOutput kOutput = kafkaOutputFactory.getKafkaOutput();
             kOutput.initialize();
 
-            return new LDPProcessor(processorTag, dropMessage, kOutput);
+            return new LDPProcessor(processorTag, dropMessage, generated, kOutput, ldpIndex);
         }
 
     }

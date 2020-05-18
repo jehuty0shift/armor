@@ -275,6 +275,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new AliasLifeCycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
             actionFilters.add(new IndexTemplateFilter(settings, clusterService, armorService, armorConfigService, threadPool));
             actionFilters.add(new IngestPipelineFilter(settings, clusterService, armorService, armorConfigService, threadPool));
+            actionFilters.add(new LDPIndexFilter(settings, client, clusterService, armorService, armorConfigService, threadPool));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }
@@ -288,7 +289,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         ingestService = parameters.ingestService;
         KafkaOutputFactory factory = KafkaOutputFactory.makeInstance(parameters.env.settings());
         log.info("Add Processor LDP to processors");
-        return Collections.singletonMap(LDPProcessor.TYPE, new LDPProcessor.Factory(factory));
+        return Collections.singletonMap(LDPProcessor.TYPE, new LDPProcessor.Factory(factory, parameters.env.settings()));
     }
 
     @Override
@@ -450,6 +451,10 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_USER, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KEFLA_PLUGIN_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        // LDP Filter
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_LDP_FILTER_ENABLED, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //MongoDB
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_URI, Setting.Property.NodeScope, Setting.Property.Filtered));

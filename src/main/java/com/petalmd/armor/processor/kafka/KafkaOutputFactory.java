@@ -5,7 +5,7 @@ import org.elasticsearch.common.settings.Settings;
 
 public class KafkaOutputFactory {
 
-    private static KafkaOutputFactory INSTANCE;
+    private static KafkaOutputFactory INSTANCE = null;
     private KafkaOutput kafkaOutput;
 
     public static KafkaOutputFactory getInstance() {
@@ -17,10 +17,9 @@ public class KafkaOutputFactory {
 
     public static synchronized KafkaOutputFactory makeInstance(final Settings settings) {
         if (INSTANCE == null) {
-            return new KafkaOutputFactory(settings);
-        } else {
-            return INSTANCE;
+            INSTANCE = new KafkaOutputFactory(settings);
         }
+        return INSTANCE;
     }
 
     public KafkaOutput getKafkaOutput() {
@@ -31,12 +30,14 @@ public class KafkaOutputFactory {
         this.kafkaOutput = kafkaOutput;
     }
 
-    public KafkaOutputFactory(final Settings settings) {
+    private KafkaOutputFactory(final Settings settings) {
         final boolean useInnerImpl = settings.getAsBoolean(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, true);
         if (useInnerImpl == true) {
             this.kafkaOutput = new KafkaOutputImpl(settings);
+        } else {
+            KafkaOutputConsumer kOConsumer = new KafkaOutputConsumer((ldpGelf) -> {}); //noop consumer;
+            this.kafkaOutput = kOConsumer;
         }
-        INSTANCE = this;
     }
 
 }

@@ -85,7 +85,7 @@ public class KafkaOutputImpl implements KafkaOutput {
 
     public void sendLDPGelf(final LDPGelf ldpGelf) {
         if (!enabled) {
-            throw new ElasticsearchException("the Kafka Output is not enabled");
+            return;
         }
 
         if (producer == null) {

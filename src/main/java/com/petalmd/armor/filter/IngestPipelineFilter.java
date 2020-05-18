@@ -2,6 +2,7 @@ package com.petalmd.armor.filter;
 
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
+import com.petalmd.armor.processor.LDPProcessor;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
@@ -18,17 +19,21 @@ import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.ingest.*;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.*;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.ingest.*;
+import org.elasticsearch.ingest.ConfigurationUtils;
+import org.elasticsearch.ingest.IngestService;
+import org.elasticsearch.ingest.Pipeline;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import javax.swing.text.html.Option;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -43,13 +48,15 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     private final boolean enabled;
     private IngestService ingestService;
     private final List<Pattern> forbiddenScriptPatterns;
+    private final String ldpDefaultPipeline;
 
     public IngestPipelineFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true);
+        ldpDefaultPipeline = settings.get(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME,LDPIndexFilter.LDP_DEFAULT_PIPELINE);
         log.info("IngestPipelineFilter is {}", enabled ? "enabled" : "disabled");
         forbiddenScriptPatterns = new ArrayList<>();
-        forbiddenScriptPatterns.add(Pattern.compile(".*ctx\\._index\\s+=\\s+.*"));
+        forbiddenScriptPatterns.add(Pattern.compile(".*ctx\\._index\\s+(\\+|\\-)+=\\s+.*"));
     }
 
     @Override
@@ -61,12 +68,12 @@ public class IngestPipelineFilter extends AbstractActionFilter {
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
 
 
-        if (!enabled || (!action.equals(DeletePipelineAction.NAME)
-                && !action.equals(PutPipelineAction.NAME)
-                && !action.equals(GetPipelineAction.NAME)
-                && !action.equals(SimulatePipelineAction.NAME)
-                && !action.equals(BulkAction.NAME)
-                && !action.equals(IndexAction.NAME))
+        if (!enabled || !(action.equals(DeletePipelineAction.NAME)
+                || action.equals(PutPipelineAction.NAME)
+                || action.equals(GetPipelineAction.NAME)
+                || action.equals(SimulatePipelineAction.NAME)
+                || action.equals(BulkAction.NAME)
+                || action.equals(IndexAction.NAME))
         ) {
             chain.proceed(task, action, request, listener);
             return;
@@ -88,14 +95,14 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         if (action.equals(BulkAction.NAME)) {
             BulkRequest bReq = (BulkRequest) request;
             final String globalPipeline = bReq.pipeline();
-            if (globalPipeline != null && !globalPipeline.isEmpty() && !globalPipeline.startsWith(prefix)) {
+            if (mustRenamePipeline(globalPipeline, prefix)) {
                 bReq.pipeline(prefix + globalPipeline);
             }
             for (DocWriteRequest dwr : bReq.requests()) {
                 if (dwr instanceof IndexRequest) {
                     IndexRequest iReq = (IndexRequest) dwr;
                     final String pipeline = iReq.getPipeline();
-                    if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(prefix)) {
+                    if (mustRenamePipeline(pipeline, prefix)) {
                         iReq.setPipeline(prefix + pipeline);
                     }
                 }
@@ -137,7 +144,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                 listener.onFailure(ex);
                 return;
             } catch (Exception ex) {
-                log.error("unexepected Error during PutPipelineRequest", ex);
+                log.error("unexpected Error during PutPipelineRequest", ex);
                 listener.onFailure(new ElasticsearchException("Unexpected Error during Pipeline Creation"));
                 return;
 
@@ -145,7 +152,7 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         } else if (action.equals(IndexAction.NAME)) {
             IndexRequest iReq = (IndexRequest) request;
             final String pipeline = iReq.getPipeline();
-            if (pipeline != null && !pipeline.isEmpty() && !iReq.getPipeline().startsWith(prefix)) {
+            if (mustRenamePipeline(pipeline, prefix)) {
                 iReq.setPipeline(prefix + pipeline);
             }
             chain.proceed(task, action, iReq, listener);
@@ -156,6 +163,9 @@ public class IngestPipelineFilter extends AbstractActionFilter {
         chain.proceed(task, action, request, listener);
     }
 
+    private boolean mustRenamePipeline(final String pipelineName, final String prefix) {
+        return pipelineName != null && !pipelineName.isEmpty() && !ldpDefaultPipeline.equals(pipelineName) && !pipelineName.startsWith(prefix);
+    }
 
     private DeletePipelineRequest transformDelPipeline(final User user, final DeletePipelineRequest request) {
         final String pipelineToDel = request.getId();
@@ -276,12 +286,27 @@ public class IngestPipelineFilter extends AbstractActionFilter {
                     if (!pipelineName.startsWith(userName)) {
                         log.warn("The pipeline used does not start with user, changing it to {}", userName + "-" + pipelineName);
                     }
+                    //we need to put it again since readStringProperty method removes the config
                     pipelineProcessorConfig.put("name", userName + "-" + pipelineName);
                     pipelineChanged = true;
                 }
             }
         }
-        return processorConfigs;
+        //add the ldp processor at the end
+        List<Map<String, Object>> newProcessorConfigs = new ArrayList<>(processorConfigs.size() + 1);
+        newProcessorConfigs.addAll(processorConfigs);
+        newProcessorConfigs.add(buildLDPProcessor());
+        return newProcessorConfigs;
+    }
+
+    private Map<String, Object> buildLDPProcessor() {
+        Map<String, Object> configMap = new HashMap<>();
+        configMap.put(LDPProcessor.DROP_MESSAGE_OPTION, true);
+        configMap.put(LDPProcessor.IS_GENERATED_OPTION, true);
+
+        Map<String, Object> ldpProcMap = new HashMap<>();
+        ldpProcMap.put(LDPProcessor.TYPE, configMap);
+        return ldpProcMap;
     }
 
 
