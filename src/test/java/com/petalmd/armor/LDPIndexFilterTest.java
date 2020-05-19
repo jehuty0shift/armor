@@ -5,12 +5,15 @@ import com.petalmd.armor.processor.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.tests.GetPipeline;
+import com.petalmd.armor.tests.PutSettings;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.action.BulkableAction;
 import io.searchbox.client.JestResult;
 import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;
 import io.searchbox.indices.CreateIndex;
+import io.searchbox.indices.mapping.GetMapping;
+import io.searchbox.indices.mapping.PutMapping;
 import org.apache.http.HttpResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -49,7 +52,7 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
                 .put(ConfigConstants.ARMOR_LDP_INDEX, ldpIndex)
-                .put(ConfigConstants.ARMOR_LDP_FILTER_ENABLED,true)
+                .put(ConfigConstants.ARMOR_LDP_FILTER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME, ldpPipelineName)
                 .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, false)
@@ -160,6 +163,92 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
         result = client.executeE(bulkRequest);
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(hasRun.get());
+
+
+    }
+
+    @Test
+    public void indicesRequestsOnLDPIndex() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String ldpIndex = "ldp-logs";
+        final String ldpPipelineName = "ldpDefault";
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden", "writer")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "indices:admin/template/put",
+                        "indices:admin/template/get",
+                        "indices:admin/template/delete",
+                        "indices:admin/aliases",
+                        "indices:admin/mapping*",
+                        "indices:admin/settings*",
+                        "indices:data/read/scroll",
+                        "indices:data/read/scroll/clear")
+                .putList("armor.actionrequestfilter.writer.allowed_actions",
+                        "indices:admin/create",
+                        "indices:data*")
+                .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
+                .put(ConfigConstants.ARMOR_LDP_INDEX, ldpIndex)
+                .put(ConfigConstants.ARMOR_LDP_FILTER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME, ldpPipelineName)
+                .put(ConfigConstants.ARMOR_INGEST_PIPELINE_FILTER_ENABLED, true)
+                .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, false)
+                .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, "log.test")
+                .put(authSettings).build();
+
+        final KafkaOutputConsumer kafkaConsumer = new KafkaOutputConsumer(null);
+        KafkaOutputFactory.makeInstance(settings).setKafkaOutput(kafkaConsumer);
+
+        startES(settings);
+
+        setupTestData("ac_rules_30.json");
+
+        //create ldpIndex
+        CreateIndex createIndex = new CreateIndex.Builder(ldpIndex).build();
+
+        HeaderAwareJestHttpClient localHostClient = getJestClient(getServerUri(true), username, password);
+
+        Tuple<JestResult, HttpResponse> result = localHostClient.executeE(createIndex);
+        Assert.assertTrue(result.v1().isSucceeded());
+
+        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+
+        PutMapping pMapping = new PutMapping.Builder(ldpIndex, "_doc", "{\n" +
+                "  \"properties\": {\n" +
+                "    \"email\": {\n" +
+                "      \"type\": \"keyword\"\n" +
+                "    }\n" +
+                "  }\n" +
+                "}").build();
+
+        result = client.executeE(pMapping);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("true"));
+
+        PutSettings putSettings = new PutSettings.Builder("{\n" +
+                "    \"index\" : {\n" +
+                "        \"number_of_replicas\" : 2\n" +
+                "    }\n" +
+                "}").addIndex(ldpIndex).addIndex("dev").build();
+
+        result = client.executeE(putSettings);
+
+        Assert.assertFalse(result.v1().isSucceeded());
+        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+        Assert.assertTrue(result.v1().getErrorMessage().contains("target multiple index"));
+
+
+        GetMapping gMapping = new GetMapping.Builder().addIndex(ldpIndex).build();
+
+        result = client.executeE(gMapping);
+
+        Assert.assertFalse(result.v1().isSucceeded());
+        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+        Assert.assertTrue(result.v1().getErrorMessage().contains("This action is not authorized"));
 
 
     }

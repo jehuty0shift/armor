@@ -11,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -18,6 +20,7 @@ import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.action.support.master.AcknowledgedRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -37,6 +40,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 public class LDPIndexFilter extends AbstractActionFilter {
 
@@ -59,7 +63,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
         this.ldpPipelineName = settings.get(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME, LDP_DEFAULT_PIPELINE);
         this.client = client;
         this.ldpPipelineBuilt = new AtomicBoolean(false);
-        if(enabled) {
+        if (enabled) {
             this.putPipelineTask = threadPool.scheduleWithFixedDelay(() -> {
                 putLDPPipelineIfNeeded();
             }, TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC);
@@ -76,9 +80,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
 
     @Override
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
-        if (!enabled || ldpIndex == null ||
-                (!action.equals(IndexAction.NAME) &&
-                        !action.equals(BulkAction.NAME))) {
+        if (!enabled || ldpIndex == null) {
             chain.proceed(task, action, request, listener);
             return;
         }
@@ -91,9 +93,9 @@ public class LDPIndexFilter extends AbstractActionFilter {
             IndexRequest iReq = (IndexRequest) request;
             if (iReq.index().equals(ldpIndex) && iReq.getPipeline() == null) {
                 if (!ldpPipelineBuilt.get()) {
-                        listener.onFailure(new ForbiddenException("this index is not ready"));
-                        return;
-                } else if (!putPipelineTask.isCancelled()){
+                    listener.onFailure(new ForbiddenException("this index is not ready"));
+                    return;
+                } else if (!putPipelineTask.isCancelled()) {
                     putPipelineTask.cancel();
                 }
                 iReq.setPipeline(ldpPipelineName);
@@ -105,7 +107,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
                     if (!ldpPipelineBuilt.get()) {
                         listener.onFailure(new ForbiddenException("this index is not yet ready"));
                         return;
-                    } else if (!putPipelineTask.isCancelled()){
+                    } else if (!putPipelineTask.isCancelled()) {
                         putPipelineTask.cancel();
                     }
                     if (dwr instanceof IndexRequest) {
@@ -125,6 +127,22 @@ public class LDPIndexFilter extends AbstractActionFilter {
                         return;
                     }
                 }
+            }
+        } else if (request instanceof IndicesRequest) {
+            IndicesRequest iRequest = (IndicesRequest) request;
+            if (Stream.of(iRequest.indices()).anyMatch(i -> i.startsWith(ldpIndex))) {
+                if (iRequest.indices().length > 1) {
+                    auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+                    listener.onFailure(new ForbiddenException("Forbidden to target multiple index and {}", ldpIndex));
+                } else {
+                    if (iRequest instanceof AcknowledgedRequest) {
+                        listener.onResponse(new AcknowledgedResponse(true));
+                    } else {
+                        auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+                        listener.onFailure(new ForbiddenException("This action is not authorized for this index"));
+                    }
+                }
+                return;
             }
         }
 
@@ -211,6 +229,8 @@ public class LDPIndexFilter extends AbstractActionFilter {
             } catch (IOException e) {
                 log.warn("Put Pipeline failed due to an unexpected IO Error", e);
             }
+        } else {
+            putPipelineTask.cancel();
         }
     }
 
