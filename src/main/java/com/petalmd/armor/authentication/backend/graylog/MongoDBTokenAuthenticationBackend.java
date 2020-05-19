@@ -75,15 +75,6 @@ public class MongoDBTokenAuthenticationBackend implements NonCachingAuthenticati
                 }
 
                 final String username = userDocument.getString("username");
-
-                // Implement last access like Graylog do
-                userDocument.put("last_access", Instant.now().toDate());
-                try {
-                    tokenCollection.replaceOne(Filters.eq("token", tokenValue), userDocument, new ReplaceOptions().upsert(false));
-                } catch (Exception ex) {
-                    log.debug("Error during last access update", ex);
-                    throw new AuthException("Unexpected Error during update", AuthException.ExceptionType.ERROR);
-                }
                 return new User(username);
             });
 
