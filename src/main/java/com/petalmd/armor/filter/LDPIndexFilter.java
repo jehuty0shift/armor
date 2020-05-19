@@ -12,7 +12,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -98,12 +97,14 @@ public class LDPIndexFilter extends AbstractActionFilter {
                 } else if (!putPipelineTask.isCancelled()) {
                     putPipelineTask.cancel();
                 }
+                log.debug("IndexAction targets ldp index {}", ldpIndex);
                 iReq.setPipeline(ldpPipelineName);
             }
         } else if (action.equals(BulkAction.NAME)) {
             BulkRequest bReq = (BulkRequest) request;
             for (DocWriteRequest dwr : bReq.requests()) {
                 if (ldpIndex.equals(dwr.index())) {
+                    log.debug("inner bulkRequest target ldp index {}", ldpIndex);
                     if (!ldpPipelineBuilt.get()) {
                         listener.onFailure(new ForbiddenException("this index is not yet ready"));
                         return;

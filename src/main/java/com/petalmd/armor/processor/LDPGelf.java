@@ -109,7 +109,11 @@ public class LDPGelf {
 
     public LDPGelf validate() {
         if (!document.containsKey("short_message")) {
-            document.put("short_message", "-");
+            if (document.containsKey("_message")) {
+                document.put("short_message", document.get("_message"));
+            } else {
+                document.put("short_message", "-");
+            }
         }
 
         if (!document.containsKey("host")) {

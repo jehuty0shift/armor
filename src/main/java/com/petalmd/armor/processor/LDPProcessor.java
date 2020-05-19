@@ -43,6 +43,7 @@ public class LDPProcessor extends AbstractProcessor {
         if (generated && !ingestDocument.getSourceAndMetadata().get(IngestDocument.MetaData.INDEX.getFieldName()).equals(ldpIndex)) {
             return ingestDocument;
         }
+
         LDPGelf ldpGelf = new LDPGelf();
         for (Map.Entry<String, Object> ingestField : ingestDocument.getSourceAndMetadata().entrySet()) {
             final String fieldKey = ingestField.getKey();
@@ -165,7 +166,7 @@ public class LDPProcessor extends AbstractProcessor {
 
         if (value instanceof Boolean) {
             final Boolean boolValue = (Boolean) value;
-            log.debug("adding key {} with Double value {}", key, boolValue);
+            log.debug("adding key {} with Boolean value {}", key, boolValue);
             ldpGelf.addBoolean(key, boolValue);
             return;
         }

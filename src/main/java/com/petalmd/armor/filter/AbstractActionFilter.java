@@ -95,11 +95,11 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
     @Override
     public final void apply(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
-        log.debug("REQUEST on node {}: {} ({}) from {}", clusterService.localNode().getName(), action, request.getClass(),
+        log.trace("REQUEST on node {}: {} ({}) from {}", clusterService.localNode().getName(), action, request.getClass(),
                 request.remoteAddress() == null ? "INTRANODE" : request.remoteAddress().toString());
         //log.debug("Context {}", request.getContext());
         ThreadContext threadContext = threadpool.getThreadContext();
-        log.debug("Headers {}", threadContext.getHeaders());
+        log.trace("Headers {}", threadContext.getHeaders());
 
         if (settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_KIBANA_ACTIONS, true) && (action.startsWith("cluster:monitor/") || action.contains("indices:data/read/field_stats"))) {
             chain.proceed(task, action, request, listener);
@@ -122,7 +122,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         final boolean intraNodeRequest = request.remoteAddress() == null;
 
         if (intraNodeRequest && (isRequestExternal == null || isRequestExternal.get() == false)) {
-            log.debug("TYPE: intra node request, skip filters");
+            log.trace("TYPE: intra node request, skip filters");
             chain.proceed(task, action, request, listener);
             return;
         }
@@ -151,7 +151,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
 
         if (interNodeAuthenticated || isRequestExternal == null || isRequestExternal.get() == false) {
-            log.debug("TYPE: inter node cluster request, skip filters");
+            log.trace("TYPE: inter node cluster request, skip filters");
             chain.proceed(task, action, request, listener);
             return;
         } else {
