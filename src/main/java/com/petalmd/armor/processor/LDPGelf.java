@@ -28,18 +28,20 @@ public class LDPGelf {
         return addValue(finalField, value);
     }
 
+    // In order to not confuse users on values overloading int,
+    // we force any integer values to be in the same format of long.
     public LDPGelf addInt(final String field, final int value) {
         String finalField = field;
-        if (!finalField.endsWith("_int")) {
-            finalField += "_int";
+        if (!finalField.endsWith("_long")) {
+            finalField += "_long";
         }
         return addValue(finalField, value);
     }
 
     public LDPGelf addFloat(final String field, final float value) {
         String finalField = field;
-        if (!finalField.endsWith("_float")) {
-            finalField += "_float";
+        if (!finalField.endsWith("_num")) {
+            finalField += "_num";
         }
         return addValue(finalField, value);
     }

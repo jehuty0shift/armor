@@ -126,44 +126,7 @@ public class MongoDBAuthBackendTest extends AbstractUnitTest {
             Assert.assertTrue(ex.getMessage().contains("Unauthorized"));
         }
     }
-
-
-    @Test
-    public void checkAccessDate() throws Exception {
-
-        MongoServer server = new MongoServer(new MemoryBackend());
-
-        InetSocketAddress serverAddress = server.bind();
-
-        MongoClient client = new MongoClient(new ServerAddress(serverAddress));
-
-        MongoDatabase graylogDatabase = client.getDatabase("graylog");
-
-        configureDatabase(graylogDatabase);
-
-        Settings authTestSettings = Settings.builder()
-                .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
-                .put(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE, "graylog")
-                .build();
-
-        MongoDBService.setMongoClient(client);
-
-        MongoDBService mongoService = new MongoDBService(authTestSettings);
-
-        MongoDBTokenAuthenticationBackend mongoAuthBackend = new MongoDBTokenAuthenticationBackend(authTestSettings);
-
-        User userOne = mongoAuthBackend.authenticate(new AuthCredentials("7tjlgvrx7fq84an4t0yny7sg4c1225likmwvzeq626dvov3qgjp", "token".toCharArray()));
-
-        Assert.assertEquals(userOne.getName(), "logs-dr-78293");
-
-        MongoCollection<Document> tokenCollections = graylogDatabase.getCollection("access_tokens");
-
-        Document token1 = tokenCollections.find(Filters.eq("token", "7tjlgvrx7fq84an4t0yny7sg4c1225likmwvzeq626dvov3qgjp")).first();
-
-        Assert.assertTrue(token1.getDate("last_access").toInstant().isAfter(Instant.EPOCH));
-
-
-    }
+    
 
     private void configureDatabase(final MongoDatabase graylogDB) {
 
