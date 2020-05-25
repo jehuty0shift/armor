@@ -177,7 +177,6 @@ public class LDPProcessor extends AbstractProcessor {
             ldpGelf.addString(key, strValue);
             return;
         }
-
         log.warn("couldn't find the type of the value added {} and type {}", value.toString(), value.getClass().getName());
     }
 

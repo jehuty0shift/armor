@@ -213,6 +213,11 @@
             <version>2.3.1</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.goterl.lazycode</groupId>
+            <artifactId>lazysodium-java</artifactId>
+            <version>4.2.5</version>
+        </dependency>
         <!-- Only test scoped dependencies hereafter -->
 
         <dependency>

@@ -45,7 +45,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
 
         final LDPGelf ldpGelf = new LDPGelf();
         ldpGelf.addString("name", "C18");
-        ldpGelf.addString("X-OVH-TOKEN","ohyeah");
+        ldpGelf.addString("X-OVH-TOKEN", "ohyeah");
         ldpGelf.setTimestamp(DateTime.now());
         kafkaOutput.sendLDPGelf(ldpGelf.validate());
 
@@ -102,10 +102,10 @@ public class LDPProcessorTest extends AbstractUnitTest {
                 Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + strField));
             }
             for (String intField : gelfIntList) {
-                Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + intField + "_int"));
+                Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + intField + "_long"));
             }
             for (String dateField : gelfDateList) {
-                Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + dateField + "_int"));
+                Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + dateField + "_date"));
             }
             for (String numField : gelfNumList) {
                 Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + numField + "_num"));
@@ -176,6 +176,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
         gelfStringList.clear();
         gelfStringList.add("name");
         gelfStringList.add("X-OVH-TOKEN");
+        gelfStringList.add("arrival_date");
         gelfIntList.clear();
         gelfIntList.add("universe");
         gelfNumList.clear();
@@ -186,19 +187,19 @@ public class LDPProcessorTest extends AbstractUnitTest {
             baseConsumer.accept(ldpGelf);
             Assert.assertEquals("Goku", ldpGelf.getDocumentMap().get("_name"));
             Assert.assertEquals("ohyeah", ldpGelf.getDocumentMap().get("_X-OVH-TOKEN"));
-            Assert.assertEquals(9000.0,ldpGelf.getDocumentMap().get("_power_num"));
+            Assert.assertEquals(9000.0, ldpGelf.getDocumentMap().get("_power_num"));
+            Assert.assertEquals("1984-12-03T05:06:00.000Z", ldpGelf.getDocumentMap().get("_arrival_date"));
             hasRun.set(true);
         };
 
         kafkaConsumer.setConsumer(secondTest);
 
 
-        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\"  }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
+        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
         result = client.executeE(indexPipeline2);
         Assert.assertTrue(result.v1().isSucceeded());
 
         Assert.assertEquals(true, hasRun.get());
-
 
 
     }
