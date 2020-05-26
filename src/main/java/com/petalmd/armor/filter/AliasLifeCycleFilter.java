@@ -9,6 +9,8 @@ import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
+import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.service.KafkaService;
@@ -241,9 +243,11 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
             try {
                 for (AliasOperation aliasOp : aliasOperations) {
-                    String aliasOpString = mapper.writeValueAsString(aliasOp);
+
+                    KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(mapper.writeValueAsString(aliasOp.buildKserMessage()));
+                    final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);
                     RecordMetadata rMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                        Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
+                        Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString));
                         return fReport.get(10, TimeUnit.SECONDS);
                     });
 

@@ -2,6 +2,9 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
@@ -9,6 +12,8 @@ import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.Region;
+import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.KafkaService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
@@ -63,7 +68,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
                 .putList("armor.actionrequestfilter.lifecycle_alias.allowed_actions", "indices:data/read*")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:admin/template/put", "indices:admin/template/get", "indices:admin/template/delete", "indices:admin/aliases", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true)
-                .put(ConfigConstants.ARMOR_LDP_INDEX,LDPIndexName)
+                .put(ConfigConstants.ARMOR_LDP_INDEX, LDPIndexName)
                 .put(authSettings).build();
 
         startES(settings);
@@ -111,17 +116,17 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
 
-        String source2 = buildTemplateBody(Arrays.asList(username + "-toto"),Collections.emptyList(),Settings.EMPTY);
+        String source2 = buildTemplateBody(Arrays.asList(username + "-toto"), Collections.emptyList(), Settings.EMPTY);
 
-        PutTemplate putTemplate2 = new PutTemplate.Builder(username + "-template2",source2).build();
+        PutTemplate putTemplate2 = new PutTemplate.Builder(username + "-template2", source2).build();
 
         result = client.executeE(putTemplate2);
 
         Assert.assertFalse(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getResponseCode() == 403);
-        Assert.assertTrue(result.v1().getErrorMessage().contains(username+"-i"));
+        Assert.assertTrue(result.v1().getErrorMessage().contains(username + "-i"));
 
-        String source3 = buildTemplateBody(Arrays.asList(username + "-i-*"), Arrays.asList(username+"-a-alias1"), Settings.EMPTY);
+        String source3 = buildTemplateBody(Arrays.asList(username + "-i-*"), Arrays.asList(username + "-a-alias1"), Settings.EMPTY);
 
         PutTemplate putTemplate3 = new PutTemplate.Builder(username + "-template3", source3).build();
 
@@ -138,8 +143,8 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         result = client.executeE(putTemplate4);
 
         Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains(username+"-a-"));
-        Assert.assertEquals(403,result.v2().getStatusLine().getStatusCode());
+        Assert.assertTrue(result.v1().getJsonString().contains(username + "-a-"));
+        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
 
 
         //GET Templates test
@@ -174,18 +179,23 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         final String engineDatabaseName = "engine";
 
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "lifecycle_alias", "forbidden")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
                 .putList("armor.actionrequestfilter.lifecycle_alias.allowed_actions", "indices:data/read*")
-                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:admin/template/put", "indices:admin/template/get", "indices:admin/template/delete", "indices:admin/aliases","indices:admin/aliases/get", "indices:data/read/scroll", "indices:data/read/scroll/clear")
-                .putList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS, "index.number_of_shards","index.number_of_replicas")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:admin/template/put", "indices:admin/template/get", "indices:admin/template/delete", "indices:admin/aliases", "indices:admin/aliases/get", "indices:data/read/scroll", "indices:data/read/scroll/clear")
+                .putList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS, "index.number_of_shards", "index.number_of_replicas")
                 .put(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, "dummy")
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
                 .put(authSettings).build();
 
         MongoServer server = new MongoServer(new MemoryBackend());
@@ -224,8 +234,14 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
                     ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
-                    if (producerRecord.value().contains("alias")) {
-                        AliasOperation aOp = objectMapper.readValue(producerRecord.value(), AliasOperation.class);
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+                    if (kSerMessage.getEntrypoint().toLowerCase().contains("alias")) {
+                        AliasOperation aOp = AliasOperation.fromKSerMessage(kSerMessage);
                         producedObject.add(aOp);
                         if (!checkAliases.isEmpty()) {
                             Assert.assertEquals(username, aOp.getUsername());
@@ -233,7 +249,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
                             hasSent.set(true);
                         }
                     } else {
-                        Assert.assertTrue(producerRecord.value().contains(indexName1) || producerRecord.value().contains(indexName2));
+                        Assert.assertTrue(kserOpString.contains(indexName1) || kserOpString.contains(indexName2));
                         indexSent.set(true);
                     }
                     //inspired by MockProducer from KafkaInternals
@@ -291,7 +307,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
                 settings.toString() +
                 "    ,\n" +
                 "    \"aliases\" : {\n" +
-                aliasesName.stream().map(s-> "\"" + s + "\" : {}").collect(Collectors.joining(",")) +
+                aliasesName.stream().map(s -> "\"" + s + "\" : {}").collect(Collectors.joining(",")) +
                 "    }\n" +
                 "}";
 

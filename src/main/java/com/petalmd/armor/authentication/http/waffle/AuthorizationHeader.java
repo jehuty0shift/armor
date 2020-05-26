@@ -22,12 +22,13 @@ package com.petalmd.armor.authentication.http.waffle;
  *     Application Security, Inc.
  */
 
-import com.google.common.io.BaseEncoding;
 import com.petalmd.armor.authentication.AuthException;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import waffle.util.NtlmMessage;
 import waffle.util.SPNegoMessage;
+
+import java.util.Base64;
 
 /**
  * Authorization header.
@@ -84,7 +85,7 @@ public class AuthorizationHeader {
 
     public byte[] getTokenBytes() throws AuthException {
         try {
-            return BaseEncoding.base64().decode(getToken());
+            return Base64.getDecoder().decode(getToken());
         } catch (final IllegalArgumentException e) {
             throw new AuthException("Invalid authorization header.");
         }
@@ -110,7 +111,7 @@ public class AuthorizationHeader {
         }
 
         final byte[] tokenBytes = getTokenBytes();
-        return SPNegoMessage.isSPNegoMessage(tokenBytes);
+        return SPNegoMessage.isNegTokenInit(tokenBytes);
     }
 
     /**

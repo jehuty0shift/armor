@@ -37,7 +37,6 @@ import com.petalmd.armor.http.SessionStore;
 import com.petalmd.armor.http.netty.SSLNettyHttpServerTransport;
 import com.petalmd.armor.processor.LDPProcessor;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
-import com.petalmd.armor.processor.kafka.KafkaOutputImpl;
 import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
@@ -462,8 +461,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //Kafka
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //IndexLifeCycle
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));

@@ -1,15 +1,20 @@
 package com.petalmd.armor.service;
 
+import com.goterl.lazycode.lazysodium.LazySodium;
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
+import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.petalmd.armor.filter.lifecycle.KafkaConfig;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,7 +26,7 @@ import org.elasticsearch.common.settings.Settings;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.PrivilegedExceptionAction;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -33,19 +38,21 @@ public class KafkaService extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(KafkaService.class);
     private final Settings settings;
     private static Producer kafkaProducer = null;
+    private final SodiumJava sodium;
+    private final Key enginePrivateKey;
     private KafkaConfig kafkaConfig;
     private boolean enabled;
     private String clientId;
 
     public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
         this.settings = settings;
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
         if (enabled) {
             CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
             MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
                     mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class)
             );
-            clientId = settings.get(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID);
+            clientId = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID);
             if (clientId == null) {
                 clientId = "client-" + (int) (Math.random() * 100);
             }
@@ -56,7 +63,11 @@ public class KafkaService extends AbstractLifecycleComponent {
             } else {
                 log.info("KafkaService is enabled with the following bootstrap servers {}", kafkaConfig.bootstrapServers);
             }
+            sodium = new SodiumJava();
+        } else {
+            sodium = null;
         }
+        enginePrivateKey = Key.fromBase64String(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY,""));
     }
 
 
@@ -122,5 +133,11 @@ public class KafkaService extends AbstractLifecycleComponent {
     public static void setKafkaProducer(final Producer newKafkaProducer) {
         kafkaProducer = newKafkaProducer;
     }
+
+
+    public KSerSecuredMessage buildKserSecuredMessage(final String message) throws SodiumException {
+        return new KSerSecuredMessage(message ,new LazySodiumJava(sodium), enginePrivateKey);
+    }
+
 
 }

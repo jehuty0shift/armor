@@ -4,6 +4,7 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -14,6 +15,7 @@ import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.IndexOperation;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.service.KafkaService;
@@ -70,6 +72,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private final List<String> allowedIndexSettings;
     private final MongoCollection<EngineUser> engineUsers;
     private KafkaService kService;
+    private final SodiumJava sodium;
     private ObjectMapper mapper;
 
     public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
@@ -90,9 +93,11 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             }
             kService = kafkaService;
             mapper = new ObjectMapper();
+            sodium = new SodiumJava();
         } else {
             engineUsers = null;
             kService = null;
+            sodium = null;
         }
         log.info("IndexLifeCycleFilter is {}", enabled ? "enabled" : "disabled");
     }
@@ -280,25 +285,41 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 if (type.equals(IndexOperation.Type.CREATE) && numberOfShards < 1) {
                     throw new ElasticsearchException("Illegal number of shards during index creation");
                 }
-                IndexOperation indexOp = new IndexOperation(type, engineUser.getUsername(), indices, numberOfShards);
-                String indexOpString = mapper.writeValueAsString(indexOp);
+                List<IndexOperation> indexOps = indices.stream().map(i -> new IndexOperation(type, engineUser.getUsername(), i, numberOfShards)).collect(Collectors.toList());
+                final List<String> indexOpStrings = indexOps.stream().map(iOp -> {
+                    try {
+                        return mapper.writeValueAsString(iOp.buildKserMessage());
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }).collect(Collectors.toList());
 
                 log.info("reporting index action {} on index {}, from user {}, with number Of Shards {}", type, indices, engineUser.getUsername(), numberOfShards);
                 if (!kService.getKafkaProducer().isPresent()) {
                     throw new IllegalStateException("Kafka Producer is not available");
                 }
-                RecordMetadata indexRecordMetadata;
                 final Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
 
                 //If the operation is CREATE, we report it before reporting the creation of aliases.
                 if (type.equals(IndexOperation.Type.CREATE)) {
-                    indexRecordMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                        Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
-                        return report.get(10, TimeUnit.SECONDS);
-                    });
+                    AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                        List<Future<RecordMetadata>> reportList = new ArrayList<>(indexOpStrings.size());
+                        for (String indexOpString : indexOpStrings) {
+                            final KSerSecuredMessage indexOpSecured = kService.buildKserSecuredMessage(indexOpString);
+                            final String indexOpSecuredString = mapper.writeValueAsString(indexOpSecured);
+                            reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                        }
 
-                    log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
+                        for (Future<RecordMetadata> report : reportList) {
+                            RecordMetadata indexRecordMetadata = report.get(10, TimeUnit.SECONDS);
+                            log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
+                        }
+
+                        return null;
+                    });
                 }
+
                 //Check aliases on this index
                 final SortedMap<String, AliasOrIndex> aliasAndIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
 
@@ -327,10 +348,12 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                                 indicesName = Collections.emptyList();
                                 aliasOpType = AliasOperation.Type.REMOVE;
                             }
-                            AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasToCheck, aliasOpType, indicesName);
-                            String aliasOpString = mapper.writeValueAsString(aliasOp);
+                            final AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasToCheck, aliasOpType, indicesName);
+                            final String aliasOpString = mapper.writeValueAsString(aliasOp.buildKserMessage());
                             RecordMetadata rMetadataAlias = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                                Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpString));
+                                final KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(aliasOpString);
+                                final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);
+                                Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString));
                                 return fReport.get(10, TimeUnit.SECONDS);
                             });
                             log.info("alias action {} on alias {} with indices {} has been successfully reported with offset {}", aliasOp.getType(), aliasToCheck, indicesName, rMetadataAlias.offset());
@@ -342,12 +365,22 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
                 //If the operation is DELETE we report the delete after having removed the alias
                 if (type.equals(IndexOperation.Type.DELETE)) {
-                    indexRecordMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                        Future<RecordMetadata> report = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpString));
-                        return report.get(10, TimeUnit.SECONDS);
+                    AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                        List<Future<RecordMetadata>> reportList = new ArrayList<>(indexOpStrings.size());
+                        for (String indexOpString : indexOpStrings) {
+                            final KSerSecuredMessage indexOpSecured = kService.buildKserSecuredMessage(indexOpString);
+                            final String indexOpSecuredString = mapper.writeValueAsString(indexOpSecured);
+                            reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                        }
+
+                        for (Future<RecordMetadata> report : reportList) {
+                            RecordMetadata indexRecordMetadata = report.get(10, TimeUnit.SECONDS);
+                            log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
+                        }
+
+                        return null;
                     });
 
-                    log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
                 }
 
                 origListener.onResponse(response);
@@ -355,7 +388,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             } catch (PrivilegedActionException ex) {
                 log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex.getException());
                 origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
-            } catch (JsonProcessingException | RuntimeException ex) {
+            } catch (RuntimeException ex) {
                 log.error("We couldn't report the action {} on indices {} from user {}, Check if everything is Okay", action, indices, engineUser.getUsername(), ex);
                 origListener.onFailure(new ElasticsearchException("We couldn't create the index"));
             }

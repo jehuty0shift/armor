@@ -2,11 +2,16 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.filter.lifecycle.*;
+import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.KafkaService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
@@ -115,7 +120,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         Producer kafkaProducer = new KafkaProducer<String, String>(props);
 
-        IndexOperation indexOp = new IndexOperation(IndexOperation.Type.CREATE, "ghostdiasse", Arrays.asList("test"), 3);
+        IndexOperation indexOp = new IndexOperation(IndexOperation.Type.CREATE, "ghostdiasse", "test", 3);
         ObjectMapper mapper = new ObjectMapper();
 
         String indexOpString = mapper.writeValueAsString(indexOp);
@@ -125,6 +130,31 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         RecordMetadata md = recordMetadata.get(60, TimeUnit.SECONDS);
 
         Assert.assertTrue(md.partition() != -1);
+
+    }
+
+    @Test
+    public void KserSecuredMessageIntegrity() throws Exception {
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lsj = new LazySodiumJava(sodium);
+
+        final byte[] privateKey = lsj.cryptoSecretBoxKeygen().getAsBytes();
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        String originalMessage = "test";
+
+        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage, new LazySodiumJava(sodium), Key.fromBytes(privateKey));
+
+        String nonceStr = kserSecMess.getNonce();
+
+        byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+
+        System.out.println(mapper.writeValueAsString(kserSecMess));
+
+        String messageDecoded = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kserSecMess.getData())), nonceByte, Key.fromBase64String(Base64.getEncoder().encodeToString(privateKey)));
+
+        Assert.assertEquals(originalMessage, messageDecoded);
 
     }
 
@@ -139,14 +169,19 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         final String engineDatabaseName = "engine";
 
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "forbidden")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, "dummy")
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
                 .put(authSettings).build();
 
         MongoServer server = new MongoServer(new MemoryBackend());
@@ -182,10 +217,17 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
                     ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
-                    IndexOperation iOp = objectMapper.readValue(producerRecord.value(), IndexOperation.class);
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+
+                    IndexOperation iOp = IndexOperation.fromKserMessage(kSerMessage);
                     Assert.assertEquals(username, iOp.getUsername());
                     Assert.assertEquals(IndexOperation.Type.CREATE, iOp.getType());
-                    Assert.assertEquals(indexName, iOp.getIndices().get(0));
+                    Assert.assertEquals(indexName, iOp.getIndex());
                     //inspired by MockProducer from KafkaInternals
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
@@ -219,14 +261,19 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         final String engineDatabaseName = "engine";
 
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "forbidden")
-                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create","indices:admin/delete")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, "dummy")
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
                 .put(authSettings).build();
 
         MongoServer server = new MongoServer(new MemoryBackend());
@@ -264,16 +311,23 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
                     ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
-                    IndexOperation iOp = objectMapper.readValue(producerRecord.value(), IndexOperation.class);
-                    if(checkIndex.get() != null && iOp.getType().equals(IndexOperation.Type.DELETE)) {
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+                    IndexOperation iOp = IndexOperation.fromKserMessage(kSerMessage);
+
+                    if (checkIndex.get() != null && iOp.getType().equals(IndexOperation.Type.DELETE)) {
                         Assert.assertEquals(username, iOp.getUsername());
-                        Assert.assertEquals(checkIndex.get(), iOp.getIndices().get(0));
+                        Assert.assertEquals(checkIndex.get(), iOp.getIndex());
                         hasSent.set(true);
                     }
                     //inspired by MockProducer from KafkaInternals
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
-                    result.set(iOp.getType().equals(IndexOperation.Type.CREATE)?0:1, 1, null);
+                    result.set(iOp.getType().equals(IndexOperation.Type.CREATE) ? 0 : 1, 1, null);
                     FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
                     result.done();
                     return future;

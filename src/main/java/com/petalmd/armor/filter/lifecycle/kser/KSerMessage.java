@@ -1,6 +1,7 @@
 package com.petalmd.armor.filter.lifecycle.kser;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
@@ -22,10 +23,9 @@ public class KSerMessage {
     @JsonProperty
     private final String uuid;
 
-
-    public KSerMessage(final Map<String, Object> event) {
-        this.params = event;
-        this.entrypoint = "ldp_ms.kafka.tasks.streams_alerts.AlertProxyAdd";
+    public KSerMessage(@JsonProperty("params") final Map<String, Object> params, @JsonProperty("entrypoint") final String entrypoint) {
+        this.params = params;
+        this.entrypoint = entrypoint;
         this.uuid = UUID.randomUUID().toString();
     }
 
@@ -40,4 +40,5 @@ public class KSerMessage {
     public String getUuid() {
         return uuid;
     }
+
 }

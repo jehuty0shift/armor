@@ -2,14 +2,18 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
-import com.petalmd.armor.filter.lifecycle.IndexOperation;
 import com.petalmd.armor.filter.lifecycle.Region;
+import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
+import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.KafkaService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.tests.IndexAliasAction;
@@ -18,10 +22,8 @@ import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
 import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
 import io.searchbox.client.JestResult;
-import io.searchbox.core.Cat;
 import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.aliases.AddAliasMapping;
-import io.searchbox.indices.aliases.AliasMapping;
 import io.searchbox.indices.aliases.ModifyAliases;
 import io.searchbox.indices.aliases.RemoveAliasMapping;
 import kong.unirest.Unirest;
@@ -41,10 +43,7 @@ import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -72,6 +71,10 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
 
         final String engineDatabaseName = "engine";
 
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
         final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "lifecycle_alias", "forbidden")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
                 .putList("armor.actionrequestfilter.lifecycle_alias.allowed_actions", "indices:data/read*")
@@ -80,8 +83,9 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
                 .put(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KAFKA_SERVICE_CLIENT_ID, "dummy")
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
                 .put(authSettings).build();
 
         MongoServer server = new MongoServer(new MemoryBackend());
@@ -120,8 +124,15 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
                     ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
-                    if (producerRecord.value().contains("alias")) {
-                        AliasOperation aOp = objectMapper.readValue(producerRecord.value(), AliasOperation.class);
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+                    if (kSerMessage.getEntrypoint().toLowerCase().contains("alias")) {
+
+                        AliasOperation aOp = AliasOperation.fromKSerMessage(kSerMessage);
                         producedObject.add(aOp);
                         if (!checkAliases.isEmpty()) {
                             Assert.assertEquals(username, aOp.getUsername());
@@ -129,7 +140,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
                             hasSent.set(true);
                         }
                     } else {
-                        Assert.assertTrue(producerRecord.value().contains(indexName1) || producerRecord.value().contains(indexName2));
+                        Assert.assertTrue(kserOpString.contains(indexName1) || kserOpString.contains(indexName2));
                         indexSent.set(true);
                     }
                     //inspired by MockProducer from KafkaInternals
