@@ -287,7 +287,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         currentUser.setUsername(username);
         currentUser.setTrusted(true);
 
-        configureEngineDatabase(engineTestDatabase, Arrays.asList(currentUser));
+        configureEngineDatabase(engineTestDatabase, Collections.singletonList(currentUser));
 
         ObjectMapper objectMapper = new ObjectMapper();
 

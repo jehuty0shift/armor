@@ -45,6 +45,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by jehuty0shift on 21/02/2020.
@@ -174,6 +175,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         final String indexName1 = username + "-i-test-1";
         final String indexName2 = username + "-i-test-2";
+        final String indexName3 = username + "-i-test-3";
 
         final String aliasName1 = username + "-a-alias";
 
@@ -246,10 +248,13 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
                         if (!checkAliases.isEmpty()) {
                             Assert.assertEquals(username, aOp.getUsername());
                             Assert.assertTrue(checkAliases.contains(aOp.getAlias()));
+                            if(aOp.getIndices().contains(indexName3) || aOp.getIndices().contains(indexName2)) {
+                                Assert.assertTrue(aOp.getType().equals(AliasOperation.Type.UPDATE));
+                            }
                             hasSent.set(true);
                         }
                     } else {
-                        Assert.assertTrue(kserOpString.contains(indexName1) || kserOpString.contains(indexName2));
+                        Assert.assertTrue(Stream.of(indexName1,indexName2,indexName3).filter(s -> kserOpString.contains(s)).findAny().isPresent());
                         indexSent.set(true);
                     }
                     //inspired by MockProducer from KafkaInternals
@@ -290,13 +295,24 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         hasSent.set(false);
         indexSent.set(false);
 
-
         CreateIndex createIndex2 = new CreateIndex.Builder(indexName2).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
         result = client.executeE(createIndex2);
 
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(indexSent.get());
         Assert.assertTrue(hasSent.get());
+
+        //reset everything
+        hasSent.set(false);
+        indexSent.set(false);
+
+        CreateIndex createIndex3 = new CreateIndex.Builder(indexName3).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
+        result = client.executeE(createIndex3);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(indexSent.get());
+        Assert.assertTrue(hasSent.get());
+
 
     }
 

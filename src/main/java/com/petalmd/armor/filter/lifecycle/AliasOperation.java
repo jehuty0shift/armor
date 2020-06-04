@@ -13,10 +13,12 @@ public class AliasOperation {
 
     public enum Type {
         ADD,
+        UPDATE,
         REMOVE
     }
 
-    public AliasOperation(){}
+    public AliasOperation() {
+    }
 
     public AliasOperation(final String username, final String alias, final Type type, final List<String> indices) {
         this.username = username;
@@ -71,21 +73,42 @@ public class AliasOperation {
         Map<String, Object> params = new HashMap<>();
         params.put("username", username);
         params.put("name", alias);
-        if (type.equals(Type.ADD)) {
-            params.put("indices", indices);
+        if (!type.equals(Type.REMOVE)) {
+            params.put("indexes", indices);
         }
-        final String entrypoint = type.equals(Type.ADD) ? "ldp_ms.kafka.tasks.from_es.AliasFromESAdd" : "ldp_ms.kafka.tasks.from_es.AliasFromESDelete";
+        final String entrypoint;
+        switch (type) {
+            case ADD:
+                entrypoint = "ldp_ms.kafka.tasks.from_es.AliasFromESAdd";
+                break;
+            case REMOVE:
+                entrypoint = "ldp_ms.kafka.tasks.from_es.AliasFromESDelete";
+                break;
+            case UPDATE:
+                entrypoint = "ldp_ms.kafka.tasks.from_es.AliasFromESUpdate";
+                break;
+            default:
+                entrypoint = "";
+                break;
+        }
+
         return new KSerMessage(params, entrypoint);
     }
 
     public static AliasOperation fromKSerMessage(final KSerMessage kSerMessage) {
         AliasOperation aliasOp = new AliasOperation();
         final Map<String, Object> params = kSerMessage.getParams();
-        aliasOp.setType(kSerMessage.getEntrypoint().equals("ldp_ms.kafka.tasks.from_es.AliasFromESAdd")?Type.ADD:Type.REMOVE);
+        if (kSerMessage.getEntrypoint().equals("ldp_ms.kafka.tasks.from_es.AliasFromESAdd")) {
+            aliasOp.setType(Type.ADD);
+        } else if (kSerMessage.getEntrypoint().equals("ldp_ms.kafka.tasks.from_es.AliasFromESDelete")) {
+            aliasOp.setType(Type.REMOVE);
+        } else {
+            aliasOp.setType(Type.UPDATE);
+        }
         aliasOp.setUsername(params.get("username").toString());
         aliasOp.setAlias(params.get("name").toString());
-        if(aliasOp.getType().equals(Type.ADD)) {
-            aliasOp.setIndices((List<String>)params.get("indices"));
+        if (!aliasOp.getType().equals(Type.REMOVE)) {
+            aliasOp.setIndices((List<String>) params.get("indexes"));
         }
         return aliasOp;
     }

@@ -9,7 +9,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 
-import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Optional;
@@ -20,13 +19,12 @@ import java.util.Optional;
 public class MongoDBService extends AbstractLifecycleComponent {
 
     private static final Logger log = LogManager.getLogger(MongoDBService.class);
-    private boolean enabled;
     private static MongoClient mongoClient;
     private static MongoDatabase engineDatabase;
     private static MongoDatabase graylogDatabase;
 
     public MongoDBService(final Settings settings) {
-        this.enabled = !settings.get(ConfigConstants.ARMOR_MONGODB_URI, "").isBlank();
+        boolean enabled = !settings.get(ConfigConstants.ARMOR_MONGODB_URI, "").isBlank();
         engineDatabase = null;
         graylogDatabase = null;
         if (enabled) {
@@ -72,7 +70,7 @@ public class MongoDBService extends AbstractLifecycleComponent {
     }
 
     @Override
-    protected void doClose() throws IOException {
+    protected void doClose() {
         if (mongoClient != null) {
             mongoClient.close();
         }

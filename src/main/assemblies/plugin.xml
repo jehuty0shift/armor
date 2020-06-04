@@ -23,8 +23,10 @@
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <scope>runtime</scope>
             <excludes>
-                <exclude>*:jna:jar:4.1.0</exclude>
+                <exclude>*:jna:jar:4.5.1</exclude>
+                <exclude>*:jna:jar:5.5.0</exclude>
                 <exclude>org.elasticsearch:elasticsearch</exclude>
+                <exclude>org.slf4j:jcl-over-slf4j:*</exclude>
                 <exclude>org.apache.logging.log4j:log4j-*</exclude>
             </excludes>
         </dependencySet>

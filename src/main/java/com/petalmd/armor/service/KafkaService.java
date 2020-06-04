@@ -1,6 +1,5 @@
 package com.petalmd.armor.service;
 
-import com.goterl.lazycode.lazysodium.LazySodium;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
@@ -26,9 +25,8 @@ import org.elasticsearch.common.settings.Settings;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by jehuty0shift on 28/01/2020.
@@ -36,8 +34,8 @@ import java.util.Properties;
 public class KafkaService extends AbstractLifecycleComponent {
 
     private static final Logger log = LogManager.getLogger(KafkaService.class);
-    private final Settings settings;
     private static Producer kafkaProducer = null;
+    private final List<String> topicList;
     private final SodiumJava sodium;
     private final Key enginePrivateKey;
     private KafkaConfig kafkaConfig;
@@ -45,8 +43,8 @@ public class KafkaService extends AbstractLifecycleComponent {
     private String clientId;
 
     public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
-        this.settings = settings;
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
+        topicList = new ArrayList<>();
         if (enabled) {
             CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
             MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
@@ -63,7 +61,9 @@ public class KafkaService extends AbstractLifecycleComponent {
             } else {
                 log.info("KafkaService is enabled with the following bootstrap servers {}", kafkaConfig.bootstrapServers);
             }
-            sodium = new SodiumJava();
+            sodium = AccessController.doPrivileged((PrivilegedAction<SodiumJava>) () -> new SodiumJava());
+            final String topicSuffix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX,"api.ms2015");
+            topicList.addAll(Arrays.asList("EU","CA").stream().map(r -> kafkaConfig.topicPrefix+"."+topicSuffix+"."+r).collect(Collectors.toList()));
         } else {
             sodium = null;
         }
@@ -86,6 +86,9 @@ public class KafkaService extends AbstractLifecycleComponent {
         //no-op
     }
 
+    public List<String> getTopicList() {
+        return topicList;
+    }
 
     public Optional<Producer> getKafkaProducer() {
         if (!enabled) {

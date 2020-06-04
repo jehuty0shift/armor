@@ -464,6 +464,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //IndexLifeCycle
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -496,7 +497,6 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
-
 
         return settings;
     }

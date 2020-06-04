@@ -34,7 +34,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
@@ -85,7 +84,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 engineUsers = null;
             } else {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-                engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
+                engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection<EngineUser>>) () ->
                         mongoService.getEngineDatabase().get().getCollection("users")
                                 .withCodecRegistry(cRegistry)
                                 .withDocumentClass(EngineUser.class));
@@ -190,7 +189,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 log.debug("checking prefix {} in UpdateSettingsRequest", prefix);
                 Settings allowedSetting = cirSettings.filter((k) -> (k.startsWith(prefix)));
                 if (!allowedSetting.isEmpty()) {
-                    log.debug("{} is not empty, keeping setting");
+                    log.debug("{} is not empty, keeping setting", allowedSetting.toString());
                     newSettingsBuilder.put(allowedSetting);
                 }
             }
@@ -209,7 +208,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             }
 
 
-        } else if (action.equals(DeleteIndexAction.NAME)) {
+        } else {
 
             DeleteIndexRequest dir = (DeleteIndexRequest) request;
 
@@ -234,8 +233,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
         //Proceed
         chain.proceed(task, action, request, indexLifeCycleListener);
-        return;
-
     }
 
 
@@ -248,10 +245,10 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         private final Settings indexSettings;
         private final EngineUser engineUser;
         private final ObjectMapper mapper;
-        private final ActionListener origListener;
+        private final ActionListener<Response> origListener;
         private final KafkaService kService;
 
-        public IndexLifeCycleListener(String action, List<String> indices, final ClusterService clusterService, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper) {
+        public IndexLifeCycleListener(String action, List<String> indices, final ClusterService clusterService, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener<Response> origListener, final ObjectMapper mapper) {
             this.action = action;
             this.indices = indices;
             this.engineUser = engineUser;
@@ -269,15 +266,14 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                         indexStruct.getIndex().getAliases().keys().forEach((Consumer<ObjectCursor<String>>) aName -> oldAliases.add(aName.value));
                     }
                 }
-
+            } else {
+                oldAliases.addAll(aliasIndexLookup.entrySet().stream().filter(e -> e.getKey().startsWith(engineUser.getUsername() + "-a-") && e.getValue().isAlias()).map(e -> e.getKey()).collect(Collectors.toSet()));
             }
         }
 
         @Override
         public void onResponse(Response response) {
-            String topic = kService.getTopicPrefix() + "." +
-                    engineUser.getRegion().value + "." +
-                    "armor";
+
             try {
                 final IndexOperation.Type type = action.equals(CreateIndexAction.NAME) ? IndexOperation.Type.CREATE : IndexOperation.Type.DELETE;
                 //report creation.
@@ -296,7 +292,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }).collect(Collectors.toList());
 
                 log.info("reporting index action {} on index {}, from user {}, with number Of Shards {}", type, indices, engineUser.getUsername(), numberOfShards);
-                if (!kService.getKafkaProducer().isPresent()) {
+                if (kService.getKafkaProducer().isEmpty()) {
                     throw new IllegalStateException("Kafka Producer is not available");
                 }
                 final Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
@@ -304,15 +300,17 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 //If the operation is CREATE, we report it before reporting the creation of aliases.
                 if (type.equals(IndexOperation.Type.CREATE)) {
                     AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                        List<Future<RecordMetadata>> reportList = new ArrayList<>(indexOpStrings.size());
+                        List<Future<RecordMetadata>> reportList = new ArrayList<>(kService.getTopicList().size() * indexOpStrings.size());
                         for (String indexOpString : indexOpStrings) {
                             final KSerSecuredMessage indexOpSecured = kService.buildKserSecuredMessage(indexOpString);
                             final String indexOpSecuredString = mapper.writeValueAsString(indexOpSecured);
-                            reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                            for (final String topic : kService.getTopicList()) {
+                                reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                            }
                         }
 
                         for (Future<RecordMetadata> report : reportList) {
-                            RecordMetadata indexRecordMetadata = report.get(10, TimeUnit.SECONDS);
+                            final RecordMetadata indexRecordMetadata = report.get(10, TimeUnit.SECONDS);
                             log.info("index action {} has been successfully reported with index offset {}", type, indexRecordMetadata.offset());
                         }
 
@@ -342,7 +340,11 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                             if (aliasFromMeta != null) {
                                 //the alias exist, we must update it
                                 indicesName = aliasFromMeta.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
-                                aliasOpType = AliasOperation.Type.ADD;
+                                if (oldAliases.contains(aliasToCheck)) {
+                                    aliasOpType = AliasOperation.Type.UPDATE;
+                                } else {
+                                    aliasOpType = AliasOperation.Type.ADD;
+                                }
                             } else {
                                 //the alias does not exist anymore, we must remove it
                                 indicesName = Collections.emptyList();
@@ -351,10 +353,17 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                             final AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasToCheck, aliasOpType, indicesName);
                             final String aliasOpString = mapper.writeValueAsString(aliasOp.buildKserMessage());
                             RecordMetadata rMetadataAlias = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                                List<Future<RecordMetadata>> reportList = new ArrayList<>();
                                 final KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(aliasOpString);
                                 final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);
-                                Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString));
-                                return fReport.get(10, TimeUnit.SECONDS);
+
+                                for (final String topic : kService.getTopicList()) {
+                                    reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString)));
+                                }
+                                for (Future<RecordMetadata> report : reportList) {
+                                    report.get(10, TimeUnit.SECONDS);
+                                }
+                                return reportList.get(0).get();
                             });
                             log.info("alias action {} on alias {} with indices {} has been successfully reported with offset {}", aliasOp.getType(), aliasToCheck, indicesName, rMetadataAlias.offset());
                         } catch (Exception e) {
@@ -366,11 +375,13 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 //If the operation is DELETE we report the delete after having removed the alias
                 if (type.equals(IndexOperation.Type.DELETE)) {
                     AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
-                        List<Future<RecordMetadata>> reportList = new ArrayList<>(indexOpStrings.size());
+                        List<Future<RecordMetadata>> reportList = new ArrayList<>(kService.getTopicList().size() * indexOpStrings.size());
                         for (String indexOpString : indexOpStrings) {
                             final KSerSecuredMessage indexOpSecured = kService.buildKserSecuredMessage(indexOpString);
                             final String indexOpSecuredString = mapper.writeValueAsString(indexOpSecured);
-                            reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                            for (final String topic : kService.getTopicList()) {
+                                reportList.add(kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), indexOpSecuredString)));
+                            }
                         }
 
                         for (Future<RecordMetadata> report : reportList) {

@@ -193,6 +193,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         private static final Logger log = LogManager.getLogger(AliasLifeCycleListener.class);
         private final Set<String> resolvedAliases;
+        private final Set<String> existingAliases;
         private final EngineUser engineUser;
         private final KafkaService kService;
         private final ActionListener origListener;
@@ -211,6 +212,8 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             // If reqAlias contains a '*' (star) the name have to be resolved before we can continue.
             // If it is not resolved, the expression will be kept but the ES API will naturally reject it when executing the action.
             this.resolvedAliases = resolver.resolveExpressions(clusterState, aliasInActions.toArray(String[]::new));
+            //preserving existing indices
+            existingAliases = resolvedAliases.stream().filter(clusterState.getMetaData()::hasAlias).collect(Collectors.toSet());
         }
 
 
@@ -222,8 +225,9 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
                 if (aliasMetadata.containsKey(reqAlias)) {
                     final AliasOrIndex aliasOrIndex = aliasMetadata.get(reqAlias);
                     List<String> indices = aliasOrIndex.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
-                    AliasOperation addOperation = new AliasOperation(engineUser.getUsername(), reqAlias, AliasOperation.Type.ADD, indices);
-                    aliasOperations.add(addOperation);
+                    AliasOperation.Type type = existingAliases.contains(reqAlias)? AliasOperation.Type.UPDATE: AliasOperation.Type.ADD;
+                    AliasOperation addOrUpdateOperation = new AliasOperation(engineUser.getUsername(), reqAlias, type, indices);
+                    aliasOperations.add(addOrUpdateOperation);
                 } else {
                     //the alias was resolved but it is not here anymore, so we delete it.
                     AliasOperation removeOperation = new AliasOperation(engineUser.getUsername(), reqAlias, AliasOperation.Type.REMOVE, List.of());
@@ -239,16 +243,20 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             }
 
             Producer<String, String> kProducer = (Producer<String, String>) kService.getKafkaProducer().get();
-            final String topic = kService.getTopicPrefix() + engineUser.getRegion() + "armor";
 
             try {
                 for (AliasOperation aliasOp : aliasOperations) {
 
-                    KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(mapper.writeValueAsString(aliasOp.buildKserMessage()));
-                    final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);
                     RecordMetadata rMetadata = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
-                        Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString));
-                        return fReport.get(10, TimeUnit.SECONDS);
+
+                        KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(mapper.writeValueAsString(aliasOp.buildKserMessage()));
+                        final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);
+                        List<Future<RecordMetadata>> recordReports = new ArrayList<>();
+                        for (final String topic : kService.getTopicList()) {
+                            Future<RecordMetadata> fReport = kProducer.send(new ProducerRecord<>(topic, engineUser.getUsername(), aliasOpSecuredString));
+                            recordReports.add(fReport);
+                        }
+                        return recordReports.get(0).get(10, TimeUnit.SECONDS);
                     });
 
                     log.info("index action {} has been successfully reported with index offset {}", aliasOp.getType(), rMetadata.offset());

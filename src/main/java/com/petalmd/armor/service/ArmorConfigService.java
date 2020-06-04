@@ -44,7 +44,6 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private volatile BytesReference securityConfiguration;
     private ScheduledThreadPoolExecutor scheduler;
     private ScheduledFuture scheduledFuture;
-    //private ThreadPool threadPool;
     private final CountDownLatch latch = new CountDownLatch(1);
 
     private static final Logger log = LogManager.getLogger(ArmorConfigService.class);
@@ -54,7 +53,6 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
         super();
         this.client = client;
         this.auditListener = auditListener;
- //       this.threadPool = threadPool;
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
 
