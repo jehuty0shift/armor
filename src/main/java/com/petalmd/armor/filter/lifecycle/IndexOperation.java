@@ -82,7 +82,7 @@ public class IndexOperation {
         params.put("username", username);
         params.put("name", index);
         params.put("nbShard", numberOfShards);
-        final String entrypoint = type.equals(Type.CREATE) ? "ldp_ms.kafka.tasks.index_from_es.IndexFromESAdd" : "ldp_ms.kafka.tasks.from_es.IndexFromESDelete";
+        final String entrypoint = type.equals(Type.CREATE) ? "ldp_ms.kafka.tasks.from_es.IndexFromESAdd" : "ldp_ms.kafka.tasks.from_es.IndexFromESDelete";
         return new KSerMessage(params, entrypoint);
     }
 
@@ -94,7 +94,7 @@ public class IndexOperation {
         indexOp.setIndex(params.get("name").toString());
         indexOp.setNumberOfShards((Integer)params.get("nbShard"));
         indexOp.setUsername(params.get("username").toString());
-        indexOp.setType(entrypoint.equals("ldp_ms.kafka.tasks.index_from_es.IndexFromESAdd")?Type.CREATE:Type.DELETE);
+        indexOp.setType(entrypoint.equals("ldp_ms.kafka.tasks.from_es.IndexFromESAdd")?Type.CREATE:Type.DELETE);
 
         return indexOp;
     }

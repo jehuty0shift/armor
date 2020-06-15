@@ -4,6 +4,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.interfaces.SecretBox;
 import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
@@ -235,7 +236,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
-                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
                     KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
                     String nonceStr = kSerSecMess.getNonce();
                     byte[] nonceByte = Base64.getDecoder().decode(nonceStr);

@@ -34,7 +34,10 @@ public class KafkaConfigCodec implements Codec<KafkaConfig> {
         kafkaConfig.SASLPlainPassword = kSerProducerConfig.getString("SASL_PLAIN_PASSWORD");
         kafkaConfig.securityProtocol = kSerProducerConfig.getString("SECURITY_PROTOCOL");
         kafkaConfig.SASLMechanism = kSerProducerConfig.getString("SASL_MECHANISM");
-
+        kafkaConfig.kSerPrivateKey = dict.getString("KSER_SECRETBOX_KEY");
+        if (kafkaConfig.kSerPrivateKey == null) {
+            kafkaConfig.kSerPrivateKey = "";
+        }
         return kafkaConfig;
     }
 

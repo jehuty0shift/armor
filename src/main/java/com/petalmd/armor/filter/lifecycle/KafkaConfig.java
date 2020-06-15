@@ -12,6 +12,7 @@ public class KafkaConfig {
     public String securityProtocol;
     public String SASLMechanism;
     public String topicPrefix;
+    public String kSerPrivateKey;
 
     public boolean isValid() {
         boolean valid = StringUtils.isNotEmpty(bootstrapServers) &&

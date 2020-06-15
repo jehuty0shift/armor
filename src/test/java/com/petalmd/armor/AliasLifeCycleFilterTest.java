@@ -123,7 +123,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
 
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
-                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
                     KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
                     String nonceStr = kSerSecMess.getNonce();
                     byte[] nonceByte = Base64.getDecoder().decode(nonceStr);

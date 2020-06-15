@@ -60,6 +60,7 @@ public class KafkaOutputImpl implements KafkaOutput {
         if (enabled && producer == null) {
 
             producer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
+                //This is necessary to force the Kafka Serializer loader to use the classloader used to load kafkaProducer classes
                 Thread.currentThread().setContextClassLoader(null);
                 return new KafkaProducer<String, String>(props); });
         }

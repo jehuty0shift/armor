@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.goterl.lazycode.lazysodium.utils.Key;
+import com.goterl.lazycode.lazysodium.utils.LibraryLoader;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
@@ -21,6 +22,7 @@ import io.searchbox.client.JestResult;
 import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.DeleteIndex;
 import kong.unirest.Unirest;
+import org.abstractj.kalium.crypto.SecretBox;
 import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
@@ -99,16 +101,16 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
     }
 
-
+    @Test
     public void testKafka() throws Exception {
 
         Properties props = new Properties();
 
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1.alpha.thot.ovh.com:9092");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1.alpha.thot.ovh.com:9093");
         props.put(ProducerConfig.CLIENT_ID_CONFIG, "id-1");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put("security.protocol", "SASL_PLAINTEXT");
+        props.put("security.protocol", "SASL_SSL");
         props.put("sasl.mechanism", "PLAIN");
 
         final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
@@ -144,7 +146,9 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         String originalMessage = "test";
 
-        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage, new LazySodiumJava(sodium), Key.fromBytes(privateKey));
+        SecretBox secretBox = new SecretBox(privateKey);
+
+        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage, secretBox);
 
         String nonceStr = kserSecMess.getNonce();
 
@@ -202,6 +206,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
         KafkaService.setKafkaProducer(mockProducer);
 
+        // avoid conflicting with MongoServer
         System.setProperty("es.set.netty.runtime.available.processors", "false");
 
         startES(settings);
@@ -216,7 +221,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         hasSent.set(false);
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
-                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
                     KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
                     String nonceStr = kSerSecMess.getNonce();
                     byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
@@ -310,7 +315,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         hasSent.set(false);
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
-                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArgument(0);
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
                     KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
                     String nonceStr = kSerSecMess.getNonce();
                     byte[] nonceByte = Base64.getDecoder().decode(nonceStr);

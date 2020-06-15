@@ -62,7 +62,6 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
     private KafkaService kService;
     private ObjectMapper mapper;
 
-
     public AliasLifeCycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, false);
@@ -74,7 +73,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             } else {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
                 engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () -> {
-                    MongoCollection<EngineUser> eUsers = mongoService.getEngineDatabase().get().getCollection("users")
+                    MongoCollection<EngineUser> eUsers = mongoService.getEngineDatabase().get().getCollection("user")
                             .withCodecRegistry(cRegistry)
                             .withDocumentClass(EngineUser.class);
                     return eUsers;
@@ -225,7 +224,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
                 if (aliasMetadata.containsKey(reqAlias)) {
                     final AliasOrIndex aliasOrIndex = aliasMetadata.get(reqAlias);
                     List<String> indices = aliasOrIndex.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
-                    AliasOperation.Type type = existingAliases.contains(reqAlias)? AliasOperation.Type.UPDATE: AliasOperation.Type.ADD;
+                    AliasOperation.Type type = existingAliases.contains(reqAlias) ? AliasOperation.Type.UPDATE : AliasOperation.Type.ADD;
                     AliasOperation addOrUpdateOperation = new AliasOperation(engineUser.getUsername(), reqAlias, type, indices);
                     aliasOperations.add(addOrUpdateOperation);
                 } else {

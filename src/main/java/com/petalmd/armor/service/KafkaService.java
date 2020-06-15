@@ -1,9 +1,5 @@
 package com.petalmd.armor.service;
 
-import com.goterl.lazycode.lazysodium.LazySodiumJava;
-import com.goterl.lazycode.lazysodium.SodiumJava;
-import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
-import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -11,12 +7,14 @@ import com.petalmd.armor.filter.lifecycle.KafkaConfig;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.util.ConfigConstants;
+import org.abstractj.kalium.crypto.SecretBox;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -36,8 +34,8 @@ public class KafkaService extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(KafkaService.class);
     private static Producer kafkaProducer = null;
     private final List<String> topicList;
-    private final SodiumJava sodium;
-    private final Key enginePrivateKey;
+    private final SecretBox secretBox;
+    private final byte[] enginePrivateKey;
     private KafkaConfig kafkaConfig;
     private boolean enabled;
     private String clientId;
@@ -52,7 +50,7 @@ public class KafkaService extends AbstractLifecycleComponent {
             );
             clientId = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID);
             if (clientId == null) {
-                clientId = "client-" + (int) (Math.random() * 100);
+                clientId = "client-" + (int) (Math.random() * 1000);
             }
             kafkaConfig = AccessController.doPrivileged((PrivilegedAction<KafkaConfig>) () -> collection.find(Filters.eq("name", "configuration")).first());
             if (kafkaConfig == null || !kafkaConfig.isValid()) {
@@ -61,13 +59,23 @@ public class KafkaService extends AbstractLifecycleComponent {
             } else {
                 log.info("KafkaService is enabled with the following bootstrap servers {}", kafkaConfig.bootstrapServers);
             }
-            sodium = AccessController.doPrivileged((PrivilegedAction<SodiumJava>) () -> new SodiumJava());
-            final String topicSuffix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX,"api.ms2015");
-            topicList.addAll(Arrays.asList("EU","CA").stream().map(r -> kafkaConfig.topicPrefix+"."+topicSuffix+"."+r).collect(Collectors.toList()));
+
+            enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig.kSerPrivateKey));
+            //This one should be wrapped also
+            secretBox = AccessController.doPrivileged((PrivilegedAction<SecretBox>) () ->
+                    new SecretBox(enginePrivateKey)
+            );
+            if (secretBox == null) {
+                enabled = false;
+            }
+            final String topicSuffix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX, "api.ms2015");
+            final List<String> regionsList = settings.getAsList(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_REGIONS, List.of("eu","ca"));
+            topicList.addAll(regionsList.stream().map(r -> kafkaConfig.topicPrefix + "." + topicSuffix + "." + r).collect(Collectors.toList()));
         } else {
-            sodium = null;
+            secretBox = null;
+            enginePrivateKey = null;
         }
-        enginePrivateKey = Key.fromBase64String(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY,""));
+
     }
 
 
@@ -104,21 +112,30 @@ public class KafkaService extends AbstractLifecycleComponent {
 
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.bootstrapServers);
         props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
 
         if (kafkaConfig.securityProtocol.equals("SASL_SSL")) {
             props.put("security.protocol", kafkaConfig.securityProtocol);
             props.put("sasl.mechanism", "PLAIN");
             final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
                     "  username=\"" + kafkaConfig.SASLPlainUsername + "\" \n" +
-                    "  password=\"" + kafkaConfig.SASLPlainPassword + "\"";
+                    "  password=\"" + kafkaConfig.SASLPlainPassword + "\";";
             props.put("sasl.jaas.config", jaasConfig);
+            //JAVA_HOME/jre/lib/security/cacerts.
+            //make it available as an option
+            props.put("ssl.truststore.location",System.getenv("JAVA_HOME")+"/lib/security/cacerts");
+            props.put("ssl.truststore.password","changeit");
+            //Insecure will have to set it as an option
+            props.put("ssl.endpoint.identification.algorithm","");
         }
 
         props.put(ProducerConfig.ACKS_CONFIG, "all");
 
         kafkaProducer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
+            //This is necessary to force the Kafka Serializer loader to use the classloader used to load kafkaProducer classes
+            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+//            Thread.currentThread().setContextClassLoader(null);
+            Thread.currentThread().setContextClassLoader(KafkaProducer.class.getClassLoader());
             return new KafkaProducer<String, String>(props);
         });
 
@@ -138,8 +155,8 @@ public class KafkaService extends AbstractLifecycleComponent {
     }
 
 
-    public KSerSecuredMessage buildKserSecuredMessage(final String message) throws SodiumException {
-        return new KSerSecuredMessage(message ,new LazySodiumJava(sodium), enginePrivateKey);
+    public KSerSecuredMessage buildKserSecuredMessage(final String message) {
+        return new KSerSecuredMessage(message, secretBox);
     }
 
 

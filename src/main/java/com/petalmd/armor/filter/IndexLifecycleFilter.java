@@ -4,7 +4,6 @@ import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -71,7 +70,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private final List<String> allowedIndexSettings;
     private final MongoCollection<EngineUser> engineUsers;
     private KafkaService kService;
-    private final SodiumJava sodium;
     private ObjectMapper mapper;
 
     public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
@@ -85,18 +83,16 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             } else {
                 CodecRegistry cRegistry = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
                 engineUsers = AccessController.doPrivileged((PrivilegedAction<MongoCollection<EngineUser>>) () ->
-                        mongoService.getEngineDatabase().get().getCollection("users")
+                        mongoService.getEngineDatabase().get().getCollection("user")
                                 .withCodecRegistry(cRegistry)
                                 .withDocumentClass(EngineUser.class));
                 log.info("connected to Users Database");
             }
             kService = kafkaService;
             mapper = new ObjectMapper();
-            sodium = new SodiumJava();
         } else {
             engineUsers = null;
             kService = null;
-            sodium = null;
         }
         log.info("IndexLifeCycleFilter is {}", enabled ? "enabled" : "disabled");
     }
@@ -283,13 +279,16 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
                 List<IndexOperation> indexOps = indices.stream().map(i -> new IndexOperation(type, engineUser.getUsername(), i, numberOfShards)).collect(Collectors.toList());
                 final List<String> indexOpStrings = indexOps.stream().map(iOp -> {
-                    try {
-                        return mapper.writeValueAsString(iOp.buildKserMessage());
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                }).collect(Collectors.toList());
+                            try {
+                                return AccessController.doPrivileged((PrivilegedExceptionAction<String>) () ->
+                                        mapper.writeValueAsString(iOp.buildKserMessage())
+                                );
+                            } catch (PrivilegedActionException e) {
+                                log.error("Couldn't serialize {} due to {}", iOp.toString(), e);
+                                return null;
+                            }
+                        }
+                ).filter(Objects::nonNull).collect(Collectors.toList());
 
                 log.info("reporting index action {} on index {}, from user {}, with number Of Shards {}", type, indices, engineUser.getUsername(), numberOfShards);
                 if (kService.getKafkaProducer().isEmpty()) {
@@ -351,8 +350,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                                 aliasOpType = AliasOperation.Type.REMOVE;
                             }
                             final AliasOperation aliasOp = new AliasOperation(engineUser.getUsername(), aliasToCheck, aliasOpType, indicesName);
-                            final String aliasOpString = mapper.writeValueAsString(aliasOp.buildKserMessage());
                             RecordMetadata rMetadataAlias = AccessController.doPrivileged((PrivilegedExceptionAction<RecordMetadata>) () -> {
+                                final String aliasOpString = mapper.writeValueAsString(aliasOp.buildKserMessage());
                                 List<Future<RecordMetadata>> reportList = new ArrayList<>();
                                 final KSerSecuredMessage aliasOpSecured = kService.buildKserSecuredMessage(aliasOpString);
                                 final String aliasOpSecuredString = mapper.writeValueAsString(aliasOpSecured);

@@ -24,12 +24,51 @@ grant {
   permission java.net.NetPermission "getProxySelector";
   permission java.net.NetPermission "requestPasswordAuthentication";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+
    // for reading the system-wide configuration for the backlog of established sockets
   permission java.io.FilePermission "/proc/sys/net/core/somaxconn", "read";
   permission java.lang.RuntimePermission "accessDeclaredMembers";
   permission java.lang.RuntimePermission "createSecurityManager";
+
+  //for Kafka
   permission java.lang.RuntimePermission "setContextClassLoader";
   permission java.lang.RuntimePermission "getClassLoader";
+  permission java.security.SecurityPermission "putProviderProperty.Simple SASL/PLAIN Server Provider";
+  permission java.security.SecurityPermission "insertProvider.Simple SASL/PLAIN Server Provider";
+  permission javax.security.auth.AuthPermission "createLoginContext.other";
+  permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+  permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+  permission javax.security.auth.AuthPermission "doAs";
+  permission javax.security.auth.AuthPermission "getSubject";
+  permission javax.security.auth.PrivateCredentialPermission "* java.lang.String \"*\"", "read";
+ 
+ //jffr linux
+  permission java.io.FilePermission "/etc/ld.so.conf", "read,readlink";
+  permission java.io.FilePermission "/etc/ld.so.conf.d", "read,readlink";
+  permission java.io.FilePermission "", "read";
+  permission java.io.FilePermission "include /etc/ld.so.conf.d/*.conf", "read";
+  permission java.io.FilePermission "# Multiarch support", "read";
+  permission java.io.FilePermission "# libc default configuration", "read";
+  permission java.io.FilePermission "/etc/ld.so.conf.d/*", "read,readlink";
+  permission java.io.FilePermission "/usr/lib/-", "read,readlink";
+  permission java.io.FilePermission "/usr/lib", "read,readlink";
+  permission java.io.FilePermission "/usr/lib64/-", "read,readlink";
+  permission java.io.FilePermission "/usr/lib64", "read,readlink";
+  permission java.io.FilePermission "/usr/local/lib/-", "read,readlink";
+  permission java.io.FilePermission "/usr/local/lib", "read,readlink";
+  permission java.io.FilePermission "/opt/local/lib", "read,readlink";
+  permission java.io.FilePermission "/opt/local/lib/-", "read,readlink";
+  permission java.io.FilePermission "/lib/-", "read,readlink";
+  permission java.io.FilePermission "/lib", "read,readlink";
+  permission java.io.FilePermission "lib", "read,readlink";
+  permission java.io.FilePermission "lib/-", "read,readlink";
+  permission java.io.FilePermission "/lib64/-", "read,readlink";
+  permission java.io.FilePermission "/lib64", "read,readlink";
+  permission java.io.FilePermission "/usr/java/packages/-", "read,readlink";
+  permission java.lang.RuntimePermission "getClassLoader";
+  permission java.lang.RuntimePermission "createClassLoader";
+  permission java.lang.RuntimePermission "loadLibrary.*";
+  
   permission javax.management.MBeanServerPermission "createMBeanServer";
   permission javax.management.MBeanTrustPermission "register";
   permission javax.management.MBeanPermission "*", "registerMBean";
