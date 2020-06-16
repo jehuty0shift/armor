@@ -352,7 +352,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         configCollection.insertOne(configuration);
 
-        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("users");
+        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("user");
 
         for (EngineUser user : engineUsers) {
             Document userDoc = new Document();
