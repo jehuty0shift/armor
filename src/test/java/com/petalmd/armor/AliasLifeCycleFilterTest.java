@@ -57,7 +57,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
 
 
     @Test
-    public void aliasCreation() throws Exception {
+    public void aliasCreationDeletion() throws Exception {
 
 
         username = "logs-xv-12345";
@@ -99,7 +99,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
         currentUser.setUsername(username);
         currentUser.setTrusted(true);
 
-        configureEngineDatabase(engineTestDatabase, Arrays.asList(currentUser));
+        configureEngineDatabase(engineTestDatabase, List.of(currentUser));
 
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -327,7 +327,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
 
         configCollection.insertOne(configuration);
 
-        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("users");
+        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("user");
 
         for (EngineUser user : engineUsers) {
             Document userDoc = new Document();

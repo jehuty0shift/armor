@@ -101,12 +101,11 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
     }
 
-    @Test
     public void testKafka() throws Exception {
 
         Properties props = new Properties();
 
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka-1.alpha.thot.ovh.com:9093");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "");
         props.put(ProducerConfig.CLIENT_ID_CONFIG, "id-1");
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
@@ -396,7 +395,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         configCollection.insertOne(configuration);
 
-        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("users");
+        MongoCollection<Document> usersCollection = engineTestDatabase.getCollection("user");
 
         for (EngineUser user : engineUsers) {
             Document userDoc = new Document();
