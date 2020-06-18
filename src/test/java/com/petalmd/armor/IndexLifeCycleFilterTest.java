@@ -168,7 +168,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final String indexName = username + "-i-test-1";
+        final AtomicReference<String> indexName = new AtomicReference<>(username + "-i-test-1");
 
         final String engineDatabaseName = "engine";
 
@@ -180,6 +180,8 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX,5)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 2)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
                 .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
@@ -214,7 +216,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
 
 
-        CreateIndex createIndex = new CreateIndex.Builder(indexName).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
+        CreateIndex createIndex = new CreateIndex.Builder(indexName.get()).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
 
         final AtomicReference<Boolean> hasSent = new AtomicReference<>();
         hasSent.set(false);
@@ -231,7 +233,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                     IndexOperation iOp = IndexOperation.fromKserMessage(kSerMessage);
                     Assert.assertEquals(username, iOp.getUsername());
                     Assert.assertEquals(IndexOperation.Type.CREATE, iOp.getType());
-                    Assert.assertEquals(indexName, iOp.getIndex());
+                    Assert.assertEquals(indexName.get(), iOp.getIndex());
                     //inspired by MockProducer from KafkaInternals
                     TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
                     ProduceRequestResult result = new ProduceRequestResult(topicPartition);
@@ -250,6 +252,25 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
         Assert.assertTrue(result.v1().getJsonString().contains("true"));
+
+        indexName.set(username +"-i-test-2");
+
+        CreateIndex createIndex2 = new CreateIndex.Builder(indexName.get()).settings(Map.of("number_of_shards", 8, "index.number_of_replicas", 1)).build();
+        result = client.executeE(createIndex2);
+
+        Assert.assertFalse(result.v1().isSucceeded());
+        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+
+        hasSent.set(false);
+
+        indexName.set(username +"-i-test-3");
+
+        CreateIndex createIndex3 = new CreateIndex.Builder(indexName.get()).settings(Map.of("index.number_of_shards", 1, "number_of_replicas", 2)).build();
+        result = client.executeE(createIndex3);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertEquals(200, result.v2().getStatusLine().getStatusCode());
+        Assert.assertTrue(hasSent.get());
 
     }
 
@@ -273,6 +294,8 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX,5)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 2)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
                 .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
@@ -309,8 +332,8 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         CreateIndex createIndex = new CreateIndex.Builder(indexName).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
 
         final AtomicReference<Boolean> hasSent = new AtomicReference<>();
-        final AtomicReference<String> checkIndex = new AtomicReference<>();
-        checkIndex.set(null);
+        final AtomicReference<String> checkDelete = new AtomicReference<>();
+        checkDelete.set(null);
         hasSent.set(false);
 
         Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
@@ -323,9 +346,9 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
                     KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
                     IndexOperation iOp = IndexOperation.fromKserMessage(kSerMessage);
 
-                    if (checkIndex.get() != null && iOp.getType().equals(IndexOperation.Type.DELETE)) {
+                    if (checkDelete.get() != null && iOp.getType().equals(IndexOperation.Type.DELETE)) {
                         Assert.assertEquals(username, iOp.getUsername());
-                        Assert.assertEquals(checkIndex.get(), iOp.getIndex());
+                        Assert.assertEquals(checkDelete.get(), iOp.getIndex());
                         hasSent.set(true);
                     }
                     //inspired by MockProducer from KafkaInternals
@@ -360,7 +383,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
         Assert.assertTrue(result.v1().getErrorMessage().contains("logs-xv-12345-i-*"));
 
-        checkIndex.set(indexName);
+        checkDelete.set(indexName);
 
         DeleteIndex deleteIndexSuccess = new DeleteIndex.Builder(indexName).build();
         result = client.executeE(deleteIndexSuccess);

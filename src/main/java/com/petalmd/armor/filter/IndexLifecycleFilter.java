@@ -157,10 +157,21 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 return;
             }
 
-            int numberOfShards = cirSettings.getAsInt("index.number_of_shards", 1);
-            if (numberOfShards > settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 16)) {
-                log.error("number of shards asked ({}) for index {} is too high", numberOfShards, indexName);
+            int numberOfShards = cirSettings.hasValue("number_of_shards")?
+                    cirSettings.getAsInt("number_of_shards",1):cirSettings.getAsInt("index.number_of_shards", 1);
+            int maxShardAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 16);
+            if (numberOfShards > maxShardAllowed) {
+                log.error("number of shards asked ({}) for index {} is too high, max allowed is {}", numberOfShards, indexName, maxShardAllowed);
                 listener.onFailure(new ForbiddenException("number of shards asked ({}) for index {} is too high", numberOfShards, indexName));
+                return;
+            }
+
+            int numberOfReplicas = cirSettings.hasValue("number_of_replicas")?
+                    cirSettings.getAsInt("number_of_replicas",1):cirSettings.getAsInt("index.number_of_replicas",1);
+            int maxReplicasAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX,1);
+            if (numberOfReplicas > maxReplicasAllowed) {
+                log.error("number of replicas asked ({}) for index {} is too high, max allowed is {}", numberOfReplicas, indexName, maxReplicasAllowed);
+                listener.onFailure(new ForbiddenException("number of replicas asked ({}) for index {} is too high", numberOfReplicas, indexName));
                 return;
             }
 
@@ -190,7 +201,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
             }
 
-            newSettingsBuilder.put("index.number_of_replicas", 1);
+            newSettingsBuilder.put("index.number_of_replicas", numberOfReplicas);
             newSettingsBuilder.put("index.number_of_shards", numberOfShards);
             cir.settings(newSettingsBuilder.build());
 
