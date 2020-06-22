@@ -12,6 +12,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -36,9 +37,11 @@ import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LDPIndexFilter extends AbstractActionFilter {
@@ -130,11 +133,21 @@ public class LDPIndexFilter extends AbstractActionFilter {
                 }
             }
         } else if (request instanceof IndicesRequest) {
+
             IndicesRequest iRequest = (IndicesRequest) request;
             if (Stream.of(iRequest.indices()).anyMatch(i -> i.startsWith(ldpIndex))) {
+
                 if (iRequest.indices().length > 1) {
-                    auditListener.onMissingPrivileges(user.getName(), request, threadContext);
-                    listener.onFailure(new ForbiddenException("Forbidden to target multiple index and {}", ldpIndex));
+                    if (request instanceof IndicesRequest.Replaceable){
+                        List<String> newIndices = Stream.of(iRequest.indices()).filter(i-> !i.startsWith(ldpIndex)).collect(Collectors.toUnmodifiableList());
+                        //remove ldpIndex attempts
+                        ((IndicesRequest.Replaceable)request).indices(newIndices.toArray(new String[newIndices.size()]));
+                        chain.proceed(task, action, request, listener);
+                        return;
+                    } else {
+                        auditListener.onMissingPrivileges(user.getName(), request, threadContext);
+                        listener.onFailure(new ForbiddenException("Forbidden to target multiple index and {}", ldpIndex));
+                    }
                 } else {
                     if (iRequest instanceof AcknowledgedRequest) {
                         listener.onResponse(new AcknowledgedResponse(true));

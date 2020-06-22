@@ -122,6 +122,11 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
                 }
                 builder.endArray();
             }
+
+            if (nodeInfo.getIngest() != null) {
+                nodeInfo.getIngest().toXContent(builder, params);
+            }
+
             builder.endObject();
         }
 
