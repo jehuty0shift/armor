@@ -237,9 +237,9 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
 
         result = client.executeE(putSettings);
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains("target multiple index"));
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertEquals(200, result.v2().getStatusLine().getStatusCode());
+        Assert.assertFalse(result.v1().getJsonString().contains(ldpIndex));
 
 
         GetMapping gMapping = new GetMapping.Builder().addIndex(ldpIndex).build();
