@@ -93,6 +93,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
         List<String> gelfIntList = new ArrayList<>();
         List<String> gelfDateList = new ArrayList<>();
         List<String> gelfNumList = new ArrayList<>();
+        List<String> gelfBoolList = new ArrayList<>();
 
         final KafkaOutputConsumer kafkaConsumer = new KafkaOutputConsumer(null);
         KafkaOutputFactory.getInstance().setKafkaOutput(kafkaConsumer);
@@ -111,6 +112,9 @@ public class LDPProcessorTest extends AbstractUnitTest {
                 Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + numField + "_num"));
             }
 
+            for (String boolField : gelfBoolList) {
+                Assert.assertTrue(ldpGelf.getDocumentMap().containsKey("_" + boolField + "_bool"));
+            }
         };
 
 
@@ -181,6 +185,8 @@ public class LDPProcessorTest extends AbstractUnitTest {
         gelfIntList.add("universe");
         gelfNumList.clear();
         gelfNumList.add("power");
+        gelfBoolList.clear();
+        gelfBoolList.add("is_super_saiyen");
 
         hasRun.set(false);
         Consumer<LDPGelf> secondTest = (ldpGelf) -> {
@@ -188,14 +194,14 @@ public class LDPProcessorTest extends AbstractUnitTest {
             Assert.assertEquals("Goku", ldpGelf.getDocumentMap().get("_name"));
             Assert.assertEquals("ohyeah", ldpGelf.getDocumentMap().get("_X-OVH-TOKEN"));
             Assert.assertEquals(9000.0, ldpGelf.getDocumentMap().get("_power_num"));
+            Assert.assertEquals("true", ldpGelf.getDocumentMap().get("_is_super_saiyen_bool")); //boolean must be in text for Graylog...
             Assert.assertEquals("1984-12-03T05:06:00.000Z", ldpGelf.getDocumentMap().get("_arrival_date"));
             hasRun.set(true);
         };
 
         kafkaConsumer.setConsumer(secondTest);
 
-
-        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
+        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" , \"is_super_saiyen\" : true }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
         result = client.executeE(indexPipeline2);
         Assert.assertTrue(result.v1().isSucceeded());
 

@@ -69,8 +69,23 @@ public class LDPProcessor extends AbstractProcessor {
             if (fieldKey.equals("timestamp")) {
                 Object value = ingestField.getValue();
                 if (value instanceof Number) {
-                    ldpGelf.setTimestamp(new DateTime(((Number) value).longValue()));
+                    //test if value is > 2100-01-01T00:00:00 in UNIX seconds (if yes assume, it's milliseconds, otherwise convert them)
+                    long longValue = ((Number)value).longValue() > 4102444800L? ((Number)value).longValue():(long)(((Number)value).doubleValue()*1000.0f);
+                    ldpGelf.setTimestamp(new DateTime(longValue));
                     continue;
+                }
+                if (value instanceof String) {
+                    final String strValue = (String)value;
+                    if(strValue.length() < 50) {
+                        try {
+                            DateTime dt = DateTime.parse(strValue);
+                            ldpGelf.setTimestamp(dt);
+                        } catch (IllegalArgumentException ex) {
+                            //means the timestamp couldn't be parsed
+                            ldpGelf.addString("timestamp_fixit",strValue);
+                        }
+                        continue;
+                    }
                 }
             }
 

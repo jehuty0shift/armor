@@ -66,7 +66,8 @@ public class LDPGelf {
         if (!finalField.endsWith("_bool")) {
             finalField += "_bool";
         }
-        return addValue(finalField, value);
+        String strValue = value?"true":"false";
+        return addValue(finalField, strValue);
     }
 
     public LDPGelf addFullMessage(final String fullMessage) {
