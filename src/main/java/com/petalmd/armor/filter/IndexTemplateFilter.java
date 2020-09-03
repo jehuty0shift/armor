@@ -39,11 +39,16 @@ public class IndexTemplateFilter extends AbstractActionFilter {
     private final boolean enabled;
     private final List<String> allowedSettings;
     private final Optional<String> ldpIndex;
+    private static final int MAX_NUM_FIELDS = 5000;
 
     public IndexTemplateFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ENABLED, true);
-        this.allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS, Arrays.asList("index.number_of_shards"));
+        this.allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_TEMPLATE_FILTER_ALLOWED_SETTINGS,
+                Arrays.asList("index.number_of_shards",
+                        "index.query",
+                        "index.mapping.total_fields.limit",
+                        "index.refresh_interval"));
         this.ldpIndex = Optional.ofNullable(settings.get(ConfigConstants.ARMOR_LDP_INDEX));
         log.info("IndexTemplateFilter is {}", enabled ? "enabled" : "disabled");
     }
@@ -113,6 +118,11 @@ public class IndexTemplateFilter extends AbstractActionFilter {
                 if (!filteredSetting.isEmpty()) {
                     log.debug("keeping setting {}", filteredSetting.toString());
                     newSettingsBuilder.put(filteredSetting);
+                    //Check index.mapping.total_fields.limit
+                    int value = filteredSetting.getAsInt("index.mapping.total_fields.limit", MAX_NUM_FIELDS);
+                    if (value > MAX_NUM_FIELDS) {
+                        newSettingsBuilder.put("index.mapping.total_fields.limit", MAX_NUM_FIELDS);
+                    }
                 }
             }
 
