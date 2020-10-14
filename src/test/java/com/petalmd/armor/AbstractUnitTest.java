@@ -689,8 +689,23 @@ public abstract class AbstractUnitTest {
                         "     }"
                 , XContentType.JSON);
         CreateIndexResponse responseCeo = indexCeoBuilder.get();
+        CreateIndexRequestBuilder indexDevBuilder = esNode1.client().admin().indices().prepareCreate("dev");
+        indexDevBuilder.addMapping("beta",
+                "    { \"properties\":" +
+                        "        {\"user\": " +
+                        "             {\"type\" : \"keyword\" }" +
+                        "        ," +
+                        "         \"source_ip_geolocation\" :" +
+                        "             {" +
+                        "               \"type\" : \"keyword\"," +
+                        "                \"fields\" : " +
+                        "                      { \"geo\" : { \"type\" : \"geo_point\", \"ignore_malformed\" : true } } } }" +
+                        "     }"
+                , XContentType.JSON);
+        CreateIndexResponse responseDev = indexDevBuilder.get();
         Assert.assertTrue(responseFinancial.isAcknowledged());
         Assert.assertTrue(responseCeo.isAcknowledged());
+        Assert.assertTrue(responseDev.isAcknowledged());
         setupTestData(armorConfig);
         executeIndex("dummy_content2.json", "financial", "sensitivestuff", "t2p_8", true, true);
         executeIndex("dummy_content3.json", "financial", "sensitivestuff", "t2p_9", true, true);

@@ -5,10 +5,9 @@ import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import kong.unirest.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 /**
  * Created by jehuty0shift on 23/10/19.
@@ -88,6 +87,31 @@ public class KeflaUtils {
             for (Map.Entry<String, Map<String, KeflaRestType>> indexEntry : strIndEntry.getValue().entrySet()) {
                 Map<String, KeflaRestType> typeMap = indexMap.computeIfAbsent(indexEntry.getKey(), k -> new HashMap<>());
                 typeMap.putAll(indexEntry.getValue());
+            }
+        }
+
+        return indexMap;
+    }
+
+    public static Map<String, Map<String, KeflaRestType>> streamIndexMapToIndexMapFlattened(Map<String, Map<String, Map<String, KeflaRestType>>> streamIndexMap) {
+        // we fuse fields without comparing indices number (mapping is stable across streams).
+        // this version add
+        Map<String, Map<String, KeflaRestType>> indexMap = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, Map<String, KeflaRestType>>> strIndEntry : streamIndexMap.entrySet()) {
+            for (Map.Entry<String, Map<String, KeflaRestType>> indexEntry : strIndEntry.getValue().entrySet()) {
+                Map<String, KeflaRestType> typeMap = indexMap.computeIfAbsent(indexEntry.getKey(), k -> new HashMap<>());
+                typeMap.putAll(indexEntry.getValue());
+            }
+        }
+        //flatten here the indexMap
+        for(Map.Entry<String, Map<String, KeflaRestType>> indexMapEntry : indexMap.entrySet()) {
+            Set<String> geoValues = indexMapEntry.getValue().entrySet().stream()
+                    .filter(e -> (e.getValue().fields != null && e.getValue().fields.containsKey("geo")))
+                    .map(e-> e.getKey() +".geo")
+                    .collect(Collectors.toSet());
+            for(String geoKey : geoValues) {
+                indexMapEntry.getValue().put(geoKey, new KeflaRestType(geoKey));
             }
         }
 

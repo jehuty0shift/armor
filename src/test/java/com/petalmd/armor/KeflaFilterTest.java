@@ -114,7 +114,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -179,7 +179,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -244,7 +244,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -309,7 +309,7 @@ public class KeflaFilterTest extends AbstractScenarioTest {
 
         JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
         Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(),Mockito.anyString())).thenReturn(httpReq);
+        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
         Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
 
         Mockito.when(rbe.asJson()).thenReturn(httpRes);
@@ -335,13 +335,13 @@ public class KeflaFilterTest extends AbstractScenarioTest {
         Assert.assertTrue(resulttu.v1().getJsonObject()
                 .getAsJsonObject("fields")
                 .getAsJsonObject("user")
-                .getAsJsonObject("text")
+                .getAsJsonObject("keyword")
                 .getAsJsonArray("indices").size() == 1);
         Assert.assertTrue(resulttu.v1().isSucceeded());
         Assert.assertTrue(resulttu.v1().getJsonObject()
                 .getAsJsonObject("fields")
                 .getAsJsonObject("user")
-                .getAsJsonObject("text")
+                .getAsJsonObject("keyword")
                 .getAsJsonArray("indices")
                 .get(0)
                 .getAsString().equals("dev"));
@@ -358,6 +358,15 @@ public class KeflaFilterTest extends AbstractScenarioTest {
                 .getJsonObject()
                 .getAsJsonObject("fields")
                 .has("previous_club"));
+
+
+        final Tuple<JestResult, HttpResponse> resulttu2 = ((HeaderAwareJestHttpClient) client).executeE(new FieldCapabilities.Builder(Arrays.asList("source_ip_geolocation.geo","source_ip_geolocation"))
+                .setIndex(indices)
+                .build());
+
+        Assert.assertTrue(resulttu2.v1().getJsonObject()
+                .getAsJsonObject("fields")
+                .has("source_ip_geolocation.geo"));
 
     }
 

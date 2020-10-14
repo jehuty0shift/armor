@@ -32,6 +32,21 @@
           "fielddata": null,
           "analyzer": "standard"
         },
+        "source_ip_geolocation": {
+          "type": "keyword",
+          "fields": {
+            "geo" : {
+              "type" : "geo_point",
+              "ignore_malformed" : true
+            }
+          },
+          "ignore_malformed": null,
+          "index": null,
+          "format": null,
+          "norms": false,
+          "fielddata": null,
+          "analyzer": "standard"
+        },
         "thesubfield2": {
           "type": "keyword",
           "fields": null,

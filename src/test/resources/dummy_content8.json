@@ -2,6 +2,7 @@
   "user": "marquinhos",
   "post_date": "2019-02-19T14:12:12",
   "message": "playing with security again 3",
+  "source_ip_geolocation" : "48.8582,2.3387",
   "structure": {
     "thearray": [1,2,3,4,5],
     "thesubobject": {

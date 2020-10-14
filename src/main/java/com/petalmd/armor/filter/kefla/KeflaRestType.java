@@ -152,6 +152,9 @@ public class KeflaRestType {
                     this.type = ESType.BOOL.value;
                 } else if (fieldName.endsWith("_ip")) {
                     this.type = ESType.IP.value;
+                } else if (fieldName.endsWith(".geo")) {
+                    this.type = ESType.GEO.value;
+                    this.ignore_malformed = true;
                 } else {
                     this.type = ESType.KEYWORD.value;
                 }

@@ -10,14 +10,17 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
+import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -89,9 +92,10 @@ public class IndexTemplateFilter extends AbstractActionFilter {
 
             //check template name
             if (!putITReq.name().contains(user.getName())) {
-                log.error("PutIndexTemplateRequest of user {} has invalid name {}", user.getName(), putITReq.name());
-                listener.onFailure(new ForbiddenException("The template name MUST contains your username"));
-                return;
+                // Auto prefix it with User Name
+                final String prefixedName = user.getName() + "-" + putITReq.name();
+                putITReq.name(prefixedName);
+                log.info("PutIndexTemplateRequest of user {} has non prefixed name {}, internal name will be {}", user.getName(), putITReq.name(), prefixedName);
             }
 
             //check index names
@@ -131,24 +135,28 @@ public class IndexTemplateFilter extends AbstractActionFilter {
         } else if (action.equals(GetIndexTemplatesAction.NAME)) {
             final GetIndexTemplatesRequest gITReq = (GetIndexTemplatesRequest) request;
 
-            List<String> forbiddenTemplatesNames = Stream.of(gITReq.names()).filter(tName -> !tName.contains(user.getName())).collect(Collectors.toList());
-            if (!forbiddenTemplatesNames.isEmpty()) {
-                final String provided = forbiddenTemplatesNames.stream().collect(Collectors.joining(", "));
-                log.debug("the template name is not compatible it must contains username, {} provided", provided);
-                listener.onFailure(new ForbiddenException("Template names MUST contains " + user.getName() + " got: [" + provided + "]"));
-                return;
+            List<String> newNamesLst = Stream.of(gITReq.names()).map(tName -> {
+                if (!tName.contains(user.getName())) {
+                    return user.getName() + "-" + tName;
+                } else {
+                    return tName;
+                }
+            }).collect(Collectors.toList());
+
+            if(newNamesLst.size() == 0) {
+                newNamesLst.add("*"+user.getName()+"*");
             }
+
+            gITReq.names(newNamesLst.toArray(new String[newNamesLst.size()]));
 
         } else if (action.equals(DeleteIndexTemplateAction.NAME)) {
             final DeleteIndexTemplateRequest dITReq = (DeleteIndexTemplateRequest) request;
             if (!dITReq.name().contains(user.getName())) {
-                log.debug("the template name is not compatible it must contains username, {} provided", dITReq.name());
-                listener.onFailure(new ForbiddenException("Template name MUST contains " + user.getName()));
-                return;
+                //Auto prefix it
+                dITReq.name(user.getName() +"-"+ dITReq.name());
             }
         }
 
         chain.proceed(task, action, request, listener);
     }
-
 }

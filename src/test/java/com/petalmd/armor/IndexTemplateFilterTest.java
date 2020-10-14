@@ -79,7 +79,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         String source1 = buildTemplateBody(Arrays.asList("ldp"), Collections.emptyList(), Settings.EMPTY);
 
-        PutTemplate putTemplate1 = new PutTemplate.Builder(username + "-template1", source1).build();
+        PutTemplate putTemplate1 = new PutTemplate.Builder( "template1", source1).build();
 
         Tuple<JestResult, HttpResponse> result = client.executeE(putTemplate1);
 
@@ -111,7 +111,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         String source1 = buildTemplateBody(Arrays.asList(username + "-i-*"), Collections.emptyList(), Settings.EMPTY);
 
-        PutTemplate putTemplate1 = new PutTemplate.Builder(username + "-template1", source1).build();
+        PutTemplate putTemplate1 = new PutTemplate.Builder("template1", source1).build();
 
         Tuple<JestResult, HttpResponse> result = client.executeE(putTemplate1);
 
@@ -120,7 +120,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         String source2 = buildTemplateBody(Arrays.asList(username + "-toto"), Collections.emptyList(), Settings.EMPTY);
 
-        PutTemplate putTemplate2 = new PutTemplate.Builder(username + "-template2", source2).build();
+        PutTemplate putTemplate2 = new PutTemplate.Builder( "template2", source2).build();
 
         result = client.executeE(putTemplate2);
 
@@ -130,7 +130,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         String source3 = buildTemplateBody(Arrays.asList(username + "-i-*"), Arrays.asList(username + "-a-alias1"), Settings.EMPTY);
 
-        PutTemplate putTemplate3 = new PutTemplate.Builder(username + "-template3", source3).build();
+        PutTemplate putTemplate3 = new PutTemplate.Builder("template3", source3).build();
 
         result = client.executeE(putTemplate3);
 
@@ -140,7 +140,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         String source4 = buildTemplateBody(Arrays.asList(username + "-i-*"), Arrays.asList("alias" + username), Settings.EMPTY);
 
-        PutTemplate putTemplate4 = new PutTemplate.Builder(username + "-template4", source4).build();
+        PutTemplate putTemplate4 = new PutTemplate.Builder("template4", source4).build();
 
         result = client.executeE(putTemplate4);
 
@@ -156,14 +156,22 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         result = client.executeE(getTemplate1);
 
         Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getErrorMessage().contains(username));
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+        Assert.assertEquals(404,result.v2().getStatusLine().getStatusCode());
+        Assert.assertEquals(result.v1().getJsonString(), "{}");
 
-        GetTemplate getTemplate2 = new GetTemplate.Builder(username + "-template1").build();
+        GetTemplate getTemplate2 = new GetTemplate.Builder( "template1").build();
 
         result = client.executeE(getTemplate2);
 
         Assert.assertTrue(result.v1().isSucceeded());
+
+        GetTemplate getTemplate3 = new GetTemplate.Builder( "").build();
+
+        result = client.executeE(getTemplate3);
+
+        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(result.v1().getJsonString().contains("template1"));
+        Assert.assertTrue(result.v1().getJsonString().contains("template3"));
 
     }
 
@@ -271,7 +279,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
 
         //Create Templates
         String source1 = buildTemplateBody(Arrays.asList(username + "-i-*"), Arrays.asList(aliasName1), Settings.EMPTY);
-        PutTemplate putTemplate1 = new PutTemplate.Builder(username + "-template1", source1).build();
+        PutTemplate putTemplate1 = new PutTemplate.Builder( "template1", source1).build();
 
         Tuple<JestResult, HttpResponse> result = client.executeE(putTemplate1);
 

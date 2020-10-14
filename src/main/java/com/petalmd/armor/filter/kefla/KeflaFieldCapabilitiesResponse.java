@@ -23,7 +23,7 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
 
     public KeflaFieldCapabilitiesResponse(FieldCapabilitiesResponse fcr, Map<String, Map<String, Map<String, KeflaRestType>>> streamIndexFieldsMap) {
 
-        Map<String, Map<String, KeflaRestType>> allowedIndexMap = KeflaUtils.streamIndexMapToIndexMap(streamIndexFieldsMap);
+        Map<String, Map<String, KeflaRestType>> allowedIndexMap = KeflaUtils.streamIndexMapToIndexMapFlattened(streamIndexFieldsMap);
         Map<String, Map<String, FieldCapabilities>> responseMap = fcr.get();
         newResponseMap = new HashMap<>();
 
