@@ -1,8 +1,6 @@
 package com.petalmd.armor.filter;
 
-import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -38,9 +36,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
@@ -55,7 +53,6 @@ import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -157,8 +154,8 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 return;
             }
 
-            int numberOfShards = cirSettings.hasValue("number_of_shards")?
-                    cirSettings.getAsInt("number_of_shards",1):cirSettings.getAsInt("index.number_of_shards", 1);
+            int numberOfShards = cirSettings.hasValue("number_of_shards") ?
+                    cirSettings.getAsInt("number_of_shards", 1) : cirSettings.getAsInt("index.number_of_shards", 1);
             int maxShardAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 16);
             if (numberOfShards > maxShardAllowed) {
                 log.error("number of shards asked ({}) for index {} is too high, max allowed is {}", numberOfShards, indexName, maxShardAllowed);
@@ -166,9 +163,9 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 return;
             }
 
-            int numberOfReplicas = cirSettings.hasValue("number_of_replicas")?
-                    cirSettings.getAsInt("number_of_replicas",1):cirSettings.getAsInt("index.number_of_replicas",1);
-            int maxReplicasAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX,1);
+            int numberOfReplicas = cirSettings.hasValue("number_of_replicas") ?
+                    cirSettings.getAsInt("number_of_replicas", 1) : cirSettings.getAsInt("index.number_of_replicas", 1);
+            int maxReplicasAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 1);
             if (numberOfReplicas > maxReplicasAllowed) {
                 log.error("number of replicas asked ({}) for index {} is too high, max allowed is {}", numberOfReplicas, indexName, maxReplicasAllowed);
                 listener.onFailure(new ForbiddenException("number of replicas asked ({}) for index {} is too high", numberOfReplicas, indexName));
@@ -177,7 +174,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
             //check the max num of shards for this user
             long totalShardsForUser = 0;
-            for (ObjectObjectCursor<String, IndexMetaData> cursor : clusterService.state().getMetaData().getIndices()) {
+            for (ObjectObjectCursor<String, IndexMetadata> cursor : clusterService.state().getMetadata().getIndices()) {
                 if (cursor.key.startsWith(restUser.getName())) {
                     totalShardsForUser += cursor.value.getNumberOfShards();
                 }
@@ -264,17 +261,14 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             this.mapper = mapper;
             this.indexSettings = indexSettings;
             this.clusterService = clusterService;
-            final SortedMap<String, AliasOrIndex> aliasIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
+            final SortedMap<String, IndexAbstraction> aliasIndexLookup = clusterService.state().getMetadata().getIndicesLookup();
             oldAliases = new HashSet<>();
             if (action.equals(DeleteIndexAction.NAME)) {
-                for (String index : indices) {
-                    if (aliasIndexLookup.containsKey(index)) {
-                        AliasOrIndex.Index indexStruct = ((AliasOrIndex.Index) aliasIndexLookup.get(index));
-                        indexStruct.getIndex().getAliases().keys().forEach((Consumer<ObjectCursor<String>>) aName -> oldAliases.add(aName.value));
-                    }
-                }
+                // Restrict oldAliases to the indices concerned by the request
+                ImmutableOpenMap<String, List<AliasMetadata>> aliasesForIndices = clusterService.state().getMetadata().findAllAliases(indices.toArray(String[]::new));
+                aliasesForIndices.forEach(e -> e.value.stream().forEach(aM -> oldAliases.add(aM.alias())));
             } else {
-                oldAliases.addAll(aliasIndexLookup.entrySet().stream().filter(e -> e.getKey().startsWith(engineUser.getUsername() + "-a-") && e.getValue().isAlias()).map(e -> e.getKey()).collect(Collectors.toSet()));
+                oldAliases.addAll(clusterService.state().getMetadata().getIndicesLookup().entrySet().stream().filter(e -> e.getKey().startsWith(engineUser.getUsername() + "-a-") && e.getValue().getType().equals(IndexAbstraction.Type.ALIAS)).map(e -> e.getKey()).collect(Collectors.toSet()));
             }
         }
 
@@ -329,13 +323,13 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
 
                 //Check aliases on this index
-                final SortedMap<String, AliasOrIndex> aliasAndIndexLookup = clusterService.state().getMetaData().getAliasAndIndexLookup();
+                final SortedMap<String, IndexAbstraction> aliasAndIndexLookup = clusterService.state().getMetadata().getIndicesLookup();
 
                 final Set<String> aliasesToCheck;
                 if (type.equals(IndexOperation.Type.CREATE)) {
                     aliasesToCheck = new HashSet<>();
-                    AliasOrIndex aio = aliasAndIndexLookup.get(indices.get(0));
-                    ImmutableOpenMap<String, AliasMetaData> iom = aio.getIndices().get(0).getAliases();
+                    IndexAbstraction aio = aliasAndIndexLookup.get(indices.get(0));
+                    ImmutableOpenMap<String, AliasMetadata> iom = aio.getIndices().get(0).getAliases();
                     iom.forEach(aName -> aliasesToCheck.add(aName.key));
                 } else {
                     aliasesToCheck = oldAliases;
@@ -344,7 +338,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 if (!aliasesToCheck.isEmpty()) {
                     for (String aliasToCheck : aliasesToCheck) {
                         try {
-                            final AliasOrIndex aliasFromMeta = aliasAndIndexLookup.get(aliasToCheck);
+                            final IndexAbstraction aliasFromMeta = aliasAndIndexLookup.get(aliasToCheck);
                             final List<String> indicesName;
                             final AliasOperation.Type aliasOpType;
                             if (aliasFromMeta != null) {

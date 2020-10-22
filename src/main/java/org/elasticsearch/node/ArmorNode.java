@@ -30,9 +30,5 @@ public final class ArmorNode extends Node {
     public ArmorNode(Settings preparedSettings, Collection<Class<? extends Plugin>> plugins) {
         super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null),  plugins, true);
     }
-
-    @Override
-    protected void registerDerivedNodeNameWithLogger(String nodeName) {
-        //do nothing?
-    }
+    
 }

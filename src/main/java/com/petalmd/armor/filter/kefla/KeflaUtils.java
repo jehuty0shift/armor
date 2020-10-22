@@ -72,7 +72,10 @@ public class KeflaUtils {
         List<Map<String, Object>> shouldList = (List<Map<String, Object>>) boolMap.get("should");
         for (Map<String, Object> termItem : shouldList) {
             Map<String, String> streamField = (Map<String, String>) termItem.get("term");
-            streamList.add(streamField.get("streams"));
+            String streamId = streamField.get("streams");
+            if(streamId != null) {
+                streamList.add(streamId);
+            }
         }
 
         return streamList;

@@ -79,7 +79,7 @@ public class HTTPWaffleAuthenticator implements HTTPAuthenticator {
         final boolean ntlmPost = authorizationHeader.isNtlmType1PostAuthorizationHeader();
 
         // maintain a connection-based session for NTLM tokens
-        final InetSocketAddress address = ((InetSocketAddress) request.getRemoteAddress());
+        final InetSocketAddress address = request.getHttpChannel().getRemoteAddress();
         final String connectionId = Joiner.on(":").useForNull("").join(address.getHostName(), address.getPort());
         final String securityPackage = authorizationHeader.getSecurityPackage();
         log.trace("security package: {}, connection id: {}", securityPackage, connectionId);

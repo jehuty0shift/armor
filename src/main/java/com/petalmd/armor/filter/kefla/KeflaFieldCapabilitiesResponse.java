@@ -2,6 +2,7 @@ package com.petalmd.armor.filter.kefla;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
@@ -20,21 +21,22 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
     private static final Logger log = LogManager.getLogger(KeflaGetFieldMappingsResponse.class);
     private FieldCapabilitiesResponse kFcr;
     private Map<String, Map<String, FieldCapabilities>> newResponseMap;
+    private String[] newIndices;
 
     public KeflaFieldCapabilitiesResponse(FieldCapabilitiesResponse fcr, Map<String, Map<String, Map<String, KeflaRestType>>> streamIndexFieldsMap) {
 
         Map<String, Map<String, KeflaRestType>> allowedIndexMap = KeflaUtils.streamIndexMapToIndexMapFlattened(streamIndexFieldsMap);
         Map<String, Map<String, FieldCapabilities>> responseMap = fcr.get();
         newResponseMap = new HashMap<>();
+        newIndices = Arrays.stream(fcr.getIndices()).filter(allowedIndexMap::containsKey).toArray(String[]::new);
 
         log.debug("got the following fieldCap response Map ({} entries) {}", responseMap.size(), responseMap);
-
 
         for (Map.Entry<String, Map<String, FieldCapabilities>> respMapEntry : responseMap.entrySet()) {
             final String fieldName = respMapEntry.getKey();
             final Map<String, FieldCapabilities> newFCapMap = new HashMap<>();
             for (Map.Entry<String, FieldCapabilities> fCapMap : respMapEntry.getValue().entrySet()) {
-                final List<String> newIndices = new ArrayList<>();
+                final List<String> newIndicesForFCap = new ArrayList<>();
                 final String type = fCapMap.getKey();
                 FieldCapabilities fCap = fCapMap.getValue();
                 String[] indices = fCap.indices();
@@ -58,7 +60,7 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
                     }
                     if (!shouldAddForAll && !tempNewIndices.isEmpty()) {
                         log.debug("we added {} new indices", tempNewIndices.size());
-                        newIndices.addAll(tempNewIndices);
+                        newIndicesForFCap.addAll(tempNewIndices);
                     }
                 } else {
                     log.debug("the indices list is not null, checking only these indices");
@@ -66,28 +68,29 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
                         if (allowedIndexMap.containsKey(index)
                                 && allowedIndexMap.get(index).containsKey(fieldName)) {
                             log.debug("we add the field {} for index {}", fieldName, index);
-                            newIndices.add(index);
+                            newIndicesForFCap.add(index);
                         }
                     }
                 }
                 //we add the field uniquely for indices where it should be present
                 //even if it was present in other indices (because it was likely for different streams).
-                if (!newIndices.isEmpty()) {
+                if (!newIndicesForFCap.isEmpty()) {
                     log.debug("adding a non available field cap for field {}", fieldName);
-                    List<String> nonAggregatables = fCap.nonAggregatableIndices() == null ? null : Arrays.asList(fCap.nonAggregatableIndices()).stream().filter(s -> newIndices.contains(s)).collect(Collectors.toList());
-                    List<String> nonSearchables = fCap.nonSearchableIndices() == null ? null : Arrays.asList(fCap.nonSearchableIndices()).stream().filter(s -> newIndices.contains(s)).collect(Collectors.toList());
+                    List<String> nonAggregatables = fCap.nonAggregatableIndices() == null ? null : Arrays.asList(fCap.nonAggregatableIndices()).stream().filter(s -> newIndicesForFCap.contains(s)).collect(Collectors.toList());
+                    List<String> nonSearchables = fCap.nonSearchableIndices() == null ? null : Arrays.asList(fCap.nonSearchableIndices()).stream().filter(s -> newIndicesForFCap.contains(s)).collect(Collectors.toList());
                     FieldCapabilities newFCap = new FieldCapabilities(
                             fieldName,
                             type,
                             fCap.isSearchable(),
                             fCap.isAggregatable(),
-                            newIndices.toArray(new String[newIndices.size()]),
+                            newIndicesForFCap.toArray(new String[newIndicesForFCap.size()]),
                             nonAggregatables == null ? null : nonAggregatables.toArray(new String[nonAggregatables.size()]),
-                            nonSearchables == null ? null : nonSearchables.toArray(new String[nonSearchables.size()]));
+                            nonSearchables == null ? null : nonSearchables.toArray(new String[nonSearchables.size()]),
+                            fCap.meta());
                     newFCapMap.put(type, newFCap);
                 } else if (indices == null && shouldAddForAll) {
                     log.debug("adding a all available FieldCap for field {}", fieldName);
-                    FieldCapabilities newFCap = new FieldCapabilities(fieldName, type, fCap.isSearchable(), fCap.isAggregatable());
+                    FieldCapabilities newFCap = new FieldCapabilities(fieldName, type, fCap.isSearchable(), fCap.isAggregatable(), new String[]{}, new String[]{}, new String[]{}, Collections.emptyMap());
                     newFCapMap.put(type, newFCap);
                 }
 
@@ -108,16 +111,15 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
         BytesStreamOutput bso = new BytesStreamOutput();
         try {
             writeTo(bso);
-            kFcr.readFrom(bso.bytes().streamInput());
-
+            return new FieldCapabilitiesResponse(bso.bytes().streamInput());
         } catch (IOException e) {
             log.error("fatal error when deserializing field Caps ", e);
+            throw new ElasticsearchException("IO Exception in KeflaFieldCapabilitiesResponse");
         }
-        return kFcr;
     }
 
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
+        out.writeStringArray(newIndices);
         out.writeMap(newResponseMap, StreamOutput::writeString, KeflaFieldCapabilitiesResponse::innerWriteTo);
         out.writeList(Collections.emptyList());
     }

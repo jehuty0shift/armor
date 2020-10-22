@@ -9,7 +9,6 @@ import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
-import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
@@ -32,7 +31,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -160,8 +159,8 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
         log.debug("we will create {} new aliases", newAliases.size());
         //check if number of aliases are not too high
         int maxNumberOfAliasAllowed = settings.getAsInt(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_ALIAS_BY_USER, 1000);
-        long numberOfAliases = clusterService.state().getMetaData().getAliasAndIndexLookup().tailMap(aliasPrefix).entrySet()
-                .stream().filter(entry -> entry.getValue().isAlias() && entry.getKey().startsWith(aliasPrefix)).count();
+        long numberOfAliases = clusterService.state().getMetadata().getIndicesLookup().tailMap(aliasPrefix).entrySet()
+                .stream().filter(entry -> entry.getValue().getType().equals(IndexAbstraction.Type.ALIAS) && entry.getKey().startsWith(aliasPrefix)).count();
 
         if (numberOfAliases + newAliases.size() > maxNumberOfAliasAllowed) {
             log.error("the user {} is trying to create {} new aliases, this will exceed the maximum of {} aliases per user", restUser.getName(), newAliases.size(), maxNumberOfAliasAllowed);
@@ -205,24 +204,24 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             this.origListener = origListener;
             this.mapper = mapper;
             this.clusterService = clusterService;
-            IndexNameExpressionResolver resolver = new IndexNameExpressionResolver(Settings.EMPTY);
+            IndexNameExpressionResolver resolver = new IndexNameExpressionResolver();
             final ClusterState clusterState = clusterService.state();
             Set<String> aliasInActions = aliasActions.stream().flatMap(a -> Arrays.stream(a.aliases())).collect(Collectors.toSet());
             // If reqAlias contains a '*' (star) the name have to be resolved before we can continue.
             // If it is not resolved, the expression will be kept but the ES API will naturally reject it when executing the action.
             this.resolvedAliases = resolver.resolveExpressions(clusterState, aliasInActions.toArray(String[]::new));
             //preserving existing indices
-            existingAliases = resolvedAliases.stream().filter(clusterState.getMetaData()::hasAlias).collect(Collectors.toSet());
+            existingAliases = resolvedAliases.stream().filter(clusterState.getMetadata()::hasAlias).collect(Collectors.toSet());
         }
 
 
         @Override
         public void onResponse(Response response) {
-            SortedMap<String, AliasOrIndex> aliasMetadata = clusterService.state().getMetaData().getAliasAndIndexLookup();
+            SortedMap<String, IndexAbstraction> aliasMetadata = clusterService.state().getMetadata().getIndicesLookup();
             List<AliasOperation> aliasOperations = new ArrayList<>();
             for (String reqAlias : resolvedAliases) {
                 if (aliasMetadata.containsKey(reqAlias)) {
-                    final AliasOrIndex aliasOrIndex = aliasMetadata.get(reqAlias);
+                    final IndexAbstraction aliasOrIndex = aliasMetadata.get(reqAlias);
                     List<String> indices = aliasOrIndex.getIndices().stream().map(im -> im.getIndex().getName()).collect(Collectors.toList());
                     AliasOperation.Type type = existingAliases.contains(reqAlias) ? AliasOperation.Type.UPDATE : AliasOperation.Type.ADD;
                     AliasOperation addOrUpdateOperation = new AliasOperation(engineUser.getUsername(), reqAlias, type, indices);

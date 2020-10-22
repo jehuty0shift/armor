@@ -16,11 +16,12 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by jehuty0shift on 30/01/19.
@@ -29,7 +30,7 @@ public class FilterHelper {
 
     private static Logger log = LogManager.getLogger(FilterHelper.class);
 
-    public static void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
+    public static void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, IndexAbstraction> indicesAbstractionMap) {
 
         List<String> irIndices = ir.indices() == null? new ArrayList<>():Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
@@ -86,8 +87,8 @@ public class FilterHelper {
             }
         }
 
-        ci.addAll(getOnlyIndices(otherIndicesOrAliases, aliasesAndIndicesMap));
-        aliases.addAll(getOnlyAliases(otherIndicesOrAliases, aliasesAndIndicesMap));
+        ci.addAll(getOnlyIndices(otherIndicesOrAliases, indicesAbstractionMap));
+        aliases.addAll(getOnlyAliases(otherIndicesOrAliases, indicesAbstractionMap));
 
         if (!newIndices.isEmpty()) {
             log.debug("replacing indices " + irIndices + " by " + String.valueOf(newIndices));
@@ -106,68 +107,68 @@ public class FilterHelper {
     }
 
 
-    public static void replaceWildcardOrAllIndicesComposite(CompositeIndicesRequest cir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
+    public static void replaceWildcardOrAllIndicesComposite(CompositeIndicesRequest cir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, IndexAbstraction> indicesAbstractionMap) {
 
         if (cir instanceof IndexRequest) {
             IndexRequest ir = (IndexRequest) cir;
-            replaceWildcardOrAllIndices(ir, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+            replaceWildcardOrAllIndices(ir, rulesEntities, ci, aliases, indicesAbstractionMap);
         } else if (cir instanceof BulkRequest) {
             log.debug("composite is BulkRequest");
             BulkRequest br = (BulkRequest) cir;
             for (DocWriteRequest dwr : br.requests()) {
-                replaceWildcardOrAllIndices(dwr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+                replaceWildcardOrAllIndices(dwr, rulesEntities, ci, aliases, indicesAbstractionMap);
             }
         } else if (cir instanceof MultiSearchRequest) {
             MultiSearchRequest msr = (MultiSearchRequest) cir;
             log.debug("composite is MultiSearchRequest");
             for (SearchRequest sr : msr.requests()) {
-                replaceWildcardOrAllIndices(sr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+                replaceWildcardOrAllIndices(sr, rulesEntities, ci, aliases, indicesAbstractionMap);
             }
         } else if (cir instanceof ReindexRequest) {
             log.debug("composite is ReindexRequest");
             ReindexRequest rr = (ReindexRequest) cir;
             IndexRequest iR = rr.getDestination();
-            replaceWildcardOrAllIndices(iR, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+            replaceWildcardOrAllIndices(iR, rulesEntities, ci, aliases, indicesAbstractionMap);
 
             SearchRequest sr = rr.getSearchRequest();
-            replaceWildcardOrAllIndices(sr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+            replaceWildcardOrAllIndices(sr, rulesEntities, ci, aliases, indicesAbstractionMap);
         } else if (cir instanceof MultiTermVectorsRequest) {
             log.debug("composite is MultiTermVector");
             MultiTermVectorsRequest mtvr = (MultiTermVectorsRequest) cir;
             for (TermVectorsRequest tvr : mtvr.getRequests()) {
-                replaceWildcardOrAllIndices(tvr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+                replaceWildcardOrAllIndices(tvr, rulesEntities, ci, aliases, indicesAbstractionMap);
             }
         } else if (cir instanceof DeleteRequest) {
             log.debug("composite is DeleteRequest");
             DeleteRequest dr = (DeleteRequest) cir;
-            replaceWildcardOrAllIndices(dr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+            replaceWildcardOrAllIndices(dr, rulesEntities, ci, aliases, indicesAbstractionMap);
         } else if (cir instanceof UpdateByQueryRequest) {
             log.debug("composite is UpdateByQueryRequest");
             UpdateByQueryRequest ubqr = (UpdateByQueryRequest) cir;
-            replaceWildcardOrAllIndices(ubqr, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+            replaceWildcardOrAllIndices(ubqr, rulesEntities, ci, aliases, indicesAbstractionMap);
         } else if (cir instanceof MultiGetRequest) {
             log.debug("composite is MultiGetRequest");
             MultiGetRequest mgr = (MultiGetRequest) cir;
             for (MultiGetRequest.Item item : mgr.getItems()) {
-                replaceWildcardOrAllIndices(item, rulesEntities, ci, aliases, aliasesAndIndicesMap);
+                replaceWildcardOrAllIndices(item, rulesEntities, ci, aliases, indicesAbstractionMap);
             }
         }
 
 
     }
 
-    public static List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
+    public static List<String> getOnlyIndices(final Collection<String> indices, final Map<String, IndexAbstraction> indicesAbstractionMap) {
 
         final List<String> result = new ArrayList<String>();
 
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
+            final IndexAbstraction indexAbstraction = indicesAbstractionMap.get(index);
 
             //it doesn't exist or is a unhandled word* , we still add it as an index
-            if (indexAliases == null) {
+            if (indexAbstraction == null) {
                 result.add(index);
-            } else if (!indexAliases.isAlias()) {
+            } else if (!indexAbstraction.getType().equals(IndexAbstraction.Type.CONCRETE_INDEX)) {
                 result.add(index);
             }
         }
@@ -175,15 +176,15 @@ public class FilterHelper {
         return result;
     }
 
-    public static List<String> getOnlyAliases(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
+    public static List<String> getOnlyAliases(final Collection<String> indices, final Map<String, IndexAbstraction> indicesAbstractionMap) {
 
         final List<String> result = new ArrayList<String>();
 
         for (String index : indices) {
 
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
+            final IndexAbstraction indexAbstraction = indicesAbstractionMap.get(index);
 
-            if (indexAliases != null && indexAliases.isAlias()) {
+            if (indexAbstraction != null && indexAbstraction.getType().equals(IndexAbstraction.Type.ALIAS)) {
                 result.add(index);
             }
         }

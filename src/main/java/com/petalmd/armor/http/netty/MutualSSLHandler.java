@@ -26,7 +26,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 public class MutualSSLHandler extends SimpleChannelInboundHandler<Object> {
 
 
-    MutualSSLHandler(ThreadContext threadContext) {
+    MutualSSLHandler() {
         super();
     }
 

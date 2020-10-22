@@ -35,6 +35,8 @@ import org.elasticsearch.rest.*;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
@@ -51,9 +53,7 @@ public class ArmorInfoAction extends BaseRestHandler {
     @Inject
     public ArmorInfoAction(final Settings settings, RestController controller,
                            final ArmorConfigService armorConfigService) {
-        super(settings);
-        controller.registerHandler(GET, "/_armor", this);
-        controller.registerHandler(POST, "/_armor/local/maintenance", this);
+        super();
         this.armorConfigService = armorConfigService;
         this.settings = settings;
     }
@@ -62,6 +62,14 @@ public class ArmorInfoAction extends BaseRestHandler {
     public String getName() {
         return "armor_info_action";
     }
+
+    @Override
+    public List<Route> routes() {
+        return List.of(
+                new Route(GET, "/_armor"),
+                new Route(POST, "/_armor/local/maintenance"));
+    }
+
 
     @Override
     public RestChannelConsumer prepareRequest(final RestRequest request, NodeClient nodeClient) {
@@ -79,21 +87,21 @@ public class ArmorInfoAction extends BaseRestHandler {
 
 
     public void processGET(RestChannel restChannel, RestRequest request) throws IOException {
-        final boolean isLoopback = ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
+        final boolean isLoopback = request.getHttpChannel().getRemoteAddress().getAddress().isLoopbackAddress();
         final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
         BytesRestResponse response;
         final XContentBuilder builder = restChannel.newBuilder();
 
         boolean hasSecurityConf;
-            log.debug("retrieving Security Configuration...");
-            try {
-                final BytesReference securityConfig = armorConfigService.getSecurityConfiguration();
-                hasSecurityConf = securityConfig != null && securityConfig.length() > 0;
-            } catch (ElasticsearchException e) {
-                hasSecurityConf = false;
-            }
-            log.debug("retrieved Security Configuration.");
+        log.debug("retrieving Security Configuration...");
+        try {
+            final BytesReference securityConfig = armorConfigService.getSecurityConfiguration();
+            hasSecurityConf = securityConfig != null && securityConfig.length() > 0;
+        } catch (ElasticsearchException e) {
+            hasSecurityConf = false;
+        }
+        log.debug("retrieved Security Configuration.");
 
         try {
 
@@ -111,7 +119,7 @@ public class ArmorInfoAction extends BaseRestHandler {
                 response = new BytesRestResponse(RestStatus.GONE, builder);
             } else {
                 //should be available
-                if(hasSecurityConf) {
+                if (hasSecurityConf) {
                     response = new BytesRestResponse(RestStatus.OK, builder);
                 } else {
                     response = new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE, builder);
@@ -128,14 +136,14 @@ public class ArmorInfoAction extends BaseRestHandler {
 
     }
 
-    public void processPOST(RestChannel restChannel, RestRequest restRequest) throws IOException{
+    public void processPOST(RestChannel restChannel, RestRequest restRequest) throws IOException {
 
         BytesRestResponse response;
         final XContentBuilder builder = restChannel.newBuilder();
 
-        if(!restRequest.hasContent()) {
+        if (!restRequest.hasContent()) {
             builder.startObject();
-            builder.field("error","maintenance call needs a payload");
+            builder.field("error", "maintenance call needs a payload");
             builder.endObject();
 
             response = new BytesRestResponse(RestStatus.BAD_REQUEST, builder);
@@ -144,9 +152,9 @@ public class ArmorInfoAction extends BaseRestHandler {
         }
 
         XContentParser contentParser = restRequest.contentParser();
-        if(XContentParser.Token.START_OBJECT == contentParser.nextToken()) {
+        if (XContentParser.Token.START_OBJECT == contentParser.nextToken()) {
             while (XContentParser.Token.END_OBJECT != contentParser.nextToken()) {
-                if(XContentParser.Token.FIELD_NAME == contentParser.currentToken()) {
+                if (XContentParser.Token.FIELD_NAME == contentParser.currentToken()) {
                     String currentFieldName = contentParser.currentName();
                     if ("maintenance_enabled".equals(currentFieldName)) {
                         if (XContentParser.Token.VALUE_BOOLEAN == contentParser.nextToken()) {
@@ -164,7 +172,7 @@ public class ArmorInfoAction extends BaseRestHandler {
         }
 
         builder.startObject();
-        builder.field("error","the content is not right (expected field 'maintenance_enabled'");
+        builder.field("error", "the content is not right (expected field 'maintenance_enabled'");
         builder.endObject();
         response = new BytesRestResponse(RestStatus.BAD_REQUEST, builder);
 

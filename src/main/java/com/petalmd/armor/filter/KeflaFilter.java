@@ -19,7 +19,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
@@ -92,17 +92,19 @@ public class KeflaFilter extends AbstractActionFilter {
         // retrieve filter from aliases
         Set<String> streamIds = new HashSet<>();
         boolean noFilter = true;
-        SortedMap<String, AliasOrIndex> aliasMap = clusterService.state().metaData().getAliasAndIndexLookup();
+        SortedMap<String, IndexAbstraction> aliasMap = clusterService.state().metadata().getIndicesLookup();
         for (String alias : aliases) {
-            AliasOrIndex alOrInd = aliasMap.get(alias);
+            IndexAbstraction alOrInd = aliasMap.get(alias);
             if (alOrInd == null) {
                 log.warn("this alias {} is null, maybe it has been deleted", alias);
                 continue;
             }
-            CompressedXContent filter = alOrInd.getIndices().get(0).getAliases().get(alias).filter();
-            if (filter != null) {
-                noFilter = false;
-                streamIds.addAll(KeflaUtils.streamFromFilters(filter));
+            if (alOrInd.getType().equals(IndexAbstraction.Type.ALIAS)) {
+                CompressedXContent filter = alOrInd.getIndices().get(0).getAliases().get(alias).filter();
+                if (filter != null) {
+                    noFilter = false;
+                    streamIds.addAll(KeflaUtils.streamFromFilters(filter));
+                }
             }
         }
 

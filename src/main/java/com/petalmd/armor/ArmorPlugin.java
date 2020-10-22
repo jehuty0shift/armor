@@ -48,6 +48,7 @@ import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -70,10 +71,13 @@ import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.IngestPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestHeaderDefinition;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
@@ -82,6 +86,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 //TODO FUTURE store users/roles also in elasticsearch armor index
 //TODO FUTURE Multi authenticator/authorizator
@@ -92,13 +98,12 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     private static final String ARMOR_DEBUG = "armor.debug";
     private static final String CLIENT_TYPE = "client.type";
-    private static final String HTTP_TYPE = "http.type";
-    private static final String TRANSPORT_TYPE = "transport.type";
 
     private static final Logger log = LogManager.getLogger(ArmorPlugin.class);
     private final boolean isPureClient;
     private final boolean enabled;
     private final Settings settings;
+    private final SetOnce<SharedGroupFactory> groupFactory = new SetOnce<>();
 
     private ArmorService armorService;
     private IngestService ingestService;
@@ -132,7 +137,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     }
 
     @Override
-    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry) {
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
 
         List<Object> componentsList = new ArrayList<Object>();
 
@@ -303,17 +308,16 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
 
     @Override
-    public Collection<String> getRestHeaders() {
+    public Collection<RestHeaderDefinition> getRestHeaders() {
         if (!enabled) {
             return Collections.emptyList();
         } else {
-            List<String> headerList = new ArrayList<String>();
-            headerList.add(ArmorConstants.ARMOR_AUTHENTICATED_USER);
-            headerList.add(ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST);
-            headerList.add(ArmorConstants.ARMOR_TRANSPORT_CREDS);
-            headerList.add("DeleteByQueryHeader");
-
-            return headerList;
+            return Stream.of(ArmorConstants.ARMOR_AUTHENTICATED_USER,
+                    ArmorConstants.ARMOR_AUTHENTICATED_TRANSPORT_REQUEST,
+                    ArmorConstants.ARMOR_TRANSPORT_CREDS,
+                    "DeleteByQueryHeader")
+                    .map(s -> new RestHeaderDefinition(s,false))
+                    .collect(Collectors.toList());
 
         }
     }
@@ -505,14 +509,28 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
 
     @Override
-    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NamedXContentRegistry xContentRegistry, NetworkService networkService, HttpServerTransport.Dispatcher dispatcher) {
-        return Collections.singletonMap("armor_ssl_netty4", () -> new SSLNettyHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher));
+    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry, NetworkService networkService, HttpServerTransport.Dispatcher dispatcher, ClusterSettings clusterSettings) {
+        return Collections.singletonMap("armor_ssl_netty4", () -> new SSLNettyHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher, clusterSettings, getSharedGroupFactory(settings)));
     }
 
 
     @Override
-    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService));
+    public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler,
+                                                          CircuitBreakerService circuitBreakerService,
+                                                          NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
+        return Collections.emptyMap();
+        //return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService));
+    }
+
+    private SharedGroupFactory getSharedGroupFactory(Settings settings) {
+        SharedGroupFactory groupFactory = this.groupFactory.get();
+        if (groupFactory != null) {
+            assert groupFactory.getSettings().equals(settings) : "Different settings than originally provided";
+            return groupFactory;
+        } else {
+            this.groupFactory.set(new SharedGroupFactory(settings));
+            return this.groupFactory.get();
+        }
     }
 
     @Override

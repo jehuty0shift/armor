@@ -50,7 +50,7 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, false);
         allowedSettings = settings.getAsList(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED);
         log.info("IndicesUpdateSettingsFilter is " + (enabled ? "enabled" : "disabled"));
-        log.debug("allowed Settings are {}",allowedSettings.toString());
+        log.debug("allowed Settings are {}", allowedSettings.toString());
     }
 
     @Override
@@ -97,7 +97,7 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
         UpdateSettingsRequest uSRequest = (UpdateSettingsRequest) request;
         try {
 
-            CustomUpdateSettingsRequest cUSR = new CustomUpdateSettingsRequest(uSRequest);
+            CustomUpdateSettingsRequest cUSR = CustomUpdateSettingsRequest.buildCustomUpdateSettingsRequest(uSRequest);
             Settings oldSettings = cUSR.settings();
             Settings.Builder newSettingsBuilder = Settings.builder();
 
@@ -130,17 +130,21 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
         private Settings settings = Settings.Builder.EMPTY_SETTINGS;
         private String[] indices;
 
-        CustomUpdateSettingsRequest(UpdateSettingsRequest usr) throws IOException {
+        CustomUpdateSettingsRequest(StreamInput in) throws IOException {
+            super(in);
+            readFrom(in);
+        }
+
+        public static CustomUpdateSettingsRequest buildCustomUpdateSettingsRequest(final UpdateSettingsRequest usr) throws IOException {
             BytesStreamOutput bSO = new BytesStreamOutput();
             try {
                 usr.writeTo(bSO);
-
-                readFrom(StreamInput.wrap(bSO.bytes().toBytesRef().bytes));
-
+                return new CustomUpdateSettingsRequest(StreamInput.wrap(bSO.bytes().toBytesRef().bytes));
             } catch (IOException ex) {
                 log.error("I/O Exception during CustomUpdateSettings Creation");
                 throw ex;
             }
+
         }
 
         @Override
@@ -172,9 +176,7 @@ public class IndicesUpdateSettingsFilter extends AbstractActionFilter {
             return this;
         }
 
-        @Override
         public void readFrom(StreamInput in) throws IOException {
-            super.readFrom(in);
             indices = in.readStringArray();
             indicesOptions = IndicesOptions.readIndicesOptions(in);
             settings = readSettingsFromStream(in);

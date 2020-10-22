@@ -5,7 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 
 import java.io.IOException;
@@ -27,18 +27,18 @@ public class KeflaGetMappingsResponse implements KeflaResponse {
         Map<String, Map<String, KeflaRestType>> allowedIndexMap = KeflaUtils.streamIndexMapToIndexMap(streamIndexFieldsMap);
         log.debug("streamIndexMap has been flatten for {} indices", allowedIndexMap.size());
 
-        ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings = response.getMappings();
-        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> kGmrBuilder = ImmutableOpenMap.builder(mappings.size());
+        ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetadata>> mappings = response.getMappings();
+        ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetadata>> kGmrBuilder = ImmutableOpenMap.builder(mappings.size());
 
         //Iter over { "index : { "type" :  { "properties : {...} }
-        for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indMappCursor : mappings) {
+        for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetadata>> indMappCursor : mappings) {
             String index = indMappCursor.key;
             if (allowedIndexMap.containsKey(index)) {
                 log.trace("adding mapping for index {}", index);
-                ImmutableOpenMap.Builder<String, MappingMetaData> newTypesMapping = ImmutableOpenMap.builder(indMappCursor.value.size());
+                ImmutableOpenMap.Builder<String, MappingMetadata> newTypesMapping = ImmutableOpenMap.builder(indMappCursor.value.size());
                 //Iter over { "type" :  { "properties : {...} }
-                for (ObjectObjectCursor<String, MappingMetaData> mappCursor : indMappCursor.value) {
-                    MappingMetaData typeMapping = mappCursor.value;
+                for (ObjectObjectCursor<String, MappingMetadata> mappCursor : indMappCursor.value) {
+                    MappingMetadata typeMapping = mappCursor.value;
                     Map<String, Object> propertiesMap = (Map<String, Object>) typeMapping.sourceAsMap().get("properties");
                     Map<String, KeflaRestType> allowedMapping = allowedIndexMap.get(index);
                     Map<String, Object> filteredTypeMapping = new HashMap<>();
@@ -52,7 +52,7 @@ public class KeflaGetMappingsResponse implements KeflaResponse {
                             filteredTypeMapping.put(propField.getKey(), propField.getValue());
                         }
                     }
-                    newTypesMapping.put(mappCursor.key, new MappingMetaData(mappCursor.key, newPropertiesMap));
+                    newTypesMapping.put(mappCursor.key, new MappingMetadata(mappCursor.key, newPropertiesMap));
                 }
                 //add the newMapping for Index
                 kGmrBuilder.put(index, newTypesMapping.build());

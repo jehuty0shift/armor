@@ -28,12 +28,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpHandlingSettings;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.SharedGroupFactory;
 
 import javax.net.ssl.*;
 import java.io.File;
@@ -47,25 +51,16 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
     private static Logger log = LogManager.getLogger(SSLNettyHttpServerTransport.class);
 
     @Inject
-    public SSLNettyHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher) {
-        super(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher);
+    public SSLNettyHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory){
+        super(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
         this.settings = settings;
     }
 
     @Override
     public ChannelHandler configureServerChannelHandler() {
-        return new SSLHttpChannelHandler(this, this.settings, this.detailedErrorsEnabled, threadPool);
+        return new SSLHttpChannelHandler(this, this.handlingSettings, this.settings, threadPool);
     }
 
-    @Override
-    protected void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (this.lifecycle.started()) {
-            log.error("Unexpected error with ArmorSSLNettyHttpServer ", cause);
-            ctx.channel().close();
-            return;
-        }
-        super.exceptionCaught(ctx, cause);
-    }
 
     protected static class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
@@ -81,9 +76,8 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
         private final String truststorePassword;
         private final ThreadContext threadContext;
 
-        public SSLHttpChannelHandler(final Netty4HttpServerTransport transport, final Settings settings,
-                                     final boolean detailedErrorsEnabled, final ThreadPool threadpool) {
-            super(transport, detailedErrorsEnabled, threadpool.getThreadContext());
+        public SSLHttpChannelHandler(Netty4HttpServerTransport transport, HttpHandlingSettings handlingSettings, Settings settings, ThreadPool threadpool) {
+            super(transport,handlingSettings);
             keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_TYPE, "JKS");
             keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_FILEPATH, null);
             keystorePassword = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_HTTP_KEYSTORE_PASSWORD, "changeit");
@@ -142,7 +136,7 @@ public class SSLNettyHttpServerTransport extends Netty4HttpServerTransport {
             ch.pipeline().addFirst("ssl_http", sslHandler);
             if (enforceClientAuth) {
 
-                ch.pipeline().addBefore("handler", "mutual_ssl", new MutualSSLHandler(threadContext));
+                ch.pipeline().addBefore("handler", "mutual_ssl", new MutualSSLHandler());
                 log.debug("Enforce client auth enabled");
             }
 

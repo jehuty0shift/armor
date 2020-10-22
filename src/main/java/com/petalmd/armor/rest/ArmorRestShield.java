@@ -85,7 +85,7 @@ public class ArmorRestShield {
     private boolean requestIsAuthorized(final RestRequest request, final RestChannel channel, NodeClient client) throws Exception {
 
         final boolean isLoopback = allowAllFromLoopback
-                && ((InetSocketAddress) request.getRemoteAddress()).getAddress().isLoopbackAddress();
+                && request.getHttpChannel().getRemoteAddress().getAddress().isLoopbackAddress();
 
         log.debug("--> Rest request {} {} (loopback?: {})", request.method(), request.path(), isLoopback);
         //log.trace("Context: {}", request.getContext());

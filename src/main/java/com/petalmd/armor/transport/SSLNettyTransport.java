@@ -16,6 +16,7 @@ import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.transport.TcpChannel;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 
@@ -46,10 +47,10 @@ public class SSLNettyTransport extends Netty4Transport {
 
     private static final Logger log = LogManager.getLogger(SSLNettyTransport.class);
     
-    public SSLNettyTransport(final Settings settings, final ThreadPool threadPool,
-                             final NetworkService networkService, final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
-                             final CircuitBreakerService circuitBreakerService) {
-        super(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService);
+    public SSLNettyTransport(Settings settings, Version version, ThreadPool threadPool, NetworkService networkService,
+                             PageCacheRecycler pageCacheRecycler, NamedWriteableRegistry namedWriteableRegistry,
+                             CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory) {
+        super(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
         enforceClientAuth = settings.getAsBoolean(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_CLIENTAUTH, false);
         keystoreType = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_TYPE, "JKS");
         keystoreFilePath = settings.get(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH, null);

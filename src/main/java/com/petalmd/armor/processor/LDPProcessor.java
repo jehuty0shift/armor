@@ -13,7 +13,10 @@ import org.elasticsearch.ingest.Processor;
 import org.joda.time.DateTime;
 
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 public class LDPProcessor extends AbstractProcessor {
 
@@ -26,8 +29,8 @@ public class LDPProcessor extends AbstractProcessor {
     private final KafkaOutput kafkaOutput;
     private final String ldpIndex;
 
-    public LDPProcessor(final String tag, final boolean dropMessage, final boolean generated, final KafkaOutput kafkaOutput, final String ldpIndex) {
-        super(tag);
+    public LDPProcessor(final String tag, final String description, final boolean dropMessage, final boolean generated, final KafkaOutput kafkaOutput, final String ldpIndex) {
+        super(tag,description);
         this.kafkaOutput = kafkaOutput;
         this.dropMessage = dropMessage;
         this.generated = generated;
@@ -40,16 +43,16 @@ public class LDPProcessor extends AbstractProcessor {
             return null;
         }
         //If ldp processor has been automatically generated and does not target ldpIndex, we quit.
-        if (generated && !ingestDocument.getSourceAndMetadata().get(IngestDocument.MetaData.INDEX.getFieldName()).equals(ldpIndex)) {
+        if (generated && !ingestDocument.getSourceAndMetadata().get(IngestDocument.Metadata.INDEX.getFieldName()).equals(ldpIndex)) {
             return ingestDocument;
         }
 
         LDPGelf ldpGelf = new LDPGelf();
         for (Map.Entry<String, Object> ingestField : ingestDocument.getSourceAndMetadata().entrySet()) {
             final String fieldKey = ingestField.getKey();
-            if (fieldKey.equals(IngestDocument.MetaData.INDEX.getFieldName()) ||
-                    fieldKey.equals(IngestDocument.MetaData.TYPE.getFieldName()) ||
-                    fieldKey.equals(IngestDocument.MetaData.ID.getFieldName()) ||
+            if (fieldKey.equals(IngestDocument.Metadata.INDEX.getFieldName()) ||
+                    fieldKey.equals(IngestDocument.Metadata.TYPE.getFieldName()) ||
+                    fieldKey.equals(IngestDocument.Metadata.ID.getFieldName()) ||
                     fieldKey.equals("_version_type") ||
                     fieldKey.equals("_version")) {
                 continue;
@@ -213,7 +216,7 @@ public class LDPProcessor extends AbstractProcessor {
 
 
         @Override
-        public LDPProcessor create(Map<String, Processor.Factory> registry, String processorTag,
+        public LDPProcessor create(Map<String, Processor.Factory> registry, String processorTag, String description,
                                    Map<String, Object> config) {
 
             final boolean dropMessage = ConfigurationUtils.readBooleanProperty(TYPE, processorTag, config, DROP_MESSAGE_OPTION, true);
@@ -221,7 +224,7 @@ public class LDPProcessor extends AbstractProcessor {
             final KafkaOutput kOutput = kafkaOutputFactory.getKafkaOutput();
             kOutput.initialize();
 
-            return new LDPProcessor(processorTag, dropMessage, generated, kOutput, ldpIndex);
+            return new LDPProcessor(processorTag, description, dropMessage, generated, kOutput, ldpIndex);
         }
 
     }

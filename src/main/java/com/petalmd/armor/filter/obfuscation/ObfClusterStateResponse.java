@@ -4,7 +4,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlocks;
-import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -19,7 +19,7 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
     public ObfClusterStateResponse(final ClusterStateResponse cStateResponse, final Settings settings, final ThreadContext threadContext) {
 
-        super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()), cStateResponse.getTotalCompressedSize().getBytes(), cStateResponse.isWaitForTimedOut());
+        super(cStateResponse.getClusterName(), obfuscateClusterState(cStateResponse.getState()), cStateResponse.isWaitForTimedOut());
     }
 
 
@@ -29,7 +29,7 @@ public class ObfClusterStateResponse extends ClusterStateResponse implements Obf
 
         String obfStateUUID = state.stateUUID();
 
-        MetaData obfMetaData = MetaData.EMPTY_META_DATA;
+        Metadata obfMetaData = Metadata.EMPTY_METADATA;
 
         RoutingTable obfRTable = new RoutingTable.Builder().build();
 

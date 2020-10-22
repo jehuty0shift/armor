@@ -20,25 +20,29 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.node.DiscoveryNodeRole;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.ingest.IngestInfo;
 import org.elasticsearch.plugins.PluginInfo;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * @author jehuty0shift
  * Created by jehuty0shift on 10/03/17.
  */
-public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfResponse{
+public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfResponse {
 
 
     public ObfNodesInfoResponse(final NodesInfoResponse response, final Settings settings, final ThreadContext threadContext) {
-        super(response.getClusterName(), response.getNodes(),response.failures());
+        super(response.getClusterName(), response.getNodes(), response.failures());
     }
 
     private String getPrivateIP(int index) {
@@ -48,7 +52,7 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
             subNet1 = index / 255;
         }
         int subNet2 = (index % 255) + (subNet1 / 255);
-        if (subNet2 > 255){
+        if (subNet2 > 255) {
             subNet2 = subNet2 - 255;
             subNet1++;
         }
@@ -73,20 +77,24 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
             builder.field("ip", obfPrivateIP);
 
             builder.field("version", Version.CURRENT.toString());
-            builder.field("build", Version.CURRENT.build);
+            builder.field("build_flavor", nodeInfo.getBuild().flavor().displayName());
+            builder.field("build_type", nodeInfo.getBuild().type().displayName());
+            builder.field("build_hash", nodeInfo.getBuild().hash());
             if (nodeInfo.getTotalIndexingBuffer() != null) {
                 builder.humanReadableField("total_indexing_buffer", "total_indexing_buffer_in_bytes", nodeInfo.getTotalIndexingBuffer());
             }
 
             builder.startArray("roles");
-            for (DiscoveryNode.Role role : nodeInfo.getNode().getRoles()) {
-                builder.value(role.getRoleName());
+            for (DiscoveryNodeRole role : nodeInfo.getNode().getRoles()) {
+                builder.value(role.roleName());
             }
             builder.endArray();
 
             if (!nodeInfo.getNode().getAttributes().isEmpty()) {
                 builder.startObject("attributes");
-                builder.field("master", nodeInfo.getNode().getAttributes().get("master"));
+                for (Map.Entry<String, String> entry : nodeInfo.getNode().getAttributes().entrySet()) {
+                    builder.field(entry.getKey(), entry.getValue());
+                }
                 builder.endObject();
             }
 
@@ -103,28 +111,16 @@ public class ObfNodesInfoResponse extends NodesInfoResponse implements ObfRespon
             }
 
             builder.startObject("http");
-            builder.array("bound_address","[::]:9250");
-            builder.field("publish_address",obfPrivateIP + ":9200");
-            builder.field("max_content_length_in_bytes",104857600);
+            builder.array("bound_address", "[::]:9250");
+            builder.field("publish_address", obfPrivateIP + ":9200");
+            builder.field("max_content_length_in_bytes", 104857600);
             builder.endObject();
 
-            if (nodeInfo.getPlugins() != null) {
-                builder.startArray("plugins");
-                for (PluginInfo pluginInfo : nodeInfo.getPlugins().getPluginInfos()) {
-                    if (pluginInfo.getName().equals("delete-by-query")) {
-                        pluginInfo.toXContent(builder, params);
-                    }
-                }
-                builder.endArray();
-                builder.startArray("modules");
-                for (PluginInfo moduleInfo : nodeInfo.getPlugins().getModuleInfos()) {
-                    moduleInfo.toXContent(builder, params);
-                }
-                builder.endArray();
+            if (nodeInfo.getInfo(PluginsAndModules.class) != null) {
+                nodeInfo.getInfo(PluginsAndModules.class).toXContent(builder, params);
             }
-
-            if (nodeInfo.getIngest() != null) {
-                nodeInfo.getIngest().toXContent(builder, params);
+            if (nodeInfo.getInfo(IngestInfo.class) != null) {
+                nodeInfo.getInfo(IngestInfo.class).toXContent(builder, params);
             }
 
             builder.endObject();

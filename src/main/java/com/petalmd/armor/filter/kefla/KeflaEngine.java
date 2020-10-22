@@ -3,11 +3,12 @@ package com.petalmd.armor.filter.kefla;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.petalmd.armor.util.ConfigConstants;
 import kong.unirest.*;
+import kong.unirest.jackson.JacksonObjectMapper;
 import kong.unirest.json.JSONException;
 import kong.unirest.json.JSONObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
@@ -90,7 +91,7 @@ public class KeflaEngine extends AbstractLifecycleComponent {
 
 
     private void retrieveFieldsFromStream(List<String> strIdsToRet) {
-        if(!strIdsToRet.isEmpty()) {
+        if (!strIdsToRet.isEmpty()) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 HttpRequestWithBody httpReq = Unirest.post(graylogApiEndpoint + "/plugins/com.ovh.graylog/mapping/fields");
                 FieldsRequest fReq = new FieldsRequest();
@@ -130,10 +131,10 @@ public class KeflaEngine extends AbstractLifecycleComponent {
         String[] defaultSplit = currentDefaultIndex.split("_");
         int max = Integer.parseInt(defaultSplit[defaultSplit.length - 1]);
         String indexMax = currentDefaultIndex;
-        for (IndexMetaData iMetadata : clusterService.state().metaData()) {
+        for (IndexMetadata iMetadata : clusterService.state().getMetadata()) {
             if (iMetadata.getIndex().getName().startsWith("graylog2_")) {
                 String indexName = iMetadata.getIndex().getName();
-                log.trace("checking if index {} is greater than {}",indexName, indexMax);
+                log.trace("checking if index {} is greater than {}", indexName, indexMax);
                 if (Integer.parseInt(indexName.substring(9)) > max) {
                     indexMax = indexName;
                 }

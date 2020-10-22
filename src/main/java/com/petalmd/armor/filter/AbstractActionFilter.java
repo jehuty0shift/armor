@@ -44,7 +44,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -212,11 +212,9 @@ public abstract class AbstractActionFilter implements ActionFilter {
 
         final SearchRequest searchRequest = new SearchRequest();
         searchRequest.routing(request.routing());
-        //searchRequest.copyContextFrom(request);
         searchRequest.preference(request.preference());
         searchRequest.indices(request.indices());
-        searchRequest.types(request.type());
-        searchRequest.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().types(request.type()).addIds(request.id())));
+        searchRequest.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().addIds(request.id())));
         return searchRequest;
 
     }
@@ -224,7 +222,6 @@ public abstract class AbstractActionFilter implements ActionFilter {
     protected MultiSearchRequest toMultiSearchRequest(final MultiGetRequest multiGetRequest) {
 
         final MultiSearchRequest msearch = new MultiSearchRequest();
-        //msearch.copyContextFrom(multiGetRequest);
 
         for (final Iterator<Item> iterator = multiGetRequest.iterator(); iterator.hasNext(); ) {
             final Item item = iterator.next();
@@ -232,7 +229,6 @@ public abstract class AbstractActionFilter implements ActionFilter {
             final SearchRequest st = new SearchRequest();
             st.routing(item.routing());
             st.indices(item.indices());
-            st.types(item.type());
             st.preference(multiGetRequest.preference());
             st.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().types(item.type()).addIds(item.id())));
             msearch.add(st);
@@ -257,12 +253,12 @@ public abstract class AbstractActionFilter implements ActionFilter {
         @Override
         public void onResponse(final Response response) {
             if (response instanceof SearchResponse) {
-                SearchResponse searchResponse = new SearchResponse();
-                if (searchResponse.getHits().getTotalHits() > 1) {
+                SearchResponse searchResponse = (SearchResponse) response;
+                if (searchResponse.getHits().getTotalHits().value > 1) {
                     privListener.onFailure(new ElasticsearchException("An unexpected failure has happened during get"));
                 } else {
                     final SearchHit sh = searchResponse.getHits().getHits()[0];
-                    privListener.onResponse(new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), 1,0,sh.getVersion(), true, sh.getSourceRef(), sh.getFields())));
+                    privListener.onResponse(new GetResponse(new GetResult(sh.getIndex(), sh.getType(), sh.getId(), 1, 0, sh.getVersion(), true, sh.getSourceRef(), sh.getFields(), Collections.emptyMap())));
                 }
             }
         }
@@ -297,7 +293,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
                     MultiGetItemResponse itemResponse = new MultiGetItemResponse(new GetResponse(new GetResult(sh.getIndex(),
                             sh.getType(),
                             sh.getId(),
-                            1, 0, sh.getVersion(), true, sh.getSourceRef(), sh.getFields())), null);
+                            1, 0, sh.getVersion(), true, sh.getSourceRef(), sh.getFields(), Collections.emptyMap())), null);
                     mGetItemResponseList.add(itemResponse);
                 }
 
@@ -318,7 +314,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
         final List<String> aliases = new ArrayList<String>();
         final List<String> types = new ArrayList<String>();
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
-        final SortedMap<String, AliasOrIndex> aliasesAndIndexMap = clusterService.state().metaData().getAliasAndIndexLookup();
+        final SortedMap<String, IndexAbstraction> aliasesAndIndexMap = clusterService.state().metadata().getIndicesLookup();
 
 
         final boolean allowedForAllIndices = !SecurityUtil.isWildcardMatch(action, "*put*", false)
@@ -336,8 +332,8 @@ public abstract class AbstractActionFilter implements ActionFilter {
             log.trace("Indices opts expandWildcardsOpen {}", ir.indicesOptions().expandWildcardsOpen());
 
             try {
-                ci.addAll(getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndexMap));
-                aliases.addAll(getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndexMap));
+                ci.addAll(FilterHelper.getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndexMap));
+                aliases.addAll(FilterHelper.getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndexMap));
             } catch (java.lang.NullPointerException e) {
             }
 
@@ -354,12 +350,12 @@ public abstract class AbstractActionFilter implements ActionFilter {
         if (request instanceof CompositeIndicesRequest) {
             final RequestItemDetails cirDetails = RequestItemDetails.fromCompositeIndicesRequest((CompositeIndicesRequest) request);
             log.trace("Indices {}", cirDetails.getIndices().toString());
-            ci.addAll(getOnlyIndices(cirDetails.getIndices(), aliasesAndIndexMap));
-            aliases.addAll(getOnlyAliases(cirDetails.getIndices(), aliasesAndIndexMap));
+            ci.addAll(FilterHelper.getOnlyIndices(cirDetails.getIndices(), aliasesAndIndexMap));
+            aliases.addAll(FilterHelper.getOnlyAliases(cirDetails.getIndices(), aliasesAndIndexMap));
 
             if (!allowedForAllIndices && (cirDetails.getIndices() == null || Arrays.asList(cirDetails.getIndices()).contains("_all") || cirDetails.getIndices().size() == 0)) {
                 log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                threadContext.putTransient(AuditListener.AUDIT_ITEMS,new ArrayList<>(cirDetails.getIndices()));
+                threadContext.putTransient(AuditListener.AUDIT_ITEMS, new ArrayList<>(cirDetails.getIndices()));
                 auditListener.onMissingPrivileges(user == null ? "unknown" : user.getName(), request, threadContext);
                 throw new ForbiddenException("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
             }
@@ -391,17 +387,16 @@ public abstract class AbstractActionFilter implements ActionFilter {
         if (resolvedAddress == null) {
             //not a rest request
             log.debug("Not a rest request, will ignore host rules");
-
         }
 
         try {
-            boolean indicesLikeAliases = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_INDICES_LIKE_ALIASES,true);
+            boolean indicesLikeAliases = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_INDICES_LIKE_ALIASES, true);
             final Evaluator eval = evaluator.getEvaluator(ci, aliases, types, resolvedAddress, user, indicesLikeAliases);
             if (threadContext.getTransient(ArmorConstants.ARMOR_AC_EVALUATOR) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_AC_EVALUATOR, eval);
             }
             //put aliases for Kefla Filter
-            if(threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
+            if (threadContext.getTransient(ArmorConstants.ARMOR_KEFLA_ALIASES) == null) {
                 threadContext.putTransient(ArmorConstants.ARMOR_KEFLA_ALIASES, aliases);
             }
             return eval;
@@ -411,42 +406,6 @@ public abstract class AbstractActionFilter implements ActionFilter {
         }
     }
 
-    protected List<String> getOnlyIndices(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
-
-        final List<String> result = new ArrayList<String>();
-
-        for (String index : indices) {
-
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
-
-            if (indexAliases == null) {
-                result.add(index);
-            }
-            if (indexAliases != null && !indexAliases.isAlias()) {
-                result.add(index);
-            }
-        }
-
-        return result;
-
-    }
-
-    protected List<String> getOnlyAliases(final Collection<String> indices, final Map<String, AliasOrIndex> aliasesAndIndicesMap) {
-
-        final List<String> result = new ArrayList<String>();
-
-        for (String index : indices) {
-
-            final AliasOrIndex indexAliases = aliasesAndIndicesMap.get(index);
-
-            if (indexAliases != null && indexAliases.isAlias()) {
-                result.add(index);
-            }
-        }
-
-        return result;
-
-    }
 
     protected void addType(final IndicesRequest request, final List<String> typesl, final String action) {
 

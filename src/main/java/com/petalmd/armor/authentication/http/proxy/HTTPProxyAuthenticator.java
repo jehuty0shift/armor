@@ -55,7 +55,7 @@ public class HTTPProxyAuthenticator implements HTTPAuthenticator {
                 ConfigConstants.ARMOR_AUTHENTICATION_PROXY_TRUSTED_IPS);
 
         if (!trustedSourceIps.contains("*")
-                && !trustedSourceIps.contains(((InetSocketAddress) request.getRemoteAddress()).getAddress().getHostAddress())) {
+                && !trustedSourceIps.contains(request.getHttpChannel().getRemoteAddress().getAddress().getHostAddress())) {
             throw new AuthException("source ip not trusted");
         }
 

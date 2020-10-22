@@ -399,7 +399,7 @@ public class SecurityUtil {
 
         log.debug(request.getClass().toString());
 
-        final String oaddr = ((InetSocketAddress) request.getRemoteAddress()).getHostString();
+        final String oaddr = request.getHttpChannel().getRemoteAddress().getHostString();
         log.debug("original hostname: " + oaddr);
 
         String raddr = oaddr;

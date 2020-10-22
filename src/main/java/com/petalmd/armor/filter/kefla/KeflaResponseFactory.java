@@ -28,7 +28,6 @@ public class KeflaResponseFactory {
     }
 
     public ActionResponse getResponse(final String action, final ActionResponse orig, Map<String, Map<String, Map<String, KeflaRestType>>> strIndFieldMap) {
-
         Class resp = hubMap.get(action);
         try {
 
@@ -40,8 +39,6 @@ public class KeflaResponseFactory {
             log.error("Could not create Kefla response", e);
             return null;
         }
-
-
     }
 
 }

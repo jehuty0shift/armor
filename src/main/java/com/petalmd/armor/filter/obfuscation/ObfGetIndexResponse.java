@@ -23,13 +23,13 @@ import com.petalmd.armor.tokeneval.RulesEntities;
 import com.petalmd.armor.tokeneval.TokenEvaluator;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
-import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -52,22 +52,20 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 
     protected static final Logger log = LogManager.getLogger(ObfGetIndexResponse.class);
     final private String[] indices;
-    final private ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappings;
-    final private ImmutableOpenMap<String, List<AliasMetaData>> aliases;
+    final private ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetadata>> mappings;
+    final private ImmutableOpenMap<String, List<AliasMetadata>> aliases;
     final private ImmutableOpenMap<String, Settings> settings;
     final private ImmutableOpenMap<String, Settings> defaultSettings;
-    final private GetIndexResponse response;
 
     static private final String ITEMS_TO_OBFUSCATE = "armor.obfuscation.filter.getindexresponse.remove";
 
     public ObfGetIndexResponse(final GetIndexResponse response, final Settings armorSettings, final ThreadContext threadContext) {
-        this.response = response;
 
         User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
         TokenEvaluator evaluator = threadContext.getTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR);
 
         RulesEntities entities = null;
-        if(evaluator != null) {
+        if (evaluator != null) {
             try {
                 entities = evaluator.findEntitiesForUser(user);
             } catch (MalformedConfigurationException ex) {
@@ -140,12 +138,12 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
         }
         //Aliases can be obfuscated
         if (!obfuscateAllAliases) {
-            ImmutableOpenMap.Builder<String, List<AliasMetaData>> aliasesObfuscated = ImmutableOpenMap.builder();
-            Iterator<ObjectObjectCursor<String, List<AliasMetaData>>> aliasesIt = response.aliases().iterator();
+            ImmutableOpenMap.Builder<String, List<AliasMetadata>> aliasesObfuscated = ImmutableOpenMap.builder();
+            Iterator<ObjectObjectCursor<String, List<AliasMetadata>>> aliasesIt = response.aliases().iterator();
             while (aliasesIt.hasNext()) {
-                ObjectObjectCursor<String, List<AliasMetaData>> indexAliases = aliasesIt.next();
-                List<AliasMetaData> aliasesListObfuscated = new ArrayList<>();
-                for (AliasMetaData aliasMetaData : indexAliases.value) {
+                ObjectObjectCursor<String, List<AliasMetadata>> indexAliases = aliasesIt.next();
+                List<AliasMetadata> aliasesListObfuscated = new ArrayList<>();
+                for (AliasMetadata aliasMetaData : indexAliases.value) {
                     boolean canAdd = true;
                     for (String aliasToObf : aliasesToObfuscate) {
                         if (SecurityUtil.isWildcardMatch(aliasMetaData.alias(), aliasToObf, false)) {
@@ -159,14 +157,14 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                         entitiesAllowed.addAll(entities.getAliases());
                         entitiesAllowed.addAll(entities.getIndices());
                         for (String aliasAllowed : entitiesAllowed) {
-                            if(SecurityUtil.isWildcardMatch(aliasMetaData.alias(),aliasAllowed,false)) {
+                            if (SecurityUtil.isWildcardMatch(aliasMetaData.alias(), aliasAllowed, false)) {
                                 canAddSub = true;
                                 break;
                             }
                         }
                         canAdd = canAddSub;
                     }
-                    if(canAdd) {
+                    if (canAdd) {
                         aliasesListObfuscated.add(aliasMetaData);
                     }
                 }
@@ -180,16 +178,16 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 
         //Mappings can be obfuscated
         if (!obfuscateAllIndices && !obfuscateAllMappings) {
-            ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetaData>> mappingsObfuscated = ImmutableOpenMap.builder();
-            Iterator<ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>>> mappingIterator = response.getMappings().iterator();
+            ImmutableOpenMap.Builder<String, ImmutableOpenMap<String, MappingMetadata>> mappingsObfuscated = ImmutableOpenMap.builder();
+            Iterator<ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetadata>>> mappingIterator = response.getMappings().iterator();
             while (mappingIterator.hasNext()) {
                 //Iterate over indices
-                ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> mapping = mappingIterator.next();
-                ImmutableOpenMap.Builder<String, MappingMetaData> mappingObfuscated = ImmutableOpenMap.builder();
-                Iterator<ObjectObjectCursor<String, MappingMetaData>> metaDataIt = mapping.value.iterator();
+                ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetadata>> mapping = mappingIterator.next();
+                ImmutableOpenMap.Builder<String, MappingMetadata> mappingObfuscated = ImmutableOpenMap.builder();
+                Iterator<ObjectObjectCursor<String, MappingMetadata>> metaDataIt = mapping.value.iterator();
                 while (metaDataIt.hasNext()) {
                     //Iterate over types
-                    ObjectObjectCursor<String, MappingMetaData> typeMapping = metaDataIt.next();
+                    ObjectObjectCursor<String, MappingMetadata> typeMapping = metaDataIt.next();
                     try {
                         Map<String, Object> typeMappingMap = typeMapping.value.sourceAsMap(); //this call returns plain mapping without type
                         Map<String, Object> typeMappingMapObf = new HashMap<>();
@@ -212,7 +210,7 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
                             }
                         }
                         // Construct a MappingMetadata with the type.
-                        MappingMetaData metadataObf = new MappingMetaData(typeMapping.key, typeMappingMapObf);
+                        MappingMetadata metadataObf = new MappingMetadata(typeMapping.key, typeMappingMapObf);
                         mappingObfuscated.put(typeMapping.key, metadataObf);
                     } catch (IOException e) {
                         log.error("Error during obfuscation", e);
@@ -249,40 +247,26 @@ public class ObfGetIndexResponse extends ActionResponse implements ObfResponse {
 
     @Override
     public ActionResponse getActionResponse() {
-
-
-        BytesStreamOutput bSO = new BytesStreamOutput();
-        try {
-            writeTo(bSO);
-            response.readFrom(bSO.bytes().streamInput());
-            return response;
-        } catch (IOException e) {
-            log.error("Couldn't modify Response", e);
-            return null;
-        } finally {
-            //only to enforce best practices.
-            bSO.close();
-        }
+        return new GetIndexResponse(indices, mappings, aliases, settings, defaultSettings, ImmutableOpenMap.of());
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        super.writeTo(out);
         out.writeStringArray(indices);
         out.writeVInt(mappings.size());
-        for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappings) {
+        for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetadata>> indexEntry : mappings) {
             out.writeString(indexEntry.key);
             out.writeVInt(indexEntry.value.size());
-            for (ObjectObjectCursor<String, MappingMetaData> mappingEntry : indexEntry.value) {
+            for (ObjectObjectCursor<String, MappingMetadata> mappingEntry : indexEntry.value) {
                 out.writeString(mappingEntry.key);
                 mappingEntry.value.writeTo(out);
             }
         }
         out.writeVInt(aliases.size());
-        for (ObjectObjectCursor<String, List<AliasMetaData>> indexEntry : aliases) {
+        for (ObjectObjectCursor<String, List<AliasMetadata>> indexEntry : aliases) {
             out.writeString(indexEntry.key);
             out.writeVInt(indexEntry.value.size());
-            for (AliasMetaData aliasEntry : indexEntry.value) {
+            for (AliasMetadata aliasEntry : indexEntry.value) {
                 aliasEntry.writeTo(out);
             }
         }

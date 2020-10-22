@@ -1,6 +1,5 @@
 package com.petalmd.armor.filter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.service.ArmorConfigService;
@@ -27,7 +26,8 @@ import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.fetch.subphase.DocValueFieldsContext;
+import org.elasticsearch.search.fetch.subphase.FetchDocValuesContext;
+import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.rescore.RescorerBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.tasks.Task;
@@ -35,7 +35,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -130,8 +129,8 @@ public class AggregationFilter extends AbstractActionFilter {
                                                   XContentBuilder jsonContent = JsonXContent.contentBuilder();
                                                   jsonContent = aggregations.toXContent(jsonContent, null);
                                                   jsonContent.close();
-                                                  log.debug("aggregation string {}",jsonContent.toString());
-                                                  Map<String, Object> aggregationMap = XContentHelper.convertToMap(BytesReference.bytes(jsonContent),false,XContentType.JSON).v2();
+                                                  log.debug("aggregation string {}", jsonContent.toString());
+                                                  Map<String, Object> aggregationMap = XContentHelper.convertToMap(BytesReference.bytes(jsonContent), false, XContentType.JSON).v2();
                                                   replaceMinDocsCount(aggregationMap);
                                                   XContentParser aggParser = JsonXContent.contentBuilder().generator().contentType().xContent().createParser(xContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, mapper.writeValueAsBytes(aggregationMap));
                                                   //This is to put the token past startObject.
@@ -142,7 +141,7 @@ public class AggregationFilter extends AbstractActionFilter {
                                                       rewrittenBuilder.aggregation(aggBuilder);
                                                   }
                                                   sr.source(rewrittenBuilder);
-                                                  if(log.isTraceEnabled()) {
+                                                  if (log.isTraceEnabled()) {
                                                       log.trace(searchSourceBuilder.toString());
                                                   }
                                                   return null;
@@ -187,7 +186,7 @@ public class AggregationFilter extends AbstractActionFilter {
         }
         rewrittenBuilder.fetchSource(sBuilder.fetchSource());
         if (sBuilder.docValueFields() != null) {
-            for (DocValueFieldsContext.FieldAndFormat docValueField : sBuilder.docValueFields()) {
+            for (FetchDocValuesContext.FieldAndFormat docValueField : sBuilder.docValueFields()) {
                 rewrittenBuilder.docValueField(docValueField.field, docValueField.format);
             }
         }
@@ -234,7 +233,7 @@ public class AggregationFilter extends AbstractActionFilter {
         rewrittenBuilder.trackScores(sBuilder.trackScores());
         rewrittenBuilder.version(sBuilder.version());
         rewrittenBuilder.collapse(sBuilder.collapse());
-        rewrittenBuilder.trackTotalHits(sBuilder.trackTotalHits());
+        rewrittenBuilder.trackTotalHits(sBuilder.trackTotalHitsUpTo() != SearchContext.TRACK_TOTAL_HITS_DISABLED);
         return rewrittenBuilder;
     }
 

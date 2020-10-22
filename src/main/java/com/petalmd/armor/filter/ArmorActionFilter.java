@@ -38,7 +38,7 @@ import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -166,7 +166,7 @@ public class ArmorActionFilter implements ActionFilter {
                 && !SecurityUtil.isWildcardMatch(action, "*update*", false) && !SecurityUtil.isWildcardMatch(action, "*create*", false);
 
         final TokenEvaluator evaluator = new TokenEvaluator(armorConfigService.getSecurityConfiguration());
-        final SortedMap<String, AliasOrIndex> aliasesAndIndicesMap = clusterService.state().metaData().getAliasAndIndexLookup();
+        final SortedMap<String, IndexAbstraction> aliasesAndIndicesMap = clusterService.state().getMetadata().getIndicesLookup();
         final Evaluator eval;
 
         if (threadContext.getTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR) == null) {
