@@ -20,15 +20,22 @@ import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.plugins.Plugin;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Random;
 
 /**
- *
  * @author jehuty0shift
  */
 public final class ArmorNode extends Node {
 
     public ArmorNode(Settings preparedSettings, Collection<Class<? extends Plugin>> plugins) {
-        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null),  plugins, true);
+        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings,
+                Collections.emptyMap(),
+                null,
+                () -> "armor" + Math.random() * 100),
+                plugins,
+                true);
     }
-    
+
+
 }
