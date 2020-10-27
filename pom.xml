@@ -51,7 +51,7 @@
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <lucene.maven.version>7.7.2</lucene.maven.version>
+        <lucene.maven.version>8.6.0</lucene.maven.version>
     </properties>
 
     <scm>
