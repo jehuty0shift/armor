@@ -11,6 +11,7 @@ import com.petalmd.armor.authentication.backend.graylog.MongoDBTokenAuthenticati
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
@@ -19,6 +20,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 public class MultiAuthenticationBackend
         implements NonCachingAuthenticationBackend {
@@ -110,7 +112,12 @@ public class MultiAuthenticationBackend
                 continue;
             }
         }
-        throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions));
+        Optional<AuthException> authEx = exceptions.stream().filter(ex-> ex.getType().equals(AuthException.ExceptionType.ERROR)).findAny();
+        if(authEx.isPresent()) {
+            throw new ElasticsearchException("error with the authentication system, please retry or report the error");
+        } else {
+            throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions));
+        }
     }
 }
 
