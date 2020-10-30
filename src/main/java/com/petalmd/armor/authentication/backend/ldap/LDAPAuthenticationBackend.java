@@ -98,7 +98,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
                     SearchScope.SUBTREE);
 
             if (!result.next()) {
-                throw new AuthException("No user " + user + " found");
+                throw new AuthException("No user " + user + " found", AuthException.ExceptionType.NOT_FOUND);
             }
 
             final Entry entry = result.get();
@@ -121,7 +121,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
                 });
             } catch (final Exception e) {
                 log.error(e.toString(), e);
-                throw new ElasticsearchException(e.toString());
+                throw new AuthException("error during second bind",e);
             }
 
             log.trace("Try to authenticate dn {}", dn);
@@ -139,9 +139,9 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
             return new LdapUser(username, entry);
 
-        } catch (final LdapException | CursorException e) {
+        } catch (final Exception e) {
             log.error(e.toString(), e);
-            throw new AuthException(e);
+            throw new AuthException("error during bind with the user credentials", e);
         } finally {
             if (result != null) {
                 try {

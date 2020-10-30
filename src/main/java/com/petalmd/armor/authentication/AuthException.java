@@ -61,4 +61,7 @@ public class AuthException extends Exception {
         this.type = type;
     }
 
+    public ExceptionType getType() {
+        return type;
+    }
 }
