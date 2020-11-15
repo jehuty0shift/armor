@@ -1,5 +1,8 @@
 package com.petalmd.armor.service;
 
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.SodiumJava;
+import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -7,14 +10,12 @@ import com.petalmd.armor.filter.lifecycle.KafkaConfig;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.util.ConfigConstants;
-import org.abstractj.kalium.crypto.SecretBox;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -34,7 +35,7 @@ public class KafkaService extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(KafkaService.class);
     private static Producer kafkaProducer = null;
     private final List<String> topicList;
-    private final SecretBox secretBox;
+    private final LazySodiumJava lsj;
     private final byte[] enginePrivateKey;
     private KafkaConfig kafkaConfig;
     private boolean enabled;
@@ -62,17 +63,21 @@ public class KafkaService extends AbstractLifecycleComponent {
 
             enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig.kSerPrivateKey));
             //This one should be wrapped also
-            secretBox = AccessController.doPrivileged((PrivilegedAction<SecretBox>) () ->
-                    new SecretBox(enginePrivateKey)
+
+            lsj = AccessController.doPrivileged((PrivilegedAction<LazySodiumJava>) () -> {
+                        final SodiumJava sodium = new SodiumJava();
+                        return new LazySodiumJava(sodium);
+                    }
             );
-            if (secretBox == null) {
+
+            if (lsj == null) {
                 enabled = false;
             }
             final String topicSuffix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX, "api.ms2015");
-            final List<String> regionsList = settings.getAsList(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_REGIONS, List.of("eu","ca"));
+            final List<String> regionsList = settings.getAsList(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_REGIONS, List.of("eu", "ca"));
             topicList.addAll(regionsList.stream().map(r -> kafkaConfig.topicPrefix + "." + topicSuffix + "." + r).collect(Collectors.toList()));
         } else {
-            secretBox = null;
+            lsj = null;
             enginePrivateKey = null;
         }
 
@@ -122,10 +127,10 @@ public class KafkaService extends AbstractLifecycleComponent {
             props.put("sasl.jaas.config", jaasConfig);
             //JAVA_HOME/jre/lib/security/cacerts.
             //make it available as an option
-            props.put("ssl.truststore.location",System.getenv("JAVA_HOME")+"/lib/security/cacerts");
-            props.put("ssl.truststore.password","changeit");
+            props.put("ssl.truststore.location", System.getenv("JAVA_HOME") + "/lib/security/cacerts");
+            props.put("ssl.truststore.password", "changeit");
             //Insecure will have to set it as an option
-            props.put("ssl.endpoint.identification.algorithm","");
+            props.put("ssl.endpoint.identification.algorithm", "");
         }
 
         props.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -155,8 +160,8 @@ public class KafkaService extends AbstractLifecycleComponent {
     }
 
 
-    public KSerSecuredMessage buildKserSecuredMessage(final String message) {
-        return new KSerSecuredMessage(message, secretBox);
+    public KSerSecuredMessage buildKserSecuredMessage(final String message) throws SodiumException{
+            return new KSerSecuredMessage(message, lsj, enginePrivateKey);
     }
 
 

@@ -182,7 +182,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         log.info("will proceed with {} alias actions for user {}", aliasActions.size(), engineUser.getUsername());
 
-        chain.proceed(task, action, request, new AliasLifeCycleListener(aliasActions, engineUser, kService, listener, mapper, clusterService));
+        chain.proceed(task, action, request, new AliasLifeCycleListener(aliasActions, engineUser, kService, listener, mapper, clusterService, threadContext));
 
     }
 
@@ -198,13 +198,13 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
         private final ObjectMapper mapper;
         private final ClusterService clusterService;
 
-        public AliasLifeCycleListener(final List<IndicesAliasesRequest.AliasActions> aliasActions, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper, final ClusterService clusterService) {
+        public AliasLifeCycleListener(final List<IndicesAliasesRequest.AliasActions> aliasActions, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper, final ClusterService clusterService, final ThreadContext threadContext) {
             this.engineUser = engineUser;
             this.kService = kafkaService;
             this.origListener = origListener;
             this.mapper = mapper;
             this.clusterService = clusterService;
-            IndexNameExpressionResolver resolver = new IndexNameExpressionResolver();
+            IndexNameExpressionResolver resolver = new IndexNameExpressionResolver(threadContext);
             final ClusterState clusterState = clusterService.state();
             Set<String> aliasInActions = aliasActions.stream().flatMap(a -> Arrays.stream(a.aliases())).collect(Collectors.toSet());
             // If reqAlias contains a '*' (star) the name have to be resolved before we can continue.

@@ -81,7 +81,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
             }
 
             log.debug("retrieving Security configuration document");
-            GetResponse getResponse = client.prepareGet(securityConfigurationIndex, "ac", "ac").setRefresh(true).get(TimeValue.timeValueSeconds(10));
+            GetResponse getResponse = client.prepareGet(securityConfigurationIndex, null, "ac").setRefresh(true).get(TimeValue.timeValueSeconds(10));
 
 
             if (getResponse.isExists() && !getResponse.isSourceEmpty()) {

@@ -8,7 +8,19 @@ import io.searchbox.indices.OpenIndex;
 import io.searchbox.indices.settings.GetSettings;
 import io.searchbox.indices.settings.UpdateSettings;
 import org.apache.http.entity.ContentType;
+import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
+import org.elasticsearch.action.admin.indices.open.OpenIndexRequestBuilder;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CloseIndexRequest;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,7 +29,7 @@ import org.junit.Test;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class UpdateSettingsFilterTest extends AbstractScenarioTest {
+public class UpdateSettingsFilterTest extends AbstractArmorTest {
 
     @Test
     public void UpdateSettingsPrefixTest() throws Exception {
@@ -27,9 +39,9 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","updatesettings")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden", "updatesettings")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
-                .putList("armor.actionrequestfilter.updatesettings.allowed_actions","indices:admin/get", "indices:admin/settings/update", "indices:admin/close*", "indices:admin/open", "indices:admin/mapping/put", "indices:monitor/settings/get")
+                .putList("armor.actionrequestfilter.updatesettings.allowed_actions", "indices:admin/get", "indices:admin/settings/update", "indices:admin/close*", "indices:admin/open", "indices:admin/mapping/put", "indices:monitor/settings/get")
                 .put(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED, true)
                 .putList(ConfigConstants.ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED, "analysis", "index.refresh_interval")
                 .put(authSettings)
@@ -68,7 +80,7 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
                 "           \"french_stemmer\"" +
                 "]  } } } }";
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
 
         String indexName = "financial";
@@ -78,34 +90,50 @@ public class UpdateSettingsFilterTest extends AbstractScenarioTest {
                 .addIndex(indexName)
                 .build();
 
-        JestResult resultClose = client.execute(new CloseIndex.Builder(indexName).setParameter("timeout", "1m").build());
+        UpdateSettingsRequest usr = new UpdateSettingsRequest(indexName).settings(analysisSetting, XContentType.JSON);
 
-        Assert.assertTrue(resultClose.isSucceeded());
+        AcknowledgedResponse respClose = client.indices().close(new CloseIndexRequest(indexName), RequestOptions.DEFAULT);
 
-        JestResult result = client.execute(updateSettingRequest);
 
-        Assert.assertTrue(result.isSucceeded());
+        Assert.assertTrue(respClose.isAcknowledged());
 
-        JestResult resultOpen = client.execute(new OpenIndex.Builder(indexName).setParameter("timeout", "1m").build());
+        AcknowledgedResponse resp = client.indices().putSettings(usr, RequestOptions.DEFAULT);
 
-        Assert.assertTrue(resultOpen.isSucceeded());
+        Assert.assertTrue(resp.isAcknowledged());
 
-        JestResult resultGetSettings = client.execute(new GetSettings.Builder().addIndex(indexName).build());
+        AcknowledgedResponse respOpen = client.indices().open(new OpenIndexRequest(indexName).timeout(TimeValue.timeValueMinutes(1)), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(resultGetSettings.isSucceeded());
+        Assert.assertTrue(respOpen.isAcknowledged());
 
-        final String resultGetSettingsString  = resultGetSettings.getJsonString();
+        GetSettingsResponse getSettingsResp = client.indices().getSettings(new GetSettingsRequest().indices(indexName), RequestOptions.DEFAULT);
+
+        Settings settingsResp = getSettingsResp.getIndexToSettings().get(indexName);
+
         //The analysis must have been taken into account.
-        Assert.assertTrue(resultGetSettingsString.contains("analysis"));
+        Assert.assertTrue(!settingsResp.hasValue("analysis"));
+
         //The refresh_interval must have changed
-        Assert.assertTrue(resultGetSettingsString.contains("refresh_interval") && resultGetSettingsString.contains("1m"));
+        Assert.assertEquals(TimeValue.timeValueMinutes(1), settingsResp.getAsTime("index.refresh_interval", TimeValue.ZERO));
+
         //the number of replicas MUST not have been changed
-        Assert.assertTrue(resultGetSettings
-                .getJsonObject().getAsJsonObject("financial")
-                .getAsJsonObject("settings")
-                .getAsJsonObject("index")
-                .get("number_of_replicas")
-                .getAsInt() == 1);
+        Assert.assertEquals(1, settings.getAsInt("index.number_of_replicas", 0).intValue());
+
+//        JestResult resultGetSettings = client.execute(new GetSettings.Builder().addIndex(indexName).build());
+//
+//        Assert.assertTrue(resultGetSettings.isSucceeded());
+//
+//        final String resultGetSettingsString = resultGetSettings.getJsonString();
+//        //The analysis must have been taken into account.
+//        Assert.assertTrue(resultGetSettingsString.contains("analysis"));
+//        //The refresh_interval must have changed
+//        Assert.assertTrue(resultGetSettingsString.contains("refresh_interval") && resultGetSettingsString.contains("1m"));
+//        //the number of replicas MUST not have been changed
+//        Assert.assertTrue(resultGetSettings
+//                .getJsonObject().getAsJsonObject("financial")
+//                .getAsJsonObject("settings")
+//                .getAsJsonObject("index")
+//                .get("number_of_replicas")
+//                .getAsInt() == 1);
 
     }
 

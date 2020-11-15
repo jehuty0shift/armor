@@ -27,6 +27,7 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchDocValuesContext;
+import org.elasticsearch.search.fetch.subphase.FieldAndFormat;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.rescore.RescorerBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
@@ -36,6 +37,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -186,7 +188,7 @@ public class AggregationFilter extends AbstractActionFilter {
         }
         rewrittenBuilder.fetchSource(sBuilder.fetchSource());
         if (sBuilder.docValueFields() != null) {
-            for (FetchDocValuesContext.FieldAndFormat docValueField : sBuilder.docValueFields()) {
+            for (FieldAndFormat docValueField : sBuilder.docValueFields()) {
                 rewrittenBuilder.docValueField(docValueField.field, docValueField.format);
             }
         }

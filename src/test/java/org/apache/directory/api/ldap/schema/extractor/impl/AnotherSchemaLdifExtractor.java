@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  *
  * @author <a href="mailto:dev@directory.apache.org">Apache Directory Project</a>
  */
-public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap.schema.extractor.SchemaLdifExtractor
+public class AnotherSchemaLdifExtractor implements org.apache.directory.api.ldap.schema.extractor.SchemaLdifExtractor
 {
 
     static {
@@ -61,7 +61,7 @@ public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap
     private static final String SCHEMA_SUBDIR = "schema";
 
     /** The logger. */
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultSchemaLdifExtractor.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AnotherSchemaLdifExtractor.class);
 
     /**
      * The pattern to extract the schema from LDIF files.
@@ -82,7 +82,7 @@ public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap
      * @param outputDirectory
      *            the directory where the schema root is extracted
      */
-    public DefaultSchemaLdifExtractor(final File outputDirectory) {
+    public AnotherSchemaLdifExtractor(final File outputDirectory) {
         LOG.debug("BASE_PATH set to {}, outputDirectory set to {}", BASE_PATH, outputDirectory);
         this.outputDirectory = outputDirectory;
         final File schemaDirectory = new File(outputDirectory, SCHEMA_SUBDIR);
@@ -316,7 +316,7 @@ public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap
      *             if there is an IO error
      */
     public static URL getUniqueResource(final String resourceName, final String resourceDescription) throws IOException {
-        final Enumeration<URL> resources = DefaultSchemaLdifExtractor.class.getClassLoader().getResources(resourceName);
+        final Enumeration<URL> resources = AnotherSchemaLdifExtractor.class.getClassLoader().getResources(resourceName);
         if (!resources.hasMoreElements()) {
             throw new UniqueResourceException(resourceName, resourceDescription);
         }
@@ -339,7 +339,7 @@ public class DefaultSchemaLdifExtractor implements org.apache.directory.api.ldap
      */
     private void extractFromClassLoader(final String resource) throws IOException {
         final byte[] buf = new byte[512];
-        final InputStream in = DefaultSchemaLdifExtractor.getUniqueResourceAsStream(resource, "LDIF file in schema repository");
+        final InputStream in = AnotherSchemaLdifExtractor.getUniqueResourceAsStream(resource, "LDIF file in schema repository");
 
         try {
             final File destination = new File(outputDirectory, resource);

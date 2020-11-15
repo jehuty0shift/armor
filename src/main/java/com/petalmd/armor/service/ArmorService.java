@@ -38,6 +38,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
+import java.io.FilePermission;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
@@ -79,9 +80,9 @@ public class ArmorService extends AbstractLifecycleComponent {
 
 
         final String keyPath = settings.get(ConfigConstants.ARMOR_KEY_PATH,".");
-//        AccessController.checkPermission(new FilePermission(keyPath+File.separator+"armor_node_key.key", "write"));
         SecretKey sc = null;
         try {
+            AccessController.checkPermission(new FilePermission(keyPath+File.separator+"armor_node_key.key", "write"));
             sc = AccessController.doPrivileged(new PrivilegedExceptionAction<SecretKey>() {
                 @Override
                 public SecretKey run() throws Exception {

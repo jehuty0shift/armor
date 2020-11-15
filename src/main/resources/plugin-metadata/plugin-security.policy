@@ -16,8 +16,20 @@
 
 grant {   
 
+  //for tests
+  permission java.io.FilePermission "target/tmp/keytab.keytab", "read,write";
+  permission java.io.FilePermission "target/tmp/login.conf", "read,write";
+  permission java.io.FilePermission "target/tmp", "read,readlink,write";
+  permission java.io.FilePermission "target/tmp/-", "read";
+//  permission java.io.FilePermission "./armor_node_key.key", "read,readlink,write";
+
+  permission java.util.PropertyPermission "java.security.auth.login.config" ,"write";
+  permission java.util.PropertyPermission "java.security.krb5.conf" ,"write";
+
+
   permission java.io.FilePermission "${java.home}${/}lib${/}security${/}cacerts", "read";
-  permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
+//  permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
+  permission java.io.FilePermission "${es.path.conf}${/}armor_node_key.key", "read,readlink,write";
   permission java.io.FilePermission "${deployment.system.security.cacerts}", "read,readlink";
   permission java.security.SecurityPermission "createAccessControlContext";
   permission java.net.SocketPermission "*", "accept,resolve,listen,connect";

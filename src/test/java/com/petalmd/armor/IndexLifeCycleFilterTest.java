@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.goterl.lazycode.lazysodium.utils.Key;
-import com.goterl.lazycode.lazysodium.utils.LibraryLoader;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
@@ -22,7 +21,6 @@ import io.searchbox.client.JestResult;
 import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.DeleteIndex;
 import kong.unirest.Unirest;
-import org.abstractj.kalium.crypto.SecretBox;
 import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
@@ -145,9 +143,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
 
         String originalMessage = "test";
 
-        SecretBox secretBox = new SecretBox(privateKey);
-
-        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage, secretBox);
+        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage,lsj,privateKey);
 
         String nonceStr = kserSecMess.getNonce();
 

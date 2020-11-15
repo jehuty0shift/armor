@@ -1,12 +1,11 @@
 package com.petalmd.armor.filter.lifecycle.kser;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.abstractj.kalium.crypto.Random;
-import org.abstractj.kalium.crypto.SecretBox;
+import com.goterl.lazycode.lazysodium.LazySodiumJava;
+import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
+import com.goterl.lazycode.lazysodium.utils.Key;
 
-import java.security.AccessController;
 import java.util.Base64;
 
 /**
@@ -25,12 +24,10 @@ public class KSerSecuredMessage {
         this.nonce = nonce;
     }
 
-    public KSerSecuredMessage(final String clearMessage, final SecretBox secretBox) {
+    public KSerSecuredMessage(final String clearMessage, final LazySodiumJava lsj, final byte[] privateKey) throws SodiumException {
 
-        Random randomGen = new Random();
-        byte[] nonceBytes = randomGen.randomBytes(24);
-        byte[] secretMessageBytes = secretBox.encrypt(nonceBytes, clearMessage.getBytes());
-        data = Base64.getEncoder().encodeToString(secretMessageBytes);
+        byte[] nonceBytes = lsj.nonce(24);
+        data  = Base64.getEncoder().encodeToString(LazySodiumJava.toBin(lsj.cryptoSecretBoxEasy(clearMessage, nonceBytes, Key.fromBytes(privateKey))));
         nonce = Base64.getEncoder().encodeToString(nonceBytes);
     }
 

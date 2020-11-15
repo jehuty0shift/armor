@@ -4,6 +4,7 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import kong.unirest.json.JSONObject;
+import org.elasticsearch.common.xcontent.XContentType;
 
 import java.util.*;
 import java.util.stream.Collector;
@@ -66,8 +67,8 @@ public class KeflaUtils {
 
     public static List<String> streamFromFilters(CompressedXContent filter) {
         List<String> streamList = new ArrayList<>();
-        //deprecated but used in Elastic code (true comes from usages in es code)
-        Map<String, Object> filterMap = XContentHelper.convertToMap(new BytesArray(filter.uncompressed()), true).v2();
+        //used in Elastic code (true comes from usages in es code)
+        Map<String, Object> filterMap = XContentHelper.convertToMap(filter.uncompressed(), true, XContentType.JSON).v2();
         Map<String, Object> boolMap = (Map<String, Object>) filterMap.get("bool");
         List<Map<String, Object>> shouldList = (List<Map<String, Object>>) boolMap.get("should");
         for (Map<String, Object> termItem : shouldList) {

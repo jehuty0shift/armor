@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 @PrepareForTest({Unirest.class})
-public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
+public class AliasLifeCycleFilterTest extends AbstractUnitTest {
 
 
     @Test
