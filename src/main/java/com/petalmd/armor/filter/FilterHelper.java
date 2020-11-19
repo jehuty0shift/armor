@@ -168,7 +168,7 @@ public class FilterHelper {
             //it doesn't exist or is a unhandled word* , we still add it as an index
             if (indexAbstraction == null) {
                 result.add(index);
-            } else if (!indexAbstraction.getType().equals(IndexAbstraction.Type.CONCRETE_INDEX)) {
+            } else if (indexAbstraction.getType().equals(IndexAbstraction.Type.CONCRETE_INDEX)) {
                 result.add(index);
             }
         }

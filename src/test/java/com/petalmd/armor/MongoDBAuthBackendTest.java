@@ -30,7 +30,7 @@ import java.util.Date;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class MongoDBAuthBackendTest extends AbstractUnitTest {
+public class MongoDBAuthBackendTest  {
 
 
     @Test

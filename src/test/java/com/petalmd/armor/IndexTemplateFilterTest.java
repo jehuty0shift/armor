@@ -54,7 +54,7 @@ import java.util.stream.Stream;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 @PrepareForTest({Unirest.class})
-public class IndexTemplateFilterTest extends AbstractScenarioTest {
+public class IndexTemplateFilterTest extends AbstractUnitTest {
 
     @Test
     public void templateCreationOnLDPIndex() throws Exception {

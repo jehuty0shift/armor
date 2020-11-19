@@ -23,8 +23,8 @@ import com.petalmd.armor.authentication.AuthException;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang.StringUtils;
 import org.elasticsearch.common.settings.Settings;
 
 import java.util.*;
@@ -86,7 +86,7 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
             }
         }
 
-        if (!StringUtils.isEmpty(clearTextPassword) && !StringUtils.isEmpty(storedPasswordOrDigest)) {
+        if (SecurityUtil.isNotEmpty(clearTextPassword) && SecurityUtil.isNotEmpty(storedPasswordOrDigest)) {
 
             String passwordOrHash = clearTextPassword;
 

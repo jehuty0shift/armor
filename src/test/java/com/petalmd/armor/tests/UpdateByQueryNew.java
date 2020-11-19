@@ -2,8 +2,6 @@ package com.petalmd.armor.tests;
 
 import io.searchbox.action.AbstractMultiTypeActionBuilder;
 import io.searchbox.action.GenericResultAbstractAction;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 /**
  * Created by jehuty0shift on 21/11/18.
@@ -35,26 +33,12 @@ public class UpdateByQueryNew extends GenericResultAbstractAction {
 
     @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .appendSuper(super.hashCode())
-                .toHashCode();
+        return super.hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (obj.getClass() != getClass()) {
-            return false;
-        }
-
-        return new EqualsBuilder()
-                .appendSuper(super.equals(obj))
-                .isEquals();
+        return super.equals(obj);
     }
 
     public static class Builder extends AbstractMultiTypeActionBuilder<UpdateByQueryNew, Builder> {

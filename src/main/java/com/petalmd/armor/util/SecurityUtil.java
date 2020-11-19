@@ -20,9 +20,10 @@ package com.petalmd.armor.util;
 
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
-import org.apache.commons.pool.impl.GenericObjectPool;
 import org.apache.directory.api.ldap.model.exception.LdapException;
-import org.apache.directory.ldap.client.api.*;
+import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.LdapConnectionConfig;
+import org.apache.directory.ldap.client.api.LdapNetworkConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -32,7 +33,6 @@ import org.elasticsearch.rest.RestRequest;
 import javax.crypto.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
@@ -461,6 +461,10 @@ public class SecurityUtil {
             return InetAddress.getByName(raddr);
         }
 
+    }
+
+    public static boolean isNotEmpty(final String test) {
+        return test != null && test.length() > 0 && !test.isBlank();
     }
 
 

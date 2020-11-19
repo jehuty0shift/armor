@@ -17,7 +17,7 @@ import org.junit.Test;
  * Created by jehuty0shift on 21/11/18.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class DeleteByQueryTest extends AbstractScenarioTest {
+public class DeleteByQueryTest extends AbstractUnitTest {
 
     @Test
     public void testDeleteByQuery() throws Exception {

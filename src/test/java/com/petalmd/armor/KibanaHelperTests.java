@@ -18,7 +18,7 @@ import java.util.Arrays;
  * Created by jehuty0shift on 26/10/18.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class KibanaHelperTests extends AbstractScenarioTest {
+public class KibanaHelperTests extends AbstractUnitTest {
 
     @Test
     public void readFieldCapsOnAliasDenied() throws Exception {

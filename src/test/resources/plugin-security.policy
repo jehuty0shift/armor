@@ -16,8 +16,42 @@
 
 grant {   
 
+  //TESTS Permissions
+  //permission java.security.AllPermission "", "";
+
+  permission java.io.FilePermission "target/tmp/keytab.keytab", "read,readlink,write,delete";
+  permission java.io.FilePermission "target/tmp/login.conf", "read,readlink,write,delete";
+  permission java.io.FilePermission "target/tmp", "read,readlink,write,delete";
+  permission java.io.FilePermission "target/tmp/-", "read";
+//  permission java.io.FilePermission "./armor_node_key.key", "read,readlink,write";
+
+  //kerberos
+  permission java.util.PropertyPermission "java.security.auth.login.config" ,"write";
+  permission java.util.PropertyPermission "java.security.krb5.conf" ,"write";
+  permission java.util.PropertyPermission "javax.net.debug", "write";
+  permission java.util.PropertyPermission "sun.security.krb5.debug", "write";
+  permission java.util.PropertyPermission "java.security.debug", "write";
+
+
+  //LDAP
+  permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+  permission java.lang.RuntimePermission "modifyThreadGroup";
+  permission java.security.SecurityPermission "getProperty.ssl.KeyManagerFactory.algorithm";
+  permission java.io.FilePermission "target/tmp/ldif1.ldif", "read,readlink,write,delete";
+
+  //Kerberos
+  permission javax.security.auth.AuthPermission "createLoginContext.com.sun.security.jgss.krb5.initiate";
+  permission javax.security.auth.kerberos.DelegationPermission "\"HTTP/192.168.1.82@EXAMPLE.COM\" \"krbtgt/EXAMPLE.COM@EXAMPLE.COM\"";
+  permission javax.security.auth.AuthPermission "createLoginContext.com.sun.security.jgss.krb5.accept";
+  permission javax.security.auth.AuthPermission "modifyPrincipals";
+  permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+
+///PRODUCTION Permissions
 
   permission java.io.FilePermission "${java.home}${/}lib${/}security${/}cacerts", "read";
+//  permission java.io.FilePermission "${armor.key_path}", "read,readlink,write";
   permission java.io.FilePermission "${es.path.conf}${/}armor_node_key.key", "read,readlink,write";
   permission java.io.FilePermission "${deployment.system.security.cacerts}", "read,readlink";
   permission java.security.SecurityPermission "createAccessControlContext";
@@ -25,6 +59,10 @@ grant {
   permission java.net.NetPermission "getProxySelector";
   permission java.net.NetPermission "requestPasswordAuthentication";
   permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+
+  //Kerberos
+  permission javax.security.auth.AuthPermission "doAs";
+  permission javax.security.auth.kerberos.ServicePermission "*","initiate,accept";
 
    // for reading the system-wide configuration for the backlog of established sockets
   permission java.io.FilePermission "/proc/sys/net/core/somaxconn", "read";

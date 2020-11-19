@@ -4,6 +4,7 @@ import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
@@ -24,20 +25,24 @@ public class AuditLogTest extends AbstractScenarioTest {
 
         startES(settings);
         setupTestData("ac_rules_execute_all.json");
-        executeIndexAsString("{}", "audittest", "audittesttype", "x1", false, false);
+        executeIndexAsString("{ \"user\" : \"goku\"}", "audittest", "x1", false, false);
 
         Thread.sleep(3000);
-        int totalHits = 0;
+        long  totalHits = 0;
         while (totalHits == 0) {
-            final JestResult result = executeSearch("ac_query_matchall.json", new String[]{ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit"},
-                    new String[]{"records"}, true, true).v1();
+            try {
+                SearchResponse sResp = executeSearch("ac_query_matchall.json", new String[]{ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit"}, true, true);
 
-            Assert.assertTrue(result.isSucceeded());
-            totalHits = result.getJsonObject().getAsJsonObject("hits").getAsJsonPrimitive("total").getAsInt();
-            if (totalHits != 0) {
-                Thread.sleep(3000);
+
+                totalHits = sResp.getHits().getTotalHits().value;
+                if (totalHits != 0) {
+                    Thread.sleep(3000);
+                }
+                log.debug(sResp.toString());
+            } catch (Exception ex) {
+                log.error("audit index not ready", ex);
+                Thread.sleep( 3000);
             }
-            log.debug(toPrettyJson(result.getJsonString()));
         }
 
         Assert.assertTrue(totalHits == 1);

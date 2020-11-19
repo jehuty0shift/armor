@@ -37,7 +37,7 @@ import java.util.Map;
  * @author jehuty0shift
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class ObfFilterTest extends AbstractScenarioTest {
+public class ObfFilterTest extends AbstractUnitTest {
 
     @Test
     public void nodesInfoFilterTest() throws Exception {

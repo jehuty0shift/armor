@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 @PrepareForTest({Unirest.class})
-public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
+public class IndexLifeCycleFilterTest extends AbstractUnitTest {
 
     @Test
     public void testKafkaConfigurationCodec() {

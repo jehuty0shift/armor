@@ -22,20 +22,22 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
 import net.sourceforge.spnego.SpnegoHttpURLConnection;
+import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.http.HttpInfo;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.InetSocketAddress;
 import java.net.URL;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class SfSpNegoTest extends AbstractUnitTest {
+public class SfSpNegoTest extends AbstractArmorTest {
 
     @Test
     public void sfSpNegoTest() throws Exception {
 
-        startLDAPServer();
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
 
         final Settings settings = Settings
                 .builder()
@@ -56,12 +58,15 @@ public class SfSpNegoTest extends AbstractUnitTest {
                                 .put("armor.authentication.ldap.usersearch", "(uid={0})")
                                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
                                 .put("armor.authentication.authorization.ldap.rolename", "cn")
-
                                 .build();
 
         startES(settings);
 
         setupTestData("ac_rules_1.json");
+
+        startLDAPServer();
+        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
+
 
         DummyLoginModule.username = "hnelson";
         DummyLoginModule.password = "secret".toCharArray();
@@ -71,7 +76,17 @@ public class SfSpNegoTest extends AbstractUnitTest {
 
         hcon.requestCredDeleg(true);
 
-        hcon.connect(new URL(getServerUri(false) + "/internal/_search"));
+        int port = 0;
+        for (NodeInfo node : nodeInfos) {
+            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+                TransportAddress publishAddress = node.getInfo(HttpInfo.class).address().publishAddress();
+                InetSocketAddress address = publishAddress.address();
+                port = address.getPort();
+                break;
+            }
+        }
+
+        hcon.connect(new URL("http://" + getNonLocalhostAddress()+":"+ port + "/internal/_search"));
 
         Assert.assertEquals(200, hcon.getResponseCode());
 

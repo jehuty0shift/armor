@@ -21,6 +21,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.petalmd.armor.util.SecurityUtil;
 import io.searchbox.action.Action;
 import io.searchbox.client.AbstractJestClient;
 import io.searchbox.client.JestClient;
@@ -29,7 +30,6 @@ import io.searchbox.client.JestResultHandler;
 import io.searchbox.client.config.ElasticsearchVersion;
 import io.searchbox.client.http.apache.HttpDeleteWithEntity;
 import io.searchbox.client.http.apache.HttpGetWithEntity;
-import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
@@ -218,7 +218,7 @@ public class HeaderAwareJestHttpClient extends AbstractJestClient implements Jes
     protected String createJsonStringEntity(final Object data) {
         String entity;
 
-        if (data instanceof String && (StringUtils.isEmpty(data.toString()) || isJson(data.toString()))) {
+        if (data instanceof String && (SecurityUtil.isNotEmpty(data.toString()) && isJson(data.toString()))) {
             entity = data.toString();
         } else {
             entity = gson.toJson(data);

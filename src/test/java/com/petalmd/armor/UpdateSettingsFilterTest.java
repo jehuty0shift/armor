@@ -2,14 +2,7 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.client.JestResult;
-import io.searchbox.indices.CloseIndex;
-import io.searchbox.indices.OpenIndex;
-import io.searchbox.indices.settings.GetSettings;
-import io.searchbox.indices.settings.UpdateSettings;
-import org.apache.http.entity.ContentType;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
-import org.elasticsearch.action.admin.indices.open.OpenIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
@@ -17,7 +10,6 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CloseIndexRequest;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -34,7 +26,6 @@ public class UpdateSettingsFilterTest extends AbstractArmorTest {
     @Test
     public void UpdateSettingsPrefixTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
@@ -85,10 +76,6 @@ public class UpdateSettingsFilterTest extends AbstractArmorTest {
 
         String indexName = "financial";
 
-        UpdateSettings updateSettingRequest = new UpdateSettings.Builder(analysisSetting)
-                .setHeader("Content-Type", ContentType.APPLICATION_JSON)
-                .addIndex(indexName)
-                .build();
 
         UpdateSettingsRequest usr = new UpdateSettingsRequest(indexName).settings(analysisSetting, XContentType.JSON);
 
@@ -116,24 +103,7 @@ public class UpdateSettingsFilterTest extends AbstractArmorTest {
         Assert.assertEquals(TimeValue.timeValueMinutes(1), settingsResp.getAsTime("index.refresh_interval", TimeValue.ZERO));
 
         //the number of replicas MUST not have been changed
-        Assert.assertEquals(1, settings.getAsInt("index.number_of_replicas", 0).intValue());
-
-//        JestResult resultGetSettings = client.execute(new GetSettings.Builder().addIndex(indexName).build());
-//
-//        Assert.assertTrue(resultGetSettings.isSucceeded());
-//
-//        final String resultGetSettingsString = resultGetSettings.getJsonString();
-//        //The analysis must have been taken into account.
-//        Assert.assertTrue(resultGetSettingsString.contains("analysis"));
-//        //The refresh_interval must have changed
-//        Assert.assertTrue(resultGetSettingsString.contains("refresh_interval") && resultGetSettingsString.contains("1m"));
-//        //the number of replicas MUST not have been changed
-//        Assert.assertTrue(resultGetSettings
-//                .getJsonObject().getAsJsonObject("financial")
-//                .getAsJsonObject("settings")
-//                .getAsJsonObject("index")
-//                .get("number_of_replicas")
-//                .getAsInt() == 1);
+        Assert.assertEquals(1, settingsResp.getAsInt("index.number_of_replicas", 0).intValue());
 
     }
 

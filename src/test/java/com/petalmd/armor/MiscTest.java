@@ -30,19 +30,45 @@ import io.searchbox.cluster.NodesStats;
 import io.searchbox.core.Index;
 import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.reindex.Reindex;
+import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
+import org.apache.http.message.BasicHeader;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequestBuilder;
+import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.PutMappingRequest;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.ReindexRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.transport.TransportRequest;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class MiscTest extends AbstractUnitTest {
+public class MiscTest extends AbstractArmorTest {
 
     @Test
     public void unauthenticatedTest() throws Exception {
@@ -63,14 +89,10 @@ public class MiscTest extends AbstractUnitTest {
         password = null;
 
         setupTestData("ac_rules_3.json");
-        final Tuple<JestResult, HttpResponse> resulttu = executeSearch("ac_query_matchall.json", new String[]{"internal"}, null, true,
+        final SearchResponse sResp = executeSearch("ac_query_matchall.json", new String[]{"internal"}, true,
                 false);
 
-        final JestResult result = resulttu.v1();
-
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        final Map json = gson.fromJson(result.getJsonString(), Map.class);
-        log.debug(gson.toJson(json));
+        log.debug(sResp.toString());
 
     }
 
@@ -97,15 +119,15 @@ public class MiscTest extends AbstractUnitTest {
         password = "secret";
 
         setupTestData("ac_rules_execute_all.json");
-        executeIndex("ac_rules_execute_all.json", "armor", "ac", "ac", true, true);
 
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
-        final JestResult jr = client.execute(new NodesStats.Builder().setHeader(headers).build());
 
-        log.debug(jr.getErrorMessage());
-        Assert.assertNotNull(jr.getErrorMessage());
-        Assert.assertTrue(jr.getErrorMessage().contains("cluster:monitor"));
+        ElasticsearchStatusException nodesFailure = expectThrows(ElasticsearchStatusException.class, () -> client.getLowLevelClient().performRequest(new Request("GET", "_nodes")));
+
+
+        Assert.assertTrue(nodesFailure.status().equals(RestStatus.FORBIDDEN));
+        Assert.assertTrue(nodesFailure.getDetailedMessage().contains("cluster:monitor"));
 
     }
 
@@ -128,21 +150,17 @@ public class MiscTest extends AbstractUnitTest {
         username = "jacksonm";
         password = "secret";
         setupTestData("ac_rules_1.json");
-        executeIndex("ac_rules_1.json", "armor", "ac", "ac", false, false);
-        executeIndex("ac_rules_1.json", "armor", "ac", "ac", true, true);
-        executeIndex("ac_rules_1.json", "armor", "xx", "xx", false, false);
+        executeIndex("ac_rules_1.json", "armor", "ac", false, false);
+        executeIndex("ac_rules_1.json", "armor", "ac", true, true);
+        executeIndex("ac_rules_1.json", "armor", "xx", false, false);
 
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
+        ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> client.indices().putMapping(new PutMappingRequest("_all").source("{" + "\"properties\" : {"
+                + "\"rules\" : {\"type\" : \"keyword\", \"store\" : true }" + "}" + "}", XContentType.JSON), RequestOptions.DEFAULT));
 
-        headers.put("Content-Type", ContentType.APPLICATION_JSON);
-        final JestResult jr = client.execute(new PutMapping.Builder("_all", "ac", "{" + "\"properties\" : {"
-                + "\"rules\" : {\"type\" : \"keyword\", \"store\" : true }" + "}" + "}"
-        ).setHeader(headers).build());
-
-        Assert.assertTrue(!jr.isSucceeded());
-        Assert.assertNotNull(jr.getErrorMessage());
-        log.debug(jr.getErrorMessage());
+        Assert.assertTrue(failure.status().equals(RestStatus.FORBIDDEN));
+        log.debug(failure.getDetailedMessage());
 
     }
 
@@ -176,11 +194,11 @@ public class MiscTest extends AbstractUnitTest {
         password = "secret";
         setupTestData("ac_rules_19.json");
 
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
-        Tuple<JestResult, HttpResponse> jResult = ((HeaderAwareJestHttpClient) client).executeE(new Health.Builder().timeout(10).build());
+        ClusterHealthResponse healthResp = client.cluster().health(new ClusterHealthRequest().timeout(TimeValue.timeValueSeconds(10)), RequestOptions.DEFAULT);
 
-        Assert.assertEquals(jResult.v2().getStatusLine().getStatusCode(), 200);
+        Assert.assertFalse(healthResp.isTimedOut());
     }
 
     @Test
@@ -224,11 +242,11 @@ public class MiscTest extends AbstractUnitTest {
         password = "secret";
         setupTestData("ac_rules_execute_all.json");
 
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
-        Tuple<JestResult, HttpResponse> jResult = ((HeaderAwareJestHttpClient) client).executeE(new Health.Builder().timeout(10).build());
+        ClusterHealthResponse healthResp = client.cluster().health(new ClusterHealthRequest().timeout(TimeValue.timeValueSeconds(10)), RequestOptions.DEFAULT);
 
-        Assert.assertEquals(jResult.v2().getStatusLine().getStatusCode(), 200);
+        Assert.assertFalse(healthResp.isTimedOut());
     }
 
     @Test
@@ -244,6 +262,7 @@ public class MiscTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.names", "reindex", "forbidden")
                 .putList("armor.actionrequestfilter.reindex.allowed_actions",
                         "indices:data/read/*",
+                        //"indices:admin/create",
                         "indices:data/write/reindex", //main action
                         "indices:data/write/bulk*", //bulk is needed due to reindex client
                         "indices:admin/mapping/put") //mapping is needed to update mapping to ES 5.6 new mapping
@@ -254,14 +273,14 @@ public class MiscTest extends AbstractUnitTest {
         startES(settings);
 
         setupTestData("ac_rules_11.json");
-        ImmutableMap<String, String> source = ImmutableMap.of("index", "marketing");
-        ImmutableMap<String, String> dest = ImmutableMap.of("index", "marketing_backup");
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        String source = "marketing";
+        String dest = "marketing_backup";
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
-        Reindex reindex = new Reindex.Builder(source, dest).refresh(false).setHeader("Content-Type", ContentType.APPLICATION_JSON).build();
-        final JestResult jr = client.execute(reindex);
+        final BulkByScrollResponse reindexResponse = client.reindex(new ReindexRequest().setSourceIndices(source).setDestIndex(dest), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(jr.isSucceeded());
+        Assert.assertTrue(reindexResponse.getBulkFailures().isEmpty());
+        Assert.assertTrue(reindexResponse.getCreated() > 0);
 
     }
 
@@ -281,7 +300,9 @@ public class MiscTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.special.allowed_actions",
                         "indices:data/read/*",
                         "kibana:indices:data/write*", //this right is needed to write
-                        "kibana:indices:admin/mapping/put") //mapping is needed to update mapping to ES 5.6 new mapping
+                        "kibana:indices:admin/mapping/put",
+                        "kibana:indices:admin/mapping/auto_put"
+                        ) //mapping is needed to update mapping to ES 5.6 new mapping
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
                 .put(authSettings).build();
@@ -290,19 +311,22 @@ public class MiscTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_20.json");
         //without the magic header the call must failed
-        final JestClient client = getJestClient(getServerUri(false), username, password);
+        final RestHighLevelClient client = getRestClient(false, username, password);
 
+        ElasticsearchStatusException iFail1 = expectThrows(ElasticsearchStatusException.class, () -> client.index( new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}",XContentType.JSON),RequestOptions.DEFAULT));
 
-        final JestResult jr = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type", ContentType.APPLICATION_JSON).build());
-
-        Assert.assertTrue(!jr.isSucceeded());
-        Assert.assertTrue(jr.getResponseCode() == 403);
+        Assert.assertTrue(iFail1.status().equals(RestStatus.FORBIDDEN));
 
         //with the magic header now it should be allowed
-        final JestResult jr2 = client.execute(new Index.Builder("{\"test_user\":\"toto\"}").index("marketing").type("flyer").id("tp_id6").setHeader("Content-Type", ContentType.APPLICATION_JSON).setHeader("kibana", "myreallyawesomekibanaheadervalue").build());
+        List<Header> headerList = new ArrayList<>(Arrays.asList(headers));
 
-        Assert.assertTrue(jr2.isSucceeded());
-        Assert.assertTrue(jr2.getResponseCode() == 201);
+        headerList.add(new BasicHeader("kibana","myreallyawesomekibanaheadervalue"));
+
+        headers = headerList.toArray(new Header[headerList.size()]);
+
+        final RestHighLevelClient client2 = getRestClient(false, username, password);
+        IndexResponse iresp = client2.index( new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}",XContentType.JSON),RequestOptions.DEFAULT);
+        Assert.assertTrue(iresp.status().equals(RestStatus.CREATED));
 
     }
 

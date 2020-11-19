@@ -47,7 +47,7 @@
     <properties>
         <elasticsearch.version>7.10.0</elasticsearch.version>
         <apache.ds.version>2.0.0.AM26</apache.ds.version>
-        <apache.ds.api.version>1.0.3</apache.ds.api.version>
+        <apache.ds.api.version>2.0.1</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
@@ -373,6 +373,12 @@
             <groupId>org.apache.directory.server</groupId>
             <artifactId>apacheds-i18n</artifactId>
             <version>${apache.ds.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.directory.api</groupId>
+            <artifactId>api-util</artifactId>
+            <version>2.0.1</version>
             <scope>test</scope>
         </dependency>
 
@@ -709,7 +715,7 @@
                 <version>3.0.0-M5</version>
                 <configuration>
                     <systemPropertyVariables>
-                    <java.security.policy>${basedir}/src/main/resources/plugin-metadata/plugin-security.policy</java.security.policy>
+                    <java.security.policy>${basedir}/src/test/resources/plugin-security.policy</java.security.policy>
                         <es.path.conf>.</es.path.conf>
                         <es.set.netty.runtime.available.processors>false</es.set.netty.runtime.available.processors>
                     </systemPropertyVariables>

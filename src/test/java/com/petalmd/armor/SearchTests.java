@@ -24,7 +24,7 @@ import java.util.*;
  * Created by bdiasse on 20/02/17.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class SearchTests extends AbstractScenarioTest {
+public class SearchTests extends AbstractUnitTest {
 
 
     @Test

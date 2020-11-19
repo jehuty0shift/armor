@@ -2,11 +2,11 @@
  * Copyright Apache Software Foundation
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -14,9 +14,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Some code of this file is borrowed from Apache Tomcat 8 http://svn.apache.org/repos/asf/tomcat/tc8.0.x/trunk/
- * 
+ *
  */
 
 package com.petalmd.armor.authentication.http.spnego;
@@ -46,31 +46,30 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.security.Principal;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
+import java.security.*;
 import java.util.Locale;
 
 public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    private final String loginContextName;
-    private final boolean strip;
+    private String loginContextName;
+    private boolean strip;
 
     @Inject
     public HTTPSpnegoAuthenticator(final Settings settings) {
 
-        System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
 
-        SecurityUtil.setSystemPropertyToAbsoluteFile("java.security.auth.login.config",
-                settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_FILEPATH));
-        SecurityUtil.setSystemPropertyToAbsoluteFile("java.security.krb5.conf",
-                settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_KRB5_CONFIG_FILEPATH));
+            SecurityUtil.setSystemPropertyToAbsoluteFile("java.security.auth.login.config",
+                    settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_FILEPATH));
+            SecurityUtil.setSystemPropertyToAbsoluteFile("java.security.krb5.conf",
+                    settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_KRB5_CONFIG_FILEPATH));
 
-        this.loginContextName = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_NAME,
-                "com.sun.security.jgss.krb5.accept");
-        this.strip = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_STRIP_REALM, true);
+            loginContextName = settings.get(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_LOGIN_CONFIG_NAME,
+                    "com.sun.security.jgss.krb5.accept");
+            strip = settings.getAsBoolean(ConfigConstants.ARMOR_AUTHENTICATION_SPNEGO_STRIP_REALM, true);
+            return null;
+        });
 
     }
 
@@ -106,7 +105,7 @@ public class HTTPSpnegoAuthenticator implements HTTPAuthenticator {
 
                     final GSSManager manager = GSSManager.getInstance();
                     final int credentialLifetime = GSSCredential.INDEFINITE_LIFETIME;
-
+                    // 1.3.6.1.5.5.2 is the SPNEGO protocol OID http://www.oid-info.com/get/1.3.6.1.5.5.2
                     final PrivilegedExceptionAction<GSSCredential> action = () -> manager.createCredential(null, credentialLifetime, new Oid("1.3.6.1.5.5.2"), GSSCredential.ACCEPT_ONLY);
                     gssContext = manager.createContext(Subject.doAs(subject, action));
 

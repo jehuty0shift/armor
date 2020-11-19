@@ -22,9 +22,15 @@ import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
@@ -144,7 +150,11 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
                 .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
                 .put("armor.authentication.authorization.ldap.rolename", "cn").build();
 
-        this.headers.put("X-Authenticated-User", "jacksonm" + (wrongPwd ? "-wrong" : ""));
+        Header xAuthUser = new BasicHeader("X-Authenticated-User", "jacksonm" + (wrongPwd ? "-wrong" : ""));
+        List<Header> headerList = Arrays.asList(headers);
+        headerList.add(xAuthUser);
+
+        headers = headerList.toArray(new Header[headerList.size()]);
 
         searchOnlyAllowed(settings, wrongPwd);
     }

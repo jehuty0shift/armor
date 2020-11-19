@@ -36,7 +36,7 @@ import java.util.List;
 @PowerMockRunnerDelegate(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
 @PowerMockIgnore({"javax.net.ssl.*", "jdk.internal.reflect.*", "javax.crypto.*", "org.apache.logging.log4j.*", "com.sun.org.apache.xerces.*", "jdk.nashorn.api.scripting.*"})
 @PrepareForTest({Unirest.class})
-public class KeflaFilterTest extends AbstractScenarioTest {
+public class KeflaFilterTest extends AbstractUnitTest {
 
     @Before
     public void setup() {

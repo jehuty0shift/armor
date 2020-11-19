@@ -30,7 +30,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class SettingsBasedBackendTest extends AbstractUnitTest {
+public class SettingsBasedBackendTest {
 
     @Test
     public void testSimpleGroup() throws Exception {

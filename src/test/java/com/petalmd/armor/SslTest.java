@@ -61,34 +61,34 @@ public class SslTest extends AbstractScenarioTest {
         searchOnlyAllowed(settings, false);
     }
 
-    @Test
-    public void testHttpsFailSSLv3() throws Exception {
-        thrown.expect(SSLHandshakeException.class);
-
-        enableSSL = true;
-        enableSSLv3Only = true;
-
-        final Settings settings = Settings
-                .builder()
-                .put("http.type","armor_ssl_netty4")
-                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
-                .put("armor.authentication.authorizer.impl",
-                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
-                        .put("armor.authentication.authorizer.cache.enable", "false")
-                        .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
-                                .put("armor.authentication.authentication_backend.cache.enable", "false")
-                                .put("armor.ssl.transport.http.enabled", true)
-                .put("armor.ssl.transport.http.enforce_clientauth", true)
-                                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
-                                .put("armor.ssl.transport.http.truststore_filepath",
-                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
-
-        username = "jacksonm";
-        password = "secret";
-
-        searchOnlyAllowed(settings, false);
-    }
+//    @Test
+//    public void testHttpsFailSSLv3() throws Exception {
+//        thrown.expect(SSLHandshakeException.class);
+//
+//        enableSSL = true;
+//        enableSSLv3Only = true;
+//
+//        final Settings settings = Settings
+//                .builder()
+//                .put("http.type","armor_ssl_netty4")
+//                .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
+//                .put("armor.authentication.authorizer.impl",
+//                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
+//                        .put("armor.authentication.authorizer.cache.enable", "false")
+//                        .put("armor.authentication.authentication_backend.impl",
+//                                "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
+//                                .put("armor.authentication.authentication_backend.cache.enable", "false")
+//                                .put("armor.ssl.transport.http.enabled", true)
+//                .put("armor.ssl.transport.http.enforce_clientauth", true)
+//                                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
+//                                .put("armor.ssl.transport.http.truststore_filepath",
+//                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
+//
+//        username = "jacksonm";
+//        password = "secret";
+//
+//        searchOnlyAllowed(settings, false);
+//    }
 
     @Test
     public void testHttpsFail() throws Exception {

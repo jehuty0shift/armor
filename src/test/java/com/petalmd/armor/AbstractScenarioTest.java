@@ -1,39 +1,32 @@
 package com.petalmd.armor;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import io.searchbox.client.JestResult;
-import org.apache.http.HttpResponse;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
 
-import java.util.Map;
-
 @RunWith(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
-public abstract class AbstractScenarioTest extends AbstractUnitTest {
+public abstract class AbstractScenarioTest extends AbstractArmorTest {
 
-    protected String baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount,
-                               final String[] indices, final String[] types) throws Exception {
+    protected SearchResponse baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount,
+                                       final String[] indices, final String[] types) throws Exception {
         startES(settings);
         setupTestData(acRulesFile);
         log.debug("------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
-        final JestResult result = executeSearch(queryFile, indices, types, true, false).v1();
-        assertJestResultCount(result, expectedCount);
-        final String json = result.getJsonString();
-        Assert.assertNotNull(json);
-        Assert.assertTrue(json.length() > 1);
-        return json;
+        final SearchResponse sResp = executeSearch(queryFile, indices, true, false);
+        Assert.assertEquals(sResp.getHits().getTotalHits().value, expectedCount);
+        return sResp;
     }
 
-    protected String baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount)
+    protected SearchResponse baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount)
             throws Exception {
         return baseQuery(settings, acRulesFile, queryFile, expectedCount, null, null);
     }
 
-    protected String baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount,
-                               final String[] indices) throws Exception {
+    protected SearchResponse baseQuery(final Settings settings, final String acRulesFile, final String queryFile, final int expectedCount,
+                                       final String[] indices) throws Exception {
         return baseQuery(settings, acRulesFile, queryFile, expectedCount, indices, null);
     }
 
@@ -62,19 +55,20 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                         "message").putList("armor.flsfilter.special-fields-only.source_includes", "*") //same as "" or null
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
+        final SearchResponse sResp = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
 
-        log.debug(toPrettyJson(json));
+        String jsonResp = sResp.toString();
+        log.debug(jsonResp);
 
-        Assert.assertTrue(!json.contains("message"));
-        Assert.assertTrue(!json.contains("thearray"));
-        Assert.assertTrue(!json.contains("thesubobject2"));
-        Assert.assertTrue(!json.contains("so2subkey4"));
-        Assert.assertTrue(json.contains("thesubobject"));
-        Assert.assertTrue(json.contains("user"));
+        Assert.assertTrue(!jsonResp.contains("message"));
+        Assert.assertTrue(!jsonResp.contains("thearray"));
+        Assert.assertTrue(!jsonResp.contains("thesubobject2"));
+        Assert.assertTrue(!jsonResp.contains("so2subkey4"));
+        Assert.assertTrue(jsonResp.contains("thesubobject"));
+        Assert.assertTrue(jsonResp.contains("user"));
 
-        Assert.assertTrue(json.contains("_source"));
-        Assert.assertTrue(!json.contains("\"_source\":{}"));
+        Assert.assertTrue(jsonResp.contains("_source"));
+        Assert.assertTrue(!jsonResp.contains("\"_source\":{}"));
 
     }
 
@@ -92,20 +86,21 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                 .putList("armor.flsfilter.special-fields-only.source_includes", "message")
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
+        final SearchResponse sResp = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall.json", 1, new String[]{"ceo", "future"});
 
-        log.debug(toPrettyJson(json));
+        String jsonResp = sResp.toString();
+        log.debug(jsonResp);
 
-        Assert.assertTrue(json.contains("message"));
-        Assert.assertTrue(!json.contains("thearray"));
-        Assert.assertTrue(!json.contains("thesubobject2"));
-        Assert.assertTrue(!json.contains("so2subkey4"));
-        Assert.assertTrue(!json.contains("thesubobject"));
-        Assert.assertTrue(!json.contains("user"));
-        Assert.assertTrue(!json.contains("structure"));
+        Assert.assertTrue(jsonResp.contains("message"));
+        Assert.assertTrue(!jsonResp.contains("thearray"));
+        Assert.assertTrue(!jsonResp.contains("thesubobject2"));
+        Assert.assertTrue(!jsonResp.contains("so2subkey4"));
+        Assert.assertTrue(!jsonResp.contains("thesubobject"));
+        Assert.assertTrue(!jsonResp.contains("user"));
+        Assert.assertTrue(!jsonResp.contains("structure"));
 
-        Assert.assertTrue(json.contains("_source"));
-        Assert.assertTrue(!json.contains("\"_source\":{}"));
+        Assert.assertTrue(jsonResp.contains("_source"));
+        Assert.assertTrue(!jsonResp.contains("\"_source\":{}"));
 
     }
 
@@ -141,16 +136,17 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
                 .putList("armor.flsfilter.special-fields-only.source_includes", "message") //does have not effect because to a "field"
                 .put(additionalSettings == null ? Settings.EMPTY : additionalSettings).build();
 
-        final String json = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall_twofields.json", 1, new String[]{"ceo",
+        final SearchResponse sResp = baseQuery(settings, "ac_rules_execute_all.json", "ac_query_matchall_twofields.json", 1, new String[]{"ceo",
                 "future"});
 
-        log.debug(toPrettyJson(json));
+        String jsonResp = sResp.toString();
+        log.debug(jsonResp);
 
-        Assert.assertTrue(!json.contains("message"));
-        Assert.assertTrue(!json.contains("thearray"));
-        Assert.assertTrue(!json.contains("thesubfield2"));
-        Assert.assertTrue(!json.contains("structure"));
-        Assert.assertTrue(json.contains("user"));
+        Assert.assertTrue(!jsonResp.contains("message"));
+        Assert.assertTrue(!jsonResp.contains("thearray"));
+        Assert.assertTrue(!jsonResp.contains("thesubfield2"));
+        Assert.assertTrue(!jsonResp.contains("structure"));
+        Assert.assertTrue(jsonResp.contains("user"));
 
     }
 
@@ -168,25 +164,33 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         log.debug("searchOnlyAllowed() ------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
         if (!wrongPwd) {
-            JestResult result = executeSearch("ac_query_matchall.json", indices, null, true, false).v1();
-            assertJestResultCount(result, 7);
+            SearchResponse sResp = executeSearch("ac_query_matchall.json", indices, true, false);
+            Assert.assertEquals(7, sResp.getHits().getTotalHits().value);
 
-            result = executeGet(indices[0], "test", "dummy", false, false).v1();
+            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0],  "dummy", false, false));
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestGetAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}");
-            result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
+            failure.getDetailedMessage().equals("{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}");
+            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], null, false, false));
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestIndexAction . Allowed actions: [RestSearchAction]]");
-            assertJestResultError(result, "{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}");
+            failure2.getDetailedMessage().equals("{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/write/index' is forbidden due to [DEFAULT]\"}");
+
         } else {
 
-            JestResult result = executeSearch("ac_query_matchall.json", indices, null, false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
+            ElasticsearchStatusException failure1 = expectThrows(ElasticsearchStatusException.class, () -> executeSearch("ac_query_matchall.json", indices, false, false));
+            failure1.getDetailedMessage().contains("Cannot authenticate user");
+            failure1.getDetailedMessage().contains("Unauthorized");
+            failure1.getDetailedMessage().contains("No user");
 
-            result = executeGet(indices[0], null, null, false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
+            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0],  null, false, false));
+            failure2.getDetailedMessage().contains("Cannot authenticate user");
+            failure2.getDetailedMessage().contains("Unauthorized");
+            failure2.getDetailedMessage().contains("No user");
 
-            result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
+            ElasticsearchStatusException failure3 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], null, false, false));
+            failure3.getDetailedMessage().contains("Cannot authenticate user");
+            failure3.getDetailedMessage().contains("Unauthorized");
+            failure3.getDetailedMessage().contains("No user");
+
         }
     }
 
@@ -214,24 +218,33 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
         log.debug("searchOnlyAllowed() ------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
         if (!wrongPwd) {
-            JestResult result = executeSearch("ac_query_matchall.json", indices, null, true, false).v1();
-            assertJestResultCount(result, 7);
+            SearchResponse sResp = executeSearch("ac_query_matchall.json", indices, true, false);
+            Assert.assertEquals(7, sResp.getHits().getTotalHits().value);
 
-            result = executeGet(indices[0], "test", "dummy", false, false).v1();
-            assertJestResultError(result, "is forbidden");
+            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0], "dummy", false, false));
+            Assert.assertTrue(failure.status().equals(RestStatus.FORBIDDEN));
+            Assert.assertTrue(failure.getDetailedMessage().contains("is forbidden"));
 
-            result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
-            assertJestResultError(result, "is forbidden");
+            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], null, false, false));
+            Assert.assertTrue(failure2.getDetailedMessage().contains("is forbidden"));
+
         } else {
 
-            JestResult result = executeSearch("ac_query_matchall.json", indices, null, false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
+            ElasticsearchStatusException failure1 = expectThrows(ElasticsearchStatusException.class, () -> executeSearch("ac_query_matchall.json", indices, false, false));
+            Assert.assertTrue(failure1.status().equals(RestStatus.FORBIDDEN));
+            Assert.assertTrue(failure1.getDetailedMessage().contains("No user"));
+            log.info("Cannot authenticate user {} as expected",username);
 
-            result = executeGet(indices[0], "_doc", "0", false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
 
-            result = executeIndexAsString("{}", indices[0], "test", null, false, false).v1();
-            assertJestResultError(result, "Cannot authenticate user", "Unauthorized", "No user");
+            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0], "0", false, false));
+            Assert.assertTrue(failure2.status().equals(RestStatus.FORBIDDEN));
+            Assert.assertTrue(failure2.getDetailedMessage().contains("No user"));
+            log.info("Cannot authenticate user {} as expected",username);
+
+            ElasticsearchStatusException failure3 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], null, false, false));
+            Assert.assertTrue(failure3.status().equals(RestStatus.FORBIDDEN));
+            Assert.assertTrue(failure3.getDetailedMessage().contains("No user"));
+            log.info("Cannot authenticate user {} as expected",username);
         }
     }
 
@@ -264,14 +277,11 @@ public abstract class AbstractScenarioTest extends AbstractUnitTest {
 
         log.info("- 6 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        SearchResponse sResp = executeSearch("ac_query_matchall_fields.json", new String[]{"internal"}, true, false);
 
-        final Tuple<JestResult, HttpResponse> resulttu = executeSearch("ac_query_matchall_fields.json", new String[]{"internal"}, null,
-                true, false);
-
-        final JestResult result = resulttu.v1();
-        final Map json = gson.fromJson(result.getJsonString(), Map.class);
-        log.debug("Result: " + gson.toJson(json));
+        String sRespString = sResp.toString();
+        Assert.assertTrue(sResp.status().equals(RestStatus.OK));
+        log.debug("Result: " + sRespString);
 
     }
 }
