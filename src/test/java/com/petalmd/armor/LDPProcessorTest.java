@@ -12,8 +12,24 @@ import io.searchbox.client.JestResult;
 import io.searchbox.core.Get;
 import io.searchbox.core.Index;
 import org.apache.http.HttpResponse;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.ingest.GetPipelineRequest;
+import org.elasticsearch.action.ingest.GetPipelineResponse;
+import org.elasticsearch.action.ingest.PutPipelineRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.RestStatus;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -25,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class LDPProcessorTest extends AbstractUnitTest {
+public class LDPProcessorTest extends AbstractArmorTest {
 
 
     public void testKafka() throws Exception {
@@ -75,6 +91,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
                         "indices:data/read/scroll/clear")
                 .putList("armor.actionrequestfilter.ingest.allowed_actions",
                         "indices:admin/create",
+                        "indices:admin/auto_create",
                         "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
@@ -87,7 +104,7 @@ public class LDPProcessorTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_29.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
         List<String> gelfStringList = new ArrayList<>();
         List<String> gelfIntList = new ArrayList<>();
@@ -118,7 +135,8 @@ public class LDPProcessorTest extends AbstractUnitTest {
         };
 
 
-        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+        final String pipelineId1 = "test";
+        BytesReference putPipelinePayload1 = new BytesArray("{\n" +
                 "    \"description\": \"_description\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -127,34 +145,21 @@ public class LDPProcessorTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "   ]\n" +
-                "}").build();
+                "}");
 
+        AcknowledgedResponse putResp1 = client.ingest().putPipeline(new PutPipelineRequest(pipelineId1, putPipelinePayload1, XContentType.JSON), RequestOptions.DEFAULT);
+        Assert.assertTrue(putResp1.isAcknowledged());
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-
-        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
-
-        result = client.executeE(getPipeline);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("_description"));
-
+        GetPipelineResponse getPipelineResp = client.ingest().getPipeline(new GetPipelineRequest(pipelineId1), RequestOptions.DEFAULT);
+        Assert.assertTrue(getPipelineResp.pipelines().stream().anyMatch(s -> s.getId().equals(username + "-"+pipelineId1)));
         final String indexName = "logs-xv-12345-i-index";
 
-        Index indexFirst = new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").setParameter("timeout", "1m").build();
+        IndexResponse iResp = client.index(new IndexRequest(indexName).id("id1").source("{\"name\" : \"Gohan\" }",XContentType.JSON), RequestOptions.DEFAULT);
 
-        result = client.executeE(indexFirst);
+        Assert.assertTrue(iResp.status().equals(RestStatus.CREATED));
 
-        Assert.assertTrue(result.v1().isSucceeded());
-
-        Get getDocument = new Get.Builder(indexName, "id1").build();
-
-        result = client.executeE(getDocument);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("Gohan"));
+        GetResponse getDocResp = client.get(new GetRequest(indexName,"id1"),RequestOptions.DEFAULT);
+        Assert.assertTrue(getDocResp.getSourceAsString().contains("Gohan"));
 
         //Preparing first Pipeline test
         gelfStringList.clear();
@@ -169,11 +174,9 @@ public class LDPProcessorTest extends AbstractUnitTest {
 
         kafkaConsumer.setConsumer(firstTest);
 
+        IndexResponse iResp2 = client.index(new IndexRequest(indexName).id("id2").source("{\"name\" : \"Cell\" }",XContentType.JSON).setPipeline("test"), RequestOptions.DEFAULT);
 
-        Index indexPipeline1 = new Index.Builder("{\"name\" : \"Cell\" }").index(indexName).type("_doc").id("id2").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
-        result = client.executeE(indexPipeline1);
-        Assert.assertTrue(result.v1().isSucceeded());
-
+        Assert.assertTrue(iResp2.getResult().equals(DocWriteResponse.Result.NOOP));
         Assert.assertEquals(true, hasRun.get());
 
         //Preparing second Pipeline test
@@ -201,10 +204,10 @@ public class LDPProcessorTest extends AbstractUnitTest {
 
         kafkaConsumer.setConsumer(secondTest);
 
-        Index indexPipeline2 = new Index.Builder("{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" , \"is_super_saiyen\" : true }").index(indexName).type("_doc").id("id3").setParameter("pipeline", "test").setParameter("timeout", "1m").build();
-        result = client.executeE(indexPipeline2);
-        Assert.assertTrue(result.v1().isSucceeded());
+        final String gokuSource  = "{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" , \"is_super_saiyen\" : true }";
+        IndexResponse iResp3 = client.index(new IndexRequest(indexName).id("id3").source(gokuSource,XContentType.JSON).setPipeline("test"), RequestOptions.DEFAULT);
 
+        Assert.assertTrue(iResp3.getResult().equals(DocWriteResponse.Result.NOOP));
         Assert.assertEquals(true, hasRun.get());
 
 

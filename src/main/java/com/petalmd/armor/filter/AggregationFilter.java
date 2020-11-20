@@ -235,7 +235,7 @@ public class AggregationFilter extends AbstractActionFilter {
         rewrittenBuilder.trackScores(sBuilder.trackScores());
         rewrittenBuilder.version(sBuilder.version());
         rewrittenBuilder.collapse(sBuilder.collapse());
-        rewrittenBuilder.trackTotalHits(sBuilder.trackTotalHitsUpTo() != SearchContext.TRACK_TOTAL_HITS_DISABLED);
+        rewrittenBuilder.trackTotalHits(sBuilder.trackTotalHitsUpTo()==null?false:sBuilder.trackTotalHitsUpTo().intValue() != SearchContext.TRACK_TOTAL_HITS_DISABLED);
         return rewrittenBuilder;
     }
 

@@ -44,10 +44,7 @@ import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.PutMappingRequest;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
@@ -61,6 +58,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -123,11 +121,11 @@ public class MiscTest extends AbstractArmorTest {
         final RestHighLevelClient client = getRestClient(false, username, password);
 
 
-        ElasticsearchStatusException nodesFailure = expectThrows(ElasticsearchStatusException.class, () -> client.getLowLevelClient().performRequest(new Request("GET", "_nodes")));
+        ResponseException nodesFailure = expectThrows(ResponseException.class, () -> client.getLowLevelClient().performRequest(new Request("GET", "_nodes")));
 
 
-        Assert.assertTrue(nodesFailure.status().equals(RestStatus.FORBIDDEN));
-        Assert.assertTrue(nodesFailure.getDetailedMessage().contains("cluster:monitor"));
+        Assert.assertEquals(403, nodesFailure.getResponse().getStatusLine().getStatusCode());
+        Assert.assertTrue(new String(nodesFailure.getResponse().getEntity().getContent().readAllBytes()).contains("cluster:monitor/nodes"));
 
     }
 
@@ -150,9 +148,9 @@ public class MiscTest extends AbstractArmorTest {
         username = "jacksonm";
         password = "secret";
         setupTestData("ac_rules_1.json");
-        executeIndex("ac_rules_1.json", "armor", "ac", false, false);
+        expectThrows(ElasticsearchStatusException.class, () -> executeIndex("ac_rules_1.json", "armor", "ac", false, false));
         executeIndex("ac_rules_1.json", "armor", "ac", true, true);
-        executeIndex("ac_rules_1.json", "armor", "xx", false, false);
+        expectThrows(ElasticsearchStatusException.class, () -> executeIndex("ac_rules_1.json", "armor", "xx", false, false));
 
         final RestHighLevelClient client = getRestClient(false, username, password);
 

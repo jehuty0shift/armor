@@ -16,6 +16,9 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.petalmd.armor.util.ConfigConstants;
@@ -25,11 +28,15 @@ import io.searchbox.client.JestResult;
 import io.searchbox.client.config.ElasticsearchVersion;
 import io.searchbox.cluster.NodesInfo;
 import org.apache.http.HttpResponse;
+import org.elasticsearch.client.*;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.GetIndexResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -37,7 +44,7 @@ import java.util.Map;
  * @author jehuty0shift
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class ObfFilterTest extends AbstractUnitTest {
+public class ObfFilterTest extends AbstractArmorTest {
 
     @Test
     public void nodesInfoFilterTest() throws Exception {
@@ -56,19 +63,22 @@ public class ObfFilterTest extends AbstractUnitTest {
         startES(settings);
         setupTestData("ac_rules_2.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> restu = client.executeE(new NodesInfo.Builder().build());
+        Response nodesResp = client.getLowLevelClient().performRequest(new Request("GET", "_nodes"));
 
-        assert(restu.v1().isSucceeded());
-        JsonObject nodesObj = restu.v1().getJsonObject().getAsJsonObject("nodes");
-        for (Map.Entry<String,JsonElement> nodeElem : nodesObj.entrySet()) {
-            JsonObject nodeObj = nodeElem.getValue().getAsJsonObject();
-            assert(nodeObj.get("transport_address").getAsString().startsWith("172.16"));
-            assert(nodeObj.get("host").getAsString().startsWith("172.16"));
-            assert(nodeObj.get("ip").getAsString().startsWith("172.16"));
+        String nodesRespStr = new String(nodesResp.getEntity().getContent().readAllBytes());
+
+        ObjectMapper objMapper = new ObjectMapper();
+
+        JsonNode nInfosJson = objMapper.reader().readTree(nodesRespStr);
+
+        for(JsonNode nodeElem : nInfosJson.get("nodes")) {
+            nodeElem.get("transport_address").asText().startsWith("172.16");
+            nodeElem.get("host").asText().startsWith("172.16");
+            nodeElem.get("ip").asText().startsWith("172.16");
         }
-        System.out.println(restu.v1().getJsonString());
+
     }
 
     @Test
@@ -89,37 +99,18 @@ public class ObfFilterTest extends AbstractUnitTest {
         startES(settings);
         setupTestData("ac_rules_2.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
-
-        final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
+        RestHighLevelClient client = getRestClient(false, username, password);
 
 
-            @Override
-            public String getRestMethodName() {
-                return "GET";
-            }
+        GetIndexResponse getIndexResp = client.indices().get(new GetIndexRequest("internal"), RequestOptions.DEFAULT);
 
-            @Override
-            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
-                //fastest way to have a GET on an index
-                return "/internal";
-            }
-
-        });
-
-        assert(restu.v1().isSucceeded());
         //verify that the mapping is not present
-        assert(!restu.v1().getJsonString().contains("post_date"));
+        Assert.assertTrue(getIndexResp.getMappings().entrySet().stream().noneMatch(k -> k.getValue().source().uncompressed().utf8ToString().contains("post_date")));
         //assert that the indice ceo is not present
-        assert(!restu.v1().getJsonString().contains("ceo"));
+        Assert.assertTrue(Arrays.stream(getIndexResp.getIndices()).sequential().noneMatch(s -> s.equals("ceo")));
         //assert that the aliases are empty.
-        for (Map.Entry<String,JsonElement> element : restu.v1().getJsonObject().entrySet()) {
-            if (element.getValue().getAsJsonObject() != null) {
-                JsonObject jObj = element.getValue().getAsJsonObject();
-                assert(jObj.get("aliases").getAsJsonObject().toString().equals("{}"));
-            }
-        }
-        System.out.println(restu.v1().getJsonString());
+        Assert.assertTrue(getIndexResp.getAliases().entrySet().stream().allMatch(e -> e.getValue().isEmpty()));
+
     }
 
 
@@ -141,37 +132,23 @@ public class ObfFilterTest extends AbstractUnitTest {
         startES(settings);
         setupTestData("ac_rules_22.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
-
-        final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
+        RestHighLevelClient client = getRestClient(false, username, password);
 
 
-            @Override
-            public String getRestMethodName() {
-                return "GET";
-            }
+        GetIndexResponse getIndexResp = client.indices().get(new GetIndexRequest("internal"), RequestOptions.DEFAULT);
 
-            @Override
-            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
-                //fastest way to have a GET on an index
-                return "/internal";
-            }
-
-        });
-
-        assert(restu.v1().isSucceeded());
         //verify that the mapping is not present
-        assert(!restu.v1().getJsonString().contains("post_date"));
+        Assert.assertTrue(getIndexResp.getMappings().entrySet().stream().noneMatch(k -> k.getValue().source().uncompressed().utf8ToString().contains("post_date")));
         //assert that the indice ceo is not present
-        assert(!restu.v1().getJsonString().contains("ceo"));
-        //assert that the aliases are empty.
-        for (Map.Entry<String,JsonElement> element : restu.v1().getJsonObject().entrySet()) {
-            if (element.getValue().getAsJsonObject() != null) {
-                JsonObject jObj = element.getValue().getAsJsonObject();
-                Assert.assertFalse(jObj.get("aliases").getAsJsonObject().has("crucial"));
-            }
-        }
-        System.out.println(restu.v1().getJsonString());
+        Assert.assertTrue(Arrays.stream(getIndexResp.getIndices()).sequential().noneMatch(s -> s.equals("ceo")));
+        //assert that the alias crucial and cxo are not present, when internal is.
+        Assert.assertTrue(getIndexResp.getAliases().entrySet().stream().flatMap(e -> e.getValue().stream())
+                .noneMatch(a -> a.alias().equals("crucial")));
+        Assert.assertTrue(getIndexResp.getAliases().entrySet().stream().flatMap(e -> e.getValue().stream())
+                .noneMatch(a -> a.alias().equals("cxo")));
+        Assert.assertTrue(getIndexResp.getAliases().entrySet().stream().flatMap(e -> e.getValue().stream())
+                .anyMatch(a -> a.alias().equals("internal")));
+
     }
 
 
@@ -193,25 +170,17 @@ public class ObfFilterTest extends AbstractUnitTest {
         startES(settings);
         setupTestData("ac_rules_2.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> restu = client.executeE(new GenericResultAbstractAction() {
-            @Override
-            public String getRestMethodName() {
-                return "GET";
-            }
+        Response stateResp = client.getLowLevelClient().performRequest(new Request("GET","_cluster/state"));
 
-            @Override
-            protected String buildURI(ElasticsearchVersion elasticsearchVersion) {
-                return "_cluster/state";
-            }
+        ObjectMapper objReader = new ObjectMapper();
 
-        });
+        JsonNode state = objReader.readTree(new String(stateResp.getEntity().getContent().readAllBytes()));
 
-
-        assert(restu.v1().isSucceeded());
-
-
+        Assert.assertTrue(state.get("nodes").isEmpty());
+        Assert.assertTrue(state.get("blocks").isEmpty());
+        Assert.assertTrue(state.get("routing_table").get("indices").isEmpty());
     }
 
 }

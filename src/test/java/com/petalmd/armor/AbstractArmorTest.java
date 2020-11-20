@@ -38,6 +38,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -177,6 +178,8 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     @After
     public void shutDownLDAPServer() throws Exception {
+        internalCluster().close();
+
         if (ldapServer != null) {
             ldapServer.stop();
         }
@@ -256,9 +259,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         HttpHost httpHost;
         if (connectFromLocalhost) {
-            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort());
+            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(), enableSSL ? "https" : "http");
         } else {
-            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort());
+            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(), enableSSL ? "https" : "http");
         }
 
         clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
@@ -284,7 +287,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             IndexResponse iResp = client.index(iReq, RequestOptions.DEFAULT);
 
             if (mustBeSuccesfull) {
-                Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED));
+                Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED) || iResp.getResult().equals(DocWriteResponse.Result.UPDATED));
             }
 
             return iResp;
@@ -326,9 +329,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         HttpHost httpHost;
         if (connectFromLocalhost) {
-            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort());
+            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(),enableSSL?"https":"http");
         } else {
-            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort());
+            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(),enableSSL?"https":"http");
         }
 
         clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
@@ -385,16 +388,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         SearchResponse sResp;
 
-        //SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         SearchModule searchModule = new SearchModule(Settings.EMPTY, false, Collections.emptyList());
-//        searchModule.getNamedXContents()
-//        try (XContentParser parser = XContentFactory.xContent(loadFile(file)).createParser(content)) {
-//             context = new QueryParseContext(searchModule.getQueryParserRegistry(), parser,
-//                    new ParseFieldMatcher(true));
-//            searchSourceBuilder.parseXContent(context, searchModule.getAggregatorParsers(),
-//                    searchModule.getSuggesters(), searchModule.getSearchExtRegistry());
-//        }
-
         SearchRequest sr = new SearchRequest(indices == null ? new String[]{} : indices)
                 .source(SearchSourceBuilder.fromXContent(
                         XContentFactory.xContent(XContentType.JSON)
@@ -418,6 +412,41 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         return sResp;
     }
+
+    protected final SearchResponse executeSearchWithScroll(final String file, final String[] indices,
+                                                           final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final TimeValue keepAlive, final int size) throws Exception {
+
+        client = getRestClient(connectFromLocalhost, username, password);
+
+        SearchResponse sResp;
+
+        SearchModule searchModule = new SearchModule(Settings.EMPTY, false, Collections.emptyList());
+
+        SearchRequest sr = new SearchRequest(indices == null ? new String[]{} : indices)
+                .source(SearchSourceBuilder.fromXContent(
+                        XContentFactory.xContent(XContentType.JSON)
+                                .createParser(new NamedXContentRegistry(searchModule.getNamedXContents()), LoggingDeprecationHandler.INSTANCE, loadFile(file))).size(size))
+                .scroll(keepAlive);
+
+        if (mustBeSuccesfull) {
+            try {
+                sResp = client.search(sr, RequestOptions.DEFAULT);
+                Assert.assertTrue(sResp.status().equals(RestStatus.OK));
+
+            } catch (ElasticsearchStatusException ex) {
+                log.error("Search operation result: {}", ex.getDetailedMessage());
+                throw ex;
+            }
+        } else {
+            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> client.search(sr, RequestOptions.DEFAULT));
+            log.debug("Search operation fails as expected");
+            Assert.assertTrue(failure != null);
+            throw failure;
+        }
+
+        return sResp;
+    }
+
 
     protected final GetResponse executeGet(final String index, final String id,
                                            final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
@@ -659,7 +688,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             String[] protocols = SecurityUtil.getEnabledSslProtocols();
 
             httpClientBuilder.setSSLStrategy(new SSLIOSessionStrategy(sslContext, protocols, SecurityUtil.getEnabledSslCiphers(), NoopHostnameVerifier.INSTANCE));
-
+            httpClientBuilder.setSSLContext(sslContext);
         }
 
         httpClientBuilder.setDefaultRequestConfig(RequestConfig.custom().setConnectTimeout(60000).build());
@@ -687,9 +716,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         HttpHost httpHost;
         if (connectFromLocalhost) {
-            httpHost = new HttpHost("localhost", hosts.get(0).getPort());
+            httpHost = new HttpHost("localhost", hosts.get(0).getPort(),enableSSL?"https":"http");
         } else {
-            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort());
+            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(),enableSSL?"https":"http");
         }
 
         RestClientBuilder clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
