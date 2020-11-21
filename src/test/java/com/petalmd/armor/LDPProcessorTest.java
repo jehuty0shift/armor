@@ -12,6 +12,8 @@ import io.searchbox.client.JestResult;
 import io.searchbox.core.Get;
 import io.searchbox.core.Index;
 import org.apache.http.HttpResponse;
+import org.apache.http.entity.BasicHttpEntity;
+import org.apache.http.entity.ContentType;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -23,6 +25,7 @@ import org.elasticsearch.action.ingest.PutPipelineRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -34,6 +37,7 @@ import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.ObjectInputFilter;
 import java.util.ArrayList;
 import java.util.List;
@@ -92,6 +96,7 @@ public class LDPProcessorTest extends AbstractArmorTest {
                 .putList("armor.actionrequestfilter.ingest.allowed_actions",
                         "indices:admin/create",
                         "indices:admin/auto_create",
+                        "indices:admin/mapping/auto_put",
                         "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
@@ -151,14 +156,14 @@ public class LDPProcessorTest extends AbstractArmorTest {
         Assert.assertTrue(putResp1.isAcknowledged());
 
         GetPipelineResponse getPipelineResp = client.ingest().getPipeline(new GetPipelineRequest(pipelineId1), RequestOptions.DEFAULT);
-        Assert.assertTrue(getPipelineResp.pipelines().stream().anyMatch(s -> s.getId().equals(username + "-"+pipelineId1)));
+        Assert.assertTrue(getPipelineResp.pipelines().stream().anyMatch(s -> s.getId().equals(username + "-" + pipelineId1)));
         final String indexName = "logs-xv-12345-i-index";
 
-        IndexResponse iResp = client.index(new IndexRequest(indexName).id("id1").source("{\"name\" : \"Gohan\" }",XContentType.JSON), RequestOptions.DEFAULT);
+        IndexResponse iResp = client.index(new IndexRequest(indexName).id("id1").source("{\"name\" : \"Gohan\" }", XContentType.JSON), RequestOptions.DEFAULT);
 
         Assert.assertTrue(iResp.status().equals(RestStatus.CREATED));
 
-        GetResponse getDocResp = client.get(new GetRequest(indexName,"id1"),RequestOptions.DEFAULT);
+        GetResponse getDocResp = client.get(new GetRequest(indexName, "id1"), RequestOptions.DEFAULT);
         Assert.assertTrue(getDocResp.getSourceAsString().contains("Gohan"));
 
         //Preparing first Pipeline test
@@ -174,9 +179,14 @@ public class LDPProcessorTest extends AbstractArmorTest {
 
         kafkaConsumer.setConsumer(firstTest);
 
-        IndexResponse iResp2 = client.index(new IndexRequest(indexName).id("id2").source("{\"name\" : \"Cell\" }",XContentType.JSON).setPipeline("test"), RequestOptions.DEFAULT);
+        Request indexReq2 = new Request("POST",  indexName + "/_doc/" + "id2?pipeline=test");
+        BasicHttpEntity bHE2 = new BasicHttpEntity();
+        bHE2.setContent(new ByteArrayInputStream("{\"name\" : \"Cell\" }".getBytes()));
+        indexReq2.setEntity(bHE2);
+        bHE2.setContentType("application/json");
+        Response iResp2 = client.getLowLevelClient().performRequest(indexReq2);
 
-        Assert.assertTrue(iResp2.getResult().equals(DocWriteResponse.Result.NOOP));
+        Assert.assertEquals(200, iResp2.getStatusLine().getStatusCode());
         Assert.assertEquals(true, hasRun.get());
 
         //Preparing second Pipeline test
@@ -204,10 +214,16 @@ public class LDPProcessorTest extends AbstractArmorTest {
 
         kafkaConsumer.setConsumer(secondTest);
 
-        final String gokuSource  = "{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" , \"is_super_saiyen\" : true }";
-        IndexResponse iResp3 = client.index(new IndexRequest(indexName).id("id3").source(gokuSource,XContentType.JSON).setPipeline("test"), RequestOptions.DEFAULT);
+        final String gokuSource = "{\"name\" : \"Goku\",\"power\" : 9000.0,\"universe\" : 7, \"X-OVH-TOKEN\" : \"ohyeah\", \"arrival_date\" : \"1984-12-03T05:06:00.000Z\" , \"is_super_saiyen\" : true }";
 
-        Assert.assertTrue(iResp3.getResult().equals(DocWriteResponse.Result.NOOP));
+        Request indexReq3 = new Request("POST",  indexName + "/_doc/" + "id3?pipeline=test");
+        BasicHttpEntity bHE3 = new BasicHttpEntity();
+        bHE3.setContent(new ByteArrayInputStream(gokuSource.getBytes()));
+        indexReq3.setEntity(bHE3);
+        bHE3.setContentType("application/json");
+        Response iResp3 = client.getLowLevelClient().performRequest(indexReq3);
+
+        Assert.assertEquals(200, iResp3.getStatusLine().getStatusCode());
         Assert.assertEquals(true, hasRun.get());
 
 
