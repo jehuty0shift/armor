@@ -1,32 +1,46 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petalmd.armor.processor.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
-import com.petalmd.armor.tests.GetPipeline;
 import com.petalmd.armor.tests.PutSettings;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.BulkableAction;
-import io.searchbox.client.JestResult;
 import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;
-import io.searchbox.indices.CreateIndex;
-import io.searchbox.indices.mapping.GetMapping;
-import io.searchbox.indices.mapping.PutMapping;
-import org.apache.http.HttpResponse;
-import org.elasticsearch.common.collect.Tuple;
+import org.apache.http.entity.BasicHttpEntity;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.ingest.GetPipelineRequest;
+import org.elasticsearch.action.ingest.GetPipelineResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.CreateIndexResponse;
+import org.elasticsearch.client.indices.GetMappingsRequest;
+import org.elasticsearch.client.indices.PutMappingRequest;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class LDPIndexFilterTest extends AbstractUnitTest {
+public class LDPIndexFilterTest extends AbstractArmorTest {
 
 
     @Test
@@ -66,32 +80,32 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_30.json");
 
+        RestHighLevelClient localHostClient = getRestClient(true, username, password);
 
         //create ldpIndex
-        CreateIndex createIndex = new CreateIndex.Builder(ldpIndex).build();
+        CreateIndexResponse cir = localHostClient.indices().create(new CreateIndexRequest(ldpIndex), RequestOptions.DEFAULT);
+        Assert.assertTrue(cir.isAcknowledged());
 
-        HeaderAwareJestHttpClient localHostClient = getJestClient(getServerUri(true), username, password);
-
-        Tuple<JestResult, HttpResponse> result = localHostClient.executeE(createIndex);
-        Assert.assertTrue(result.v1().isSucceeded());
-
-
-        GetPipeline getPipeline = new GetPipeline.Builder(ldpPipelineName).build();
-
-        result = localHostClient.executeE(getPipeline);
 
         int count = 300;
-        while (result.v2().getStatusLine().getStatusCode() != 200 && count > 0) {
-            Thread.sleep(1000);
-            result = localHostClient.executeE(getPipeline);
-            count--;
+        while (count > 0) {
+            try {
+                GetPipelineResponse getResp = localHostClient.ingest().getPipeline(new GetPipelineRequest(ldpPipelineName), RequestOptions.DEFAULT);
+                if (getResp.isFound()) {
+                    break;
+                }
+                Thread.sleep(1000);
+                count--;
+            } catch (ElasticsearchStatusException ex) {
+                log.debug("{} has not been found, retrying", ldpPipelineName);
+                count--;
+            }
         }
 
         // Put the instance once the pipeline is created
         KafkaOutputFactory.getInstance().setKafkaOutput(kafkaConsumer);
 
-
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
         //Configure base Consumer
         List<String> gelfStringList = new ArrayList<>();
@@ -115,12 +129,6 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
 
         };
 
-        Index indexFirst = new Index.Builder("{\"name\" : \"Babidi\" }")
-                .index(ldpIndex)
-                .type("_doc")
-                .id("id1")
-                .setParameter("timeout", "1m")
-                .build();
 
         //Preparing first Indexing Test
         gelfStringList.clear();
@@ -135,20 +143,20 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
 
         kafkaConsumer.setConsumer(firstTest);
 
-        result = client.executeE(indexFirst);
-        Assert.assertTrue(result.v1().isSucceeded());
+        Request indexReq1 = new Request("POST", ldpIndex + "/_doc/" + "id1");
+        BasicHttpEntity bHE1 = new BasicHttpEntity();
+        bHE1.setContent(new ByteArrayInputStream("{\"name\" : \"Babidi\" }".getBytes()));
+        indexReq1.setEntity(bHE1);
+        bHE1.setContentType("application/json");
+
+        Response iResp1 = client.getLowLevelClient().performRequest(indexReq1);
+        Assert.assertEquals(200, iResp1.getStatusLine().getStatusCode());
         Assert.assertEquals(true, hasRun.get());
 
         //Bulk Indexing test
         gelfStringList.clear();
         gelfStringList.add("name");
         hasRun.set(false);
-
-        Bulk bulkRequest = new Bulk.Builder()
-                .addAction(new Index.Builder("{\"name\" : \"Dabra\" }").index(ldpIndex).type("_doc").id("id1").setParameter("timeout", "1m").build())
-                .addAction(new Index.Builder("{\"name\" : \"Boo\" }").index(ldpIndex).type("_doc").id("id1").setParameter("timeout", "1m").build())
-                .build();
-
 
         Consumer<LDPGelf> secondTest = (ldpGelf) -> {
             baseConsumer.accept(ldpGelf);
@@ -159,11 +167,25 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
 
         kafkaConsumer.setConsumer(secondTest);
 
+        Request indexReq2 = new Request("POST", ldpIndex + "/_bulk");
+        BasicHttpEntity bHE2 = new BasicHttpEntity();
+        final String source = "{ \"index\" : { \"_index\" : \"" + ldpIndex + "\", \"_id\" : \"id1\" } }" + "\n" +
+                "{\"name\" : \"Dabra\" }" + "\n" +
+                "{ \"index\" : { \"_index\" : \"" + ldpIndex + "\", \"_id\" : \"id2\" } }" + "\n" +
+                "{\"name\" : \"Boo\" }"+"\n";
+        bHE2.setContent(new ByteArrayInputStream(source.getBytes()));
+        bHE2.setContentType("application/json");
+        indexReq2.setEntity(bHE2);
 
-        result = client.executeE(bulkRequest);
-        Assert.assertTrue(result.v1().isSucceeded());
+        Response bResp = client.getLowLevelClient().performRequest(indexReq2);
+
+        ObjectMapper objMapper = new ObjectMapper();
+
+        JsonNode bRespJson = objMapper.reader().readTree(bResp.getEntity().getContent().readAllBytes());
+        Assert.assertFalse(bRespJson.get("errors").asBoolean());
+        Assert.assertTrue(bRespJson.get("items").isArray());
+        Assert.assertEquals(2, bRespJson.get("items").size());
         Assert.assertTrue(hasRun.get());
-
 
     }
 
@@ -207,27 +229,23 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
         setupTestData("ac_rules_30.json");
 
         //create ldpIndex
-        CreateIndex createIndex = new CreateIndex.Builder(ldpIndex).build();
+        RestHighLevelClient localHostClient = getRestClient(true, username, password);
 
-        HeaderAwareJestHttpClient localHostClient = getJestClient(getServerUri(true), username, password);
+        //create ldpIndex
+        CreateIndexResponse cir = localHostClient.indices().create(new CreateIndexRequest(ldpIndex), RequestOptions.DEFAULT);
+        Assert.assertTrue(cir.isAcknowledged());
 
-        Tuple<JestResult, HttpResponse> result = localHostClient.executeE(createIndex);
-        Assert.assertTrue(result.v1().isSucceeded());
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
-
-        PutMapping pMapping = new PutMapping.Builder(ldpIndex, "_doc", "{\n" +
+        AcknowledgedResponse pMR = client.indices().putMapping(new PutMappingRequest(ldpIndex).source("{\n" +
                 "  \"properties\": {\n" +
                 "    \"email\": {\n" +
                 "      \"type\": \"keyword\"\n" +
                 "    }\n" +
                 "  }\n" +
-                "}").build();
+                "}", XContentType.JSON), RequestOptions.DEFAULT);
 
-        result = client.executeE(pMapping);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("true"));
+        Assert.assertTrue(pMR.isAcknowledged());
 
         PutSettings putSettings = new PutSettings.Builder("{\n" +
                 "    \"index\" : {\n" +
@@ -235,20 +253,18 @@ public class LDPIndexFilterTest extends AbstractUnitTest {
                 "    }\n" +
                 "}").addIndex(ldpIndex).addIndex("dev").build();
 
-        result = client.executeE(putSettings);
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertEquals(200, result.v2().getStatusLine().getStatusCode());
-        Assert.assertFalse(result.v1().getJsonString().contains(ldpIndex));
+        AcknowledgedResponse pSR = client.indices().putSettings(new UpdateSettingsRequest(ldpIndex, "dev")
+                .settings(Settings.builder()
+                        .put("index.number_of_replicas", 2).build()), RequestOptions.DEFAULT);
 
 
-        GetMapping gMapping = new GetMapping.Builder().addIndex(ldpIndex).build();
+        Assert.assertTrue(pSR.isAcknowledged());
+        Assert.assertFalse(pSR.toString().contains(ldpIndex));
 
-        result = client.executeE(gMapping);
+        ElasticsearchStatusException getFail = expectThrows(ElasticsearchStatusException.class, () -> client.indices().getMapping(new GetMappingsRequest().indices(ldpIndex), RequestOptions.DEFAULT));
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains("This action is not authorized"));
+        Assert.assertTrue(getFail.getDetailedMessage().contains("This action is not authorized"));
 
 
     }

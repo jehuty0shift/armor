@@ -1,20 +1,7 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.petalmd.armor.tests.ClearScroll;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.Action;
-import io.searchbox.client.JestResult;
-import io.searchbox.client.config.ElasticsearchVersion;
-import io.searchbox.core.MultiSearch;
-import io.searchbox.core.Search;
-import io.searchbox.core.search.aggregation.Bucket;
-import io.searchbox.core.search.aggregation.TermsAggregation;
-import io.searchbox.indices.settings.UpdateSettings;
-import org.apache.http.HttpResponse;
-import org.apache.http.entity.ContentType;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
@@ -22,7 +9,6 @@ import org.elasticsearch.action.search.*;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
@@ -37,7 +23,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by bdiasse on 20/02/17.
@@ -48,7 +37,6 @@ public class SearchTests extends AbstractArmorTest {
 
     @Test
     public void searchAggregationWithMinDocsCount() throws Exception {
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
@@ -148,7 +136,6 @@ public class SearchTests extends AbstractArmorTest {
 
     @Test
     public void searchAliasWildcard() throws Exception {
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");

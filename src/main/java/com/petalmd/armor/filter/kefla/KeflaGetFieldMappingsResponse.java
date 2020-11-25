@@ -5,9 +5,11 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.*;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.mapper.MapperService;
+import org.elasticsearch.indices.IndicesModule;
 import org.elasticsearch.rest.BaseRestHandler;
 
 import java.io.ByteArrayInputStream;
@@ -63,24 +65,26 @@ public class KeflaGetFieldMappingsResponse implements KeflaResponse {
             }
         }
 
-        log.debug("we added {} index mappings to the final response", newMappings.size());
     }
 
 
     @Override
     public ActionResponse getActionResponse() {
-
+        // This method need to return a GetFieldMappingsResponse to be validated by the HTTP Rest Pipeline.
+        // We convert the current mapping into a GetFieldMappings XContent response which will be parsed
+        // by the only publicly available constructor of GetFieldsMappingsResponse.
         try {
             XContentBuilder cBuilder = JsonXContent.contentBuilder();
-            ToXContent.Params params = new ToXContent.MapParams(Map.of(BaseRestHandler.INCLUDE_TYPE_NAME_PARAMETER, "false"));
+            //TYPE parameter has to be included to allow the parser to work properly
+            ToXContent.Params params = new ToXContent.MapParams(Map.of(BaseRestHandler.INCLUDE_TYPE_NAME_PARAMETER, "true"));
             XContentBuilder content = toXContent(cBuilder, params);
+            content.flush();
             ByteArrayOutputStream baos = (ByteArrayOutputStream) content.getOutputStream();
             ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
             XContentParser parser = JsonXContent.jsonXContent.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, bais);
-            GetFieldMappingsResponse gfmResp = GetFieldMappingsResponse.fromXContent(parser);
-            return gfmResp;
-        } catch (IOException ex) {
-            log.error("Couldn't generate keflaGetFieldMappingsResponse");
+            return GetFieldMappingsResponse.fromXContent(parser);
+        } catch (Exception ex) {
+            log.error("Couldn't generate KeflaGetFieldMappingsResponse");
         }
 
         throw new ElasticsearchException("unexpected error happened");
@@ -126,7 +130,7 @@ public class KeflaGetFieldMappingsResponse implements KeflaResponse {
                                            Map<String, GetFieldMappingsResponse.FieldMappingMetadata> mappings) throws IOException {
         for (Map.Entry<String, GetFieldMappingsResponse.FieldMappingMetadata> fieldEntry : mappings.entrySet()) {
             builder.startObject(fieldEntry.getKey());
-            fieldEntry.getValue().toXContent(builder, params);
+            fieldEntry.getValue().toXContent(builder,params);
             builder.endObject();
         }
     }

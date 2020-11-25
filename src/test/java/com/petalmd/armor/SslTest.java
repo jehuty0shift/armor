@@ -26,8 +26,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import javax.net.ssl.SSLHandshakeException;
-
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class SslTest extends AbstractScenarioTest {
 

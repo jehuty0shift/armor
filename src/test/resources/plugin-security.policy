@@ -24,6 +24,8 @@ grant {
   permission java.io.FilePermission "target/tmp", "read,readlink,write,delete";
   permission java.io.FilePermission "target/tmp/-", "read";
 //  permission java.io.FilePermission "./armor_node_key.key", "read,readlink,write";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
+  permission java.lang.RuntimePermission "reflectionFactoryAccess";
 
   //kerberos
   permission java.util.PropertyPermission "java.security.auth.login.config" ,"write";

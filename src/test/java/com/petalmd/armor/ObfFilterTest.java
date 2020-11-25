@@ -18,26 +18,18 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.AbstractAction;
-import io.searchbox.action.GenericResultAbstractAction;
-import io.searchbox.client.JestResult;
-import io.searchbox.client.config.ElasticsearchVersion;
-import io.searchbox.cluster.NodesInfo;
-import org.apache.http.HttpResponse;
-import org.elasticsearch.client.*;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.client.indices.GetIndexResponse;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Map;
 
 /**
  * Created by jehuty0shift on 13/03/17.
@@ -49,7 +41,6 @@ public class ObfFilterTest extends AbstractArmorTest {
     @Test
     public void nodesInfoFilterTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
@@ -84,7 +75,6 @@ public class ObfFilterTest extends AbstractArmorTest {
     @Test
     public void GetIndexFilterTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
@@ -117,7 +107,6 @@ public class ObfFilterTest extends AbstractArmorTest {
     @Test
     public void GetIndexFilterWithAllowedAliasesTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );
@@ -156,7 +145,6 @@ public class ObfFilterTest extends AbstractArmorTest {
     @Test
     public void GetClusterStateTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false,"ceo" );

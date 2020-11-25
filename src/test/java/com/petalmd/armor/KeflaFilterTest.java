@@ -4,26 +4,29 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.filter.kefla.KeflaUtils;
 import com.petalmd.armor.tests.GetFieldMappingsAction;
 import com.petalmd.armor.util.ConfigConstants;
+import com.sun.net.httpserver.HttpServer;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.fields.FieldCapabilities;
-import io.searchbox.indices.mapping.GetMapping;
 import kong.unirest.*;
 import org.apache.http.HttpResponse;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.GetFieldMappingsRequest;
+import org.elasticsearch.client.indices.GetFieldMappingsResponse;
+import org.elasticsearch.client.indices.GetMappingsRequest;
+import org.elasticsearch.client.indices.GetMappingsResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.modules.junit4.PowerMockRunnerDelegate;
 
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,16 +35,7 @@ import java.util.List;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-@RunWith(PowerMockRunner.class)
-@PowerMockRunnerDelegate(com.carrotsearch.randomizedtesting.RandomizedRunner.class)
-@PowerMockIgnore({"javax.net.ssl.*", "jdk.internal.reflect.*", "javax.crypto.*", "org.apache.logging.log4j.*", "com.sun.org.apache.xerces.*", "jdk.nashorn.api.scripting.*"})
-@PrepareForTest({Unirest.class})
-public class KeflaFilterTest extends AbstractUnitTest {
-
-    @Before
-    public void setup() {
-        PowerMockito.mockStatic(Unirest.class);
-    }
+public class KeflaFilterTest extends AbstractArmorTest {
 
     @Test
     public void KUtilsStreamFromFilter() throws Exception {
@@ -103,55 +97,35 @@ public class KeflaFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "http://localhost:8080")
                 .put(authSettings).build();
 
-        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
-        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        Config uniConfig = Mockito.mock(Config.class);
-        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
 
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8080), 0); // or use InetSocketAddress(0) for ephemeral port
+        httpServer.createContext("/plugins/com.ovh.graylog/mapping/fields", exchange -> {
+            byte[] response = loadFile("kefla_response_1.json").getBytes();
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
 
-        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
-        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
-
-        Mockito.when(rbe.asJson()).thenReturn(httpRes);
-
-        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
-
-        Mockito.when(Unirest.config()).thenReturn(uniConfig);
-        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
-        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
-
+        httpServer.start();
 
         startES(settings);
 
         setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetMapping.Builder())
-                .addIndex(indices)
-                .build());
+        com.fasterxml.jackson.databind.ObjectMapper objMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .getAsJsonObject("properties")
-                .has("user"));
-        Assert.assertTrue(resulttu.v1()
-                .getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .getAsJsonObject("properties")
-                .has("previous_club"));
+        GetMappingsResponse gmr1 = client.indices().getMapping(new GetMappingsRequest().indices(indices), RequestOptions.DEFAULT);
 
+        com.fasterxml.jackson.databind.JsonNode jsonNode = objMapper.reader().readTree(gmr1.mappings().get("dev").source().uncompressed().utf8ToString());
+
+        Assert.assertTrue(jsonNode.path("properties").size() > 5);
+        Assert.assertTrue(jsonNode.path("properties").has("user"));
+        Assert.assertTrue(jsonNode.path("properties").has("previous_club"));
 
     }
 
@@ -168,56 +142,37 @@ public class KeflaFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "http://localhost:8080")
                 .put(authSettings).build();
 
-        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
-        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        Config uniConfig = Mockito.mock(Config.class);
-        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8080), 0); // or use InetSocketAddress(0) for ephemeral port
+        httpServer.createContext("/plugins/com.ovh.graylog/mapping/fields", exchange -> {
+            byte[] response = loadFile("kefla_response_1.json").getBytes();
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
 
-
-        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
-        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
-
-        Mockito.when(rbe.asJson()).thenReturn(httpRes);
-
-        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
-
-        Mockito.when(Unirest.config()).thenReturn(uniConfig);
-        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
-        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
-
+        httpServer.start();
 
         startES(settings);
 
         setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetMapping.Builder())
-                .addIndex(indices)
-                .build());
+        GetMappingsResponse gmr1 = client.indices().getMapping(new GetMappingsRequest().indices(indices), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .getAsJsonObject("properties")
-                .has("user"));
-        Assert.assertFalse(resulttu.v1()
-                .getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .getAsJsonObject("properties")
-                .has("previous_club"));
+        com.fasterxml.jackson.databind.ObjectMapper objMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
+       com.fasterxml.jackson.databind.JsonNode jsonNode = objMapper.reader().readTree(gmr1.mappings().get("dev").source().uncompressed().utf8ToString());
 
+        Assert.assertTrue(jsonNode.path("properties").size() == 5);
+        Assert.assertTrue(jsonNode.path("properties").has("user"));
+        Assert.assertTrue(jsonNode.path("properties").has("message"));
+        Assert.assertFalse(jsonNode.path("properties").has("has_ballon_dor_bool"));
+
+        httpServer.stop(0);
     }
 
 
@@ -234,55 +189,37 @@ public class KeflaFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "http://localhost:8080")
                 .put(authSettings).build();
 
-        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
-        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
-        Config uniConfig = Mockito.mock(Config.class);
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8080), 0); // or use InetSocketAddress(0) for ephemeral port
+        httpServer.createContext("/plugins/com.ovh.graylog/mapping/fields", exchange -> {
+            byte[] response = loadFile("kefla_response_1.json").getBytes();
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
 
-        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
-        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
-
-        Mockito.when(rbe.asJson()).thenReturn(httpRes);
-
-        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
-
-        Mockito.when(Unirest.config()).thenReturn(uniConfig);
-        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
-        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
+        httpServer.start();
 
 
         startES(settings);
 
         setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetFieldMappingsAction.Builder())
-                .addIndex(indices)
-                .addType("beta")
-                .setFields(List.of("user", "previous_club"))
-                .build()
-        );
+        GetFieldMappingsResponse gFMResp = client.indices().getFieldMapping(new GetFieldMappingsRequest().
+                indices(indices)
+                .fields("user", "previous_club"),RequestOptions.DEFAULT);
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .has("user"));
-        Assert.assertFalse(resulttu.v1()
-                .getJsonObject()
-                .getAsJsonObject("dev")
-                .getAsJsonObject("mappings")
-                .getAsJsonObject("beta")
-                .has("previous_club"));
 
+        Assert.assertEquals(1,gFMResp.mappings().size());
+        Assert.assertNotNull(gFMResp.fieldMappings("dev","user"));
+        //previous club should not be returned
+        Assert.assertNull(gFMResp.fieldMappings("dev","previous_club"));
+
+        httpServer.stop(0);
     }
 
 
@@ -299,75 +236,38 @@ public class KeflaFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "indices:data*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
                 .put(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, true)
-                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "https://localhost:443")
+                .put(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "http://localhost:8080")
                 .put(authSettings).build();
 
-        HttpRequestWithBody httpReq = Mockito.mock(HttpRequestWithBody.class);
-        RequestBodyEntity rbe = Mockito.mock(RequestBodyEntity.class);
-        kong.unirest.HttpResponse<JsonNode> httpRes = Mockito.mock(kong.unirest.HttpResponse.class);
-        Config uniConfig = Mockito.mock(Config.class);
+        HttpServer httpServer = HttpServer.create(new InetSocketAddress(8080), 0); // or use InetSocketAddress(0) for ephemeral port
+        httpServer.createContext("/plugins/com.ovh.graylog/mapping/fields", exchange -> {
+            byte[] response = loadFile("kefla_response_1.json").getBytes();
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
 
-        JsonNode bodyNode = new JsonNode(loadFile("kefla_response_1.json"));
-        Mockito.when(httpReq.basicAuth(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.header(Mockito.anyString(), Mockito.anyString())).thenReturn(httpReq);
-        Mockito.when(httpReq.body((Object) Mockito.any())).thenReturn(rbe);
-
-        Mockito.when(rbe.asJson()).thenReturn(httpRes);
-
-        Mockito.when(httpRes.getBody()).thenReturn(bodyNode);
-
-        Mockito.when(Unirest.config()).thenReturn(uniConfig);
-        Mockito.when(uniConfig.setObjectMapper(Mockito.any())).thenReturn(uniConfig);
-        Mockito.when(Unirest.post(Mockito.anyString())).thenReturn(httpReq);
-
+        httpServer.start();
 
         startES(settings);
 
         setupTestDataWithFilteredAliasWithStreams("ac_rules_24.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE(new FieldCapabilities.Builder(Arrays.asList("user", "previous_club", "message"))
-                .setIndex(indices)
-                .build());
+        FieldCapabilitiesResponse fCapResp = client.fieldCaps(new FieldCapabilitiesRequest()
+                .indices(indices)
+        .fields("user", "previous_club", "message","source_ip_geolocation.geo","source_ip_geolocation"),RequestOptions.DEFAULT);
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("fields")
-                .getAsJsonObject("user")
-                .getAsJsonObject("keyword")
-                .getAsJsonArray("indices").size() == 1);
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("fields")
-                .getAsJsonObject("user")
-                .getAsJsonObject("keyword")
-                .getAsJsonArray("indices")
-                .get(0)
-                .getAsString().equals("dev"));
-        Assert.assertTrue(resulttu.v1().getJsonObject()
-                .getAsJsonObject("fields")
-                .getAsJsonObject("message")
-                .has("text"));
+        Assert.assertEquals(1, fCapResp.getIndices().length);
+        Assert.assertTrue(Arrays.stream(fCapResp.getField("user").get("keyword").indices()).allMatch( i -> i.equals("dev")));
+        Assert.assertTrue(fCapResp.getField("message").containsKey("text"));
+        Assert.assertTrue(Arrays.stream(fCapResp.getField("message").get("text").indices()).allMatch( i -> i.equals("dev")));
+        Assert.assertNotNull(fCapResp.getField("source_ip_geolocation.geo"));
+        Assert.assertNotNull(fCapResp.getField("source_ip_geolocation"));
+        Assert.assertNull(fCapResp.getField("previous_club"));
 
-        Assert.assertFalse(resulttu.v1().getJsonObject()
-                .getAsJsonObject("fields")
-                .getAsJsonObject("message")
-                .getAsJsonObject("text").has("indices"));
-        Assert.assertFalse(resulttu.v1()
-                .getJsonObject()
-                .getAsJsonObject("fields")
-                .has("previous_club"));
-
-
-        final Tuple<JestResult, HttpResponse> resulttu2 = ((HeaderAwareJestHttpClient) client).executeE(new FieldCapabilities.Builder(Arrays.asList("source_ip_geolocation.geo","source_ip_geolocation"))
-                .setIndex(indices)
-                .build());
-
-        Assert.assertTrue(resulttu2.v1().getJsonObject()
-                .getAsJsonObject("fields")
-                .has("source_ip_geolocation.geo"));
-
+        httpServer.stop(0);
     }
 
 }

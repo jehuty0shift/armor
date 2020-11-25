@@ -12,18 +12,37 @@ import io.searchbox.core.Bulk;
 import io.searchbox.core.Get;
 import io.searchbox.core.Index;
 import org.apache.http.HttpResponse;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.ingest.*;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.GetIndexResponse;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.regex.Pattern;
 
 /**
  * Created by jehuty0shift on 11/03/2020.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class IngestPipelineFilterTest extends AbstractUnitTest {
+public class IngestPipelineFilterTest extends AbstractArmorTest {
 
 
     @Test
@@ -52,9 +71,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        PutPipeline putPipeline = new PutPipeline.Builder("test").payload("{\n" +
+        String pipelineSource = "{\n" +
                 "  \"description\" : \"my first pipeline\",\n" +
                 "  \"processors\": [\n" +
                 "    {\n" +
@@ -64,25 +83,20 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "      }\n" +
                 "    }\n" +
                 "  ]\n" +
-                "}").build();
+                "}";
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipeline);
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        AcknowledgedResponse putResp = client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(pipelineSource), XContentType.JSON), RequestOptions.DEFAULT);
 
-        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
+        Assert.assertTrue(putResp.isAcknowledged());
 
-        result = client.executeE(getPipeline);
+        GetPipelineResponse getResp = client.ingest().getPipeline(new GetPipelineRequest("test"), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("my first pipeline"));
+        Assert.assertTrue(getResp.pipelines().get(0).toString().contains("my first pipeline"));
 
-        GetPipeline getPipeline2 = new GetPipeline.Builder(username + "-test").build();
+        GetPipelineResponse getResp2 = client.ingest().getPipeline(new GetPipelineRequest(username + "-test"), RequestOptions.DEFAULT);
 
-        result = client.executeE(getPipeline2);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("my first pipeline"));
+        Assert.assertTrue(getResp2.pipelines().get(0).toString().contains("my first pipeline"));
 
     }
 
@@ -114,9 +128,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        PutPipeline putPipeline = new PutPipeline.Builder("test").payload("{\n" +
+        final String pipelineSource = "{\n" +
                 "  \"description\" : \"my first pipeline\",\n" +
                 "  \"processors\": [\n" +
                 "    {\n" +
@@ -126,24 +140,19 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "      }\n" +
                 "    }\n" +
                 "  ]\n" +
-                "}").build();
+                "}";
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipeline);
+        AcknowledgedResponse putResp = client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(pipelineSource), XContentType.JSON), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(putResp.isAcknowledged());
 
-        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
+        GetPipelineResponse getResp = client.ingest().getPipeline(new GetPipelineRequest("test"), RequestOptions.DEFAULT);
 
-        result = client.executeE(getPipeline);
+        Assert.assertTrue(getResp.pipelines().get(0).toString().contains("my first pipeline"));
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("my first pipeline"));
+        AcknowledgedResponse delResp = client.ingest().deletePipeline(new DeletePipelineRequest("test"), RequestOptions.DEFAULT);
 
-        DeletePipeline deletePipeline2 = new DeletePipeline.Builder("test").build();
-
-        result = client.executeE(deletePipeline2);
-
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(delResp.isAcknowledged());
 
     }
 
@@ -174,9 +183,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        SimulatePipeline simulatePipeline = new SimulatePipeline.Builder().payload("{\n" +
+        final String simulatePayload = "{\n" +
                 "  \"pipeline\" :\n" +
                 "  {\n" +
                 "    \"description\": \"_description\",\n" +
@@ -207,12 +216,11 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "      }\n" +
                 "    }\n" +
                 "  ]\n" +
-                "}").build();
+                "}";
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(simulatePipeline);
+        SimulatePipelineResponse simResp = client.ingest().simulate(new SimulatePipelineRequest(new BytesArray(simulatePayload), XContentType.JSON), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
+        Assert.assertTrue(simResp.getResults().stream().allMatch(sd -> ((SimulateDocumentBaseResult) sd).getIngestDocument().hasField("field2")));
 
     }
 
@@ -244,9 +252,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+        final String pipeline1 = "{\n" +
                 "    \"description\": \"_description\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -256,14 +264,13 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "   ]\n" +
-                "}").build();
+                "}";
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
+        AcknowledgedResponse putResp = client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(pipeline1), XContentType.JSON), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(putResp.isAcknowledged());
 
-
-        SimulatePipeline simulPipelineRequest = new SimulatePipeline.Builder("test").payload("{\n" +
+        final String simulatePayload = "{\n" +
                 "  \"docs\": [\n" +
                 "    {\n" +
                 "      \"_index\": \"index\",\n" +
@@ -282,16 +289,19 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "      }\n" +
                 "    }\n" +
                 "  ]\n" +
-                "}").build();
+                "}";
 
-        result = client.executeE(simulPipelineRequest);
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
+        SimulatePipelineRequest spReq1 = new SimulatePipelineRequest(new BytesArray(simulatePayload), XContentType.JSON);
+        spReq1.setId("test");
+
+        SimulatePipelineResponse simResp = client.ingest().simulate(spReq1, RequestOptions.DEFAULT);
+
+        Assert.assertTrue(simResp.getResults().stream().allMatch(sd -> ((SimulateDocumentBaseResult) sd).getIngestDocument().hasField("field2")));
 
     }
 
     @Test
-    public void denyHarmfulScript() throws Exception{
+    public void denyHarmfulScript() throws Exception {
 
         username = "logs-xv-12345";
         password = "secret";
@@ -316,14 +326,14 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
         //Source script is :
         //  "source": """
         //    ctx._index = 'my_index';
         //    ctx._type = '_doc';
         //  """
-        PutPipeline putPipeline = new PutPipeline.Builder("test").payload("{\n" +
+        final String putPipeline1 = "{\n" +
                 "    \"description\": \"use index:my_index and type:_doc\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -332,12 +342,13 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "    ]\n" +
-                "}").build();
+                "}";
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipeline);
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+        ElasticsearchStatusException putFail = expectThrows(ElasticsearchStatusException.class,
+                () -> client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(putPipeline1), XContentType.JSON), RequestOptions.DEFAULT));
+
+        Assert.assertEquals(putFail.status(), RestStatus.FORBIDDEN);
 
         //Source script is :
         //  "source": """
@@ -345,7 +356,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
         //    ctx._index += 'graylog2_125';
         //    ctx._type = '_doc';
         //  """
-        PutPipeline putPipeline2 = new PutPipeline.Builder("test").payload("{\n" +
+        final String putPipeline2 = "{\n" +
                 "    \"description\": \"remplace index my_index with graylog2_125 and type:_doc\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -354,12 +365,12 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "    ]\n" +
-                "}").build();
+                "}";
 
-        result = client.executeE(putPipeline);
+        ElasticsearchStatusException putFail2 = expectThrows(ElasticsearchStatusException.class,
+                () -> client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(putPipeline2), XContentType.JSON), RequestOptions.DEFAULT));
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+        Assert.assertEquals(putFail2.status(), RestStatus.FORBIDDEN);
 
     }
 
@@ -371,7 +382,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","lifecycle_index")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden", "lifecycle_index")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions",
                         "cluster:admin/ingest/pipeline/put",
                         "cluster:admin/ingest/pipeline/get",
@@ -383,7 +394,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
+                        "indices:admin/auto_create",
                         "indices:admin/create",
+                        "indices:admin/mapping/auto_put",
                         "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
@@ -395,9 +408,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+        final String pipeline1 = "{\n" +
                 "    \"description\": \"_description\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -407,35 +420,29 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "   ]\n" +
-                "}").build();
+                "}";
 
+        AcknowledgedResponse putResp = client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(pipeline1), XContentType.JSON), RequestOptions.DEFAULT);
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
+        Assert.assertTrue(putResp.isAcknowledged());
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        GetPipelineResponse getPipelineResp = client.ingest().getPipeline(new GetPipelineRequest("test"), RequestOptions.DEFAULT);
 
-        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
-
-        result = client.executeE(getPipeline);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("_description"));
+        Assert.assertTrue(getPipelineResp.pipelines().get(0).toString().contains("_description"));
 
         final String indexName = "logs-xv-12345-i-index";
 
-        Index indexPipeline1 = new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").setParameter("pipeline","test").setParameter("timeout","1m").build();
+        IndexResponse iResp = client.index(new IndexRequest(indexName)
+                .id("id1")
+                .setPipeline("test")
+                .source("{\"name\" : \"Gohan\" }", XContentType.JSON),
+                RequestOptions.DEFAULT);
 
-        result = client.executeE(indexPipeline1);
+        Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED));
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        GetResponse getResp1 = client.get(new GetRequest(indexName, "id1"), RequestOptions.DEFAULT);
 
-        Get getDocument = new Get.Builder(indexName, "id1").build();
-
-        result = client.executeE(getDocument);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
-
+        Assert.assertNotNull(getResp1.getSource().containsKey("field2"));
 
     }
 
@@ -446,7 +453,7 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
 
-        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden","lifecycle_index")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "forbidden", "lifecycle_index")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions",
                         "cluster:admin/ingest/pipeline/put",
                         "cluster:admin/ingest/pipeline/get",
@@ -458,7 +465,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                         "indices:data/read/scroll",
                         "indices:data/read/scroll/clear")
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions",
+                        "indices:admin/auto_create",
                         "indices:admin/create",
+                        "indices:admin/mapping/auto_put",
                         "indices:admin/mapping/put",
                         "indices:data*")
                 .put(ConfigConstants.ARMOR_AUDITLOG_ENABLED, false)
@@ -470,9 +479,9 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         setupTestData("ac_rules_28.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        PutPipeline putPipelineRequest = new PutPipeline.Builder("test").payload("{\n" +
+        final String pipeline1 = "{\n" +
                 "    \"description\": \"_description\",\n" +
                 "    \"processors\": [\n" +
                 "      {\n" +
@@ -482,33 +491,31 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
                 "        }\n" +
                 "      }\n" +
                 "   ]\n" +
-                "}").build();
+                "}";
 
+        AcknowledgedResponse putResp = client.ingest().putPipeline(new PutPipelineRequest("test", new BytesArray(pipeline1), XContentType.JSON), RequestOptions.DEFAULT);
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(putPipelineRequest);
+        Assert.assertTrue(putResp.isAcknowledged());
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        GetPipelineResponse getPipelineResp = client.ingest().getPipeline(new GetPipelineRequest("test"), RequestOptions.DEFAULT);
 
-        GetPipeline getPipeline = new GetPipeline.Builder("test").build();
-
-        result = client.executeE(getPipeline);
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("_description"));
+        Assert.assertTrue(getPipelineResp.pipelines().get(0).toString().contains("_description"));
 
         final String indexName = "logs-xv-12345-i-index";
 
-        Bulk bulkPipeline1 = new Bulk.Builder().addAction(new Index.Builder("{\"name\" : \"Gohan\" }").index(indexName).type("_doc").id("id1").build()).setParameter("pipeline","test").setParameter("timeout","1m").build();
+        BulkResponse bResp = client.bulk(new BulkRequest(indexName).add(
+                new IndexRequest(indexName)
+                        .id("id1")
+                        .setPipeline("test")
+                        .source("{\"name\" : \"Gohan\" }", XContentType.JSON))
+                ,RequestOptions.DEFAULT);
 
-        result = client.executeE(bulkPipeline1);
+        Assert.assertFalse(bResp.hasFailures());
+        Assert.assertTrue(Arrays.stream(bResp.getItems()).allMatch(i -> i.getOpType().equals(DocWriteRequest.OpType.INDEX)));
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        GetResponse gResp = client.get(new GetRequest(indexName, "id1"),RequestOptions.DEFAULT);
 
-        Get getDocument = new Get.Builder(indexName, "id1").build();
-
-        result = client.executeE(getDocument);
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("field2"));
+        Assert.assertNotNull(gResp.getSource().containsKey("field2"));
 
     }
 
@@ -522,6 +529,6 @@ public class IngestPipelineFilterTest extends AbstractUnitTest {
 
         Assert.assertTrue(pattern.matcher(source1).find());
         Assert.assertFalse(pattern.matcher(source2).find());
-        
+
     }
 }

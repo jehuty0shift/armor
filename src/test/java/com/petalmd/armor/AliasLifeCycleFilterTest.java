@@ -26,7 +26,6 @@ import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.aliases.AddAliasMapping;
 import io.searchbox.indices.aliases.ModifyAliases;
 import io.searchbox.indices.aliases.RemoveAliasMapping;
-import kong.unirest.Unirest;
 import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -40,7 +39,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -52,7 +50,6 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-@PrepareForTest({Unirest.class})
 public class AliasLifeCycleFilterTest extends AbstractUnitTest {
 
 

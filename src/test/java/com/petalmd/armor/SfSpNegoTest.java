@@ -38,7 +38,6 @@ public class SfSpNegoTest extends AbstractArmorTest {
     @Test
     public void sfSpNegoTest() throws Exception {
 
-
         final Settings settings = Settings
                 .builder()
                 .putList("armor.actionrequestfilter.names", "readonly")

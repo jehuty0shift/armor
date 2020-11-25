@@ -35,7 +35,6 @@ public class KeflaFilter extends AbstractActionFilter {
 
     private static final Logger log = LogManager.getLogger(KeflaFilter.class);
     private boolean enabled;
-    private final String graylogEndpoint;
     private final KeflaEngine kEngine;
     public final List<String> actions = ImmutableList.of(
             GetMappingsAction.NAME,
@@ -48,7 +47,7 @@ public class KeflaFilter extends AbstractActionFilter {
     public KeflaFilter(final Settings settings, final KeflaEngine kEngine, final ArmorService armorService, final ArmorConfigService armorConfigService, final ClusterService clusterService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KEFLA_FILTER_ENABLED, false);
-        graylogEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
+        final String graylogEndpoint = settings.get(ConfigConstants.ARMOR_KEFLA_PLUGIN_ENDPOINT, "");
         if (this.enabled && graylogEndpoint.isBlank()) {
             log.error("Graylog Endpoint has not been configured, deactivating Kefla");
             enabled = false;

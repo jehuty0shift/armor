@@ -1,24 +1,22 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.petalmd.armor.tests.GetFieldCapsAction;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestResult;
-import io.searchbox.fields.FieldCapabilities;
-import org.apache.http.HttpResponse;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /**
  * Created by jehuty0shift on 26/10/18.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class KibanaHelperTests extends AbstractUnitTest {
+public class KibanaHelperTests extends AbstractArmorTest {
 
     @Test
     public void readFieldCapsOnAliasDenied() throws Exception {
@@ -38,15 +36,12 @@ public class KibanaHelperTests extends AbstractUnitTest {
 
         setupTestDataWithFilteredAlias("ac_rules_15.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetFieldCapsAction.Builder())
-                .addIndex(indices)
-                .setFields(Arrays.asList("@timestamp")).build());
+        ElasticsearchStatusException fail1 = expectThrows(ElasticsearchStatusException.class, () -> client.fieldCaps(new FieldCapabilitiesRequest().indices(indices).fields("@timestamp"), RequestOptions.DEFAULT));
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 404);
-        Assert.assertFalse(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject().has("error"));
+        Assert.assertEquals(fail1.status(), RestStatus.NOT_FOUND);
+        Assert.assertTrue(fail1.getDetailedMessage().contains("no such index"));
 
 
     }
@@ -70,15 +65,11 @@ public class KibanaHelperTests extends AbstractUnitTest {
 
         setupTestDataWithFilteredAlias("ac_rules_18.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE((new GetFieldCapsAction.Builder())
-                .addIndex(indices)
-                .setAllFields().build());
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        Assert.assertTrue(resulttu.v2().getStatusLine().getStatusCode() == 200);
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-        Assert.assertTrue(resulttu.v1().getJsonObject().getAsJsonObject("fields").has("user"));
+      FieldCapabilitiesResponse fcResp =  client.fieldCaps(new FieldCapabilitiesRequest().indices(indices).fields("*"), RequestOptions.DEFAULT);
+      Assert.assertTrue(fcResp.get().containsKey("user"));
 
     }
 }

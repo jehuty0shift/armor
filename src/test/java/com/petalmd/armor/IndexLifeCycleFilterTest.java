@@ -36,7 +36,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -49,7 +48,6 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-@PrepareForTest({Unirest.class})
 public class IndexLifeCycleFilterTest extends AbstractUnitTest {
 
     @Test
