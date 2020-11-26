@@ -49,6 +49,7 @@ import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -518,8 +519,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler,
                                                           CircuitBreakerService circuitBreakerService,
                                                           NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        return Collections.emptyMap();
-        //return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService));
+        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, getSharedGroupFactory(settings)));
     }
 
     private SharedGroupFactory getSharedGroupFactory(Settings settings) {

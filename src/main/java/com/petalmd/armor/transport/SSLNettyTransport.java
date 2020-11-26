@@ -148,7 +148,7 @@ public class SSLNettyTransport extends Netty4Transport {
 
         public SSLClientChannelInitializer(DiscoveryNode node) {
 
-            String advertisedNodeName = node.getAttributes().get("server_name"); //used for compability with Elasticsearch SSL conventions.
+            String advertisedNodeName = node.getAttributes().get("server_name"); //used for compatibility with Elasticsearch SSL conventions.
 
             if(advertisedNodeName != null && !advertisedNodeName.isEmpty()) {
                 try {

@@ -16,17 +16,9 @@ import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.KafkaService;
 import com.petalmd.armor.service.MongoDBService;
-import com.petalmd.armor.tests.IndexAliasAction;
-import com.petalmd.armor.tests.RemoveIndexAliasMapping;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
 import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
-import io.searchbox.client.JestResult;
-import io.searchbox.indices.CreateIndex;
-import io.searchbox.indices.aliases.AddAliasMapping;
-import io.searchbox.indices.aliases.ModifyAliases;
-import io.searchbox.indices.aliases.RemoveAliasMapping;
-import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
@@ -34,14 +26,23 @@ import org.apache.kafka.clients.producer.internals.ProduceRequestResult;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.utils.Time;
 import org.bson.Document;
-import org.elasticsearch.common.collect.Tuple;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.*;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -50,7 +51,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class AliasLifeCycleFilterTest extends AbstractUnitTest {
+public class AliasLifeCycleFilterTest extends AbstractArmorTest {
 
 
     @Test
@@ -103,12 +104,10 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
         KafkaService.setKafkaProducer(mockProducer);
 
-        System.setProperty("es.set.netty.runtime.available.processors", "false");
-
         startES(settings);
         setupTestData("ac_rules_26.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
         final AtomicReference<Boolean> hasSent = new AtomicReference<>();
         final AtomicReference<Boolean> indexSent = new AtomicReference<>();
@@ -150,25 +149,31 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
                 }
         );
 
-        CreateIndex createIndex = new CreateIndex.Builder(indexName1).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
-        Tuple<JestResult, HttpResponse> result = client.executeE(createIndex);
+        CreateIndexResponse ciResp = client.indices().create(new CreateIndexRequest(indexName1)
+                .settings(Settings.builder()
+                        .put("index.number_of_shards", 3)
+                        .put("index.number_of_replicas", 1)
+                        .build()), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(ciResp.isAcknowledged());
 
-        CreateIndex createIndex2 = new CreateIndex.Builder(indexName2).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
-        result = client.executeE(createIndex2);
+        CreateIndexResponse ciResp2 = client.indices().create(new CreateIndexRequest(indexName2)
+                .settings(Settings.builder()
+                        .put("index.number_of_shards", 3)
+                        .put("index.number_of_replicas", 1)
+                        .build()), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
-
-        AddAliasMapping addAliasMapping1 = new AddAliasMapping.Builder(Arrays.asList(indexName1, indexName2), aliasName1).build();
+        Assert.assertTrue(ciResp2.isAcknowledged());
 
         checkAliases.clear();
         checkAliases.add(aliasName1);
 
-        ModifyAliases modifyAliases1 = new ModifyAliases.Builder(Arrays.asList(addAliasMapping1)).build();
-        result = client.executeE(modifyAliases1);
+        AcknowledgedResponse aliasResp1 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                        .indices(indexName1, indexName2)
+                        .alias(aliasName1)), RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(aliasResp1.isAcknowledged());
         Assert.assertTrue(hasSent.get());
 
         //reset hasSent
@@ -176,26 +181,28 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         producedObject.clear();
 
         //remove and reset alias only on indexName2
-        AddAliasMapping addAliasMapping2 = new AddAliasMapping.Builder(Arrays.asList(indexName2), aliasName1).build();
-        RemoveAliasMapping removeAliasMapping1 = new RemoveAliasMapping.Builder(Arrays.asList(username + "-i-*"), aliasName1).build();
+        AcknowledgedResponse aliasResp2 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE)
+                        .indices(username + "-i-*")
+                        .alias(aliasName1))
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                        .indices(indexName2)
+                        .alias(aliasName1)), RequestOptions.DEFAULT);
 
-        ModifyAliases modifyAliases2 = new ModifyAliases.Builder(Arrays.asList(removeAliasMapping1, addAliasMapping2)).build();
-        result = client.executeE(modifyAliases2);
-
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(aliasResp2.isAcknowledged());
         Assert.assertTrue(hasSent.get());
 
         //reset hasSent
         hasSent.set(false);
         producedObject.clear();
 
+        //remove all aliases
+        AcknowledgedResponse aliasResp3 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE)
+                        .indices(username + "-i-*")
+                        .alias(aliasName1)), RequestOptions.DEFAULT);
 
-        RemoveAliasMapping removeAliasMapping2 = new RemoveAliasMapping.Builder(Arrays.asList(username + "-i-*"), aliasName1).build();
-
-        ModifyAliases modifyAliases3 = new ModifyAliases.Builder(Arrays.asList(removeAliasMapping2)).build();
-        result = client.executeE(modifyAliases3);
-
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(aliasResp3.isAcknowledged());
         Assert.assertTrue(hasSent.get());
 
         AliasOperation producedAliasOp1 = producedObject.get(0);
@@ -204,27 +211,37 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         producedObject.clear();
         hasSent.set(false);
 
-        AddAliasMapping addAliasMapping4 = new AddAliasMapping.Builder("dev", aliasName1).build();
-        ModifyAliases modifyAliases4 = new ModifyAliases.Builder(Arrays.asList(addAliasMapping4)).build();
+        //Prevent Alias to be created
+        ElasticsearchStatusException aliasFail1 = expectThrows(ElasticsearchStatusException.class, () ->
+                client.indices().updateAliases(new IndicesAliasesRequest()
+                        .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                                .indices("dev")
+                                .alias(aliasName1)), RequestOptions.DEFAULT));
 
-        result = client.executeE(modifyAliases4);
 
-        Assert.assertFalse(result.v1().isSucceeded());
         //the alias should not be created
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains(username + "-i-"));
+        Assert.assertTrue(aliasFail1.status().equals(RestStatus.FORBIDDEN));
+        Assert.assertTrue(aliasFail1.getDetailedMessage().contains(username + "-i-"));
 
 
-        AddAliasMapping addAliasMapping5 = new AddAliasMapping.Builder(indexName1, "graylog2_deflector").build();
-        ModifyAliases modifyAliases5 = new ModifyAliases.Builder(Arrays.asList(addAliasMapping5)).build();
-        result = client.executeE(modifyAliases5);
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains(username + "-a-"));
+        ElasticsearchStatusException aliasFail2 = expectThrows(ElasticsearchStatusException.class, () ->
+                client.indices().updateAliases(new IndicesAliasesRequest()
+                        .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                                .indices(indexName1)
+                                .alias("index_deflector")), RequestOptions.DEFAULT));
 
-        IndexAliasAction indexAliasAction1 = new IndexAliasAction.Builder(aliasName1).addIndex(username + "-i-*").setRestMethod("PUT").build();
-        result = client.executeE(indexAliasAction1);
-        Assert.assertTrue(result.v1().isSucceeded());
+        Assert.assertTrue(aliasFail2.status().equals(RestStatus.FORBIDDEN));
+        Assert.assertTrue(aliasFail2.getDetailedMessage().contains(username + "-a-"));
+
+
+        //Add alias on all
+
+        AcknowledgedResponse aliasResp4 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                        .indices(username + "-i-*")
+                        .alias(aliasName1)), RequestOptions.DEFAULT);
+
+        Assert.assertTrue(aliasResp4.isAcknowledged());
         Assert.assertTrue(hasSent.get());
         AliasOperation producedAliasOp2 = producedObject.get(0);
         Assert.assertEquals(aliasName1, producedAliasOp2.getAlias());
@@ -239,9 +256,11 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         String aliasName2 = username + "-a-alias2";
         checkAliases.clear();
         checkAliases.add(aliasName2);
-        IndexAliasAction indexAliasAction2 = new IndexAliasAction.Builder(aliasName2).addIndex(username + "-i-*").setRestMethod("PUT").build();
-        result = client.executeE(indexAliasAction2);
-        Assert.assertTrue(result.v1().isSucceeded());
+
+
+        Response aliasResp5 = client.getLowLevelClient().performRequest(new Request("PUT", username + "-i-*/_alias/" + aliasName2));
+
+        Assert.assertEquals(200, aliasResp5.getStatusLine().getStatusCode());
         Assert.assertTrue(hasSent.get());
         AliasOperation producedAliasOp3 = producedObject.get(0);
         Assert.assertEquals(aliasName2, producedAliasOp3.getAlias());
@@ -252,19 +271,20 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         producedObject.clear();
 
         //Fail on a forbidden alias name
-        IndexAliasAction indexAliasAction3 = new IndexAliasAction.Builder("logs_deflector").addIndex(username + "-i-*").setRestMethod("PUT").build();
-        result = client.executeE(indexAliasAction3);
-        Assert.assertTrue(!result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains(username + "-a-"));
+        ResponseException aliasFail6 = expectThrows(ResponseException.class,
+                () -> client.getLowLevelClient().performRequest(new Request("PUT", username + "-i-*/_alias/" + "logs_deflector")));
+
+        Assert.assertEquals(403, aliasFail6.getResponse().getStatusLine().getStatusCode());
+        Assert.assertTrue(new String(aliasFail6.getResponse().getEntity().getContent().readAllBytes()).contains(username + "-a-"));
 
 
         //Delete all aliases at once
         checkAliases.clear();
         checkAliases.addAll(Arrays.asList(aliasName1, aliasName2));
-        IndexAliasAction indexAliasAction4 = new IndexAliasAction.Builder("_all").addIndex(username + "-i-*").setRestMethod("DELETE").build();
-        result = client.executeE(indexAliasAction4);
-        Assert.assertTrue(result.v1().isSucceeded());
+
+        Response aliasResp7 = client.getLowLevelClient().performRequest(new Request("DELETE", username + "-i-*/_alias/" + "_all"));
+
+        Assert.assertEquals(200, aliasResp7.getStatusLine().getStatusCode());
         Assert.assertTrue(hasSent.get());
         for (AliasOperation pAOp : producedObject) {
             Assert.assertTrue(checkAliases.contains(producedAliasOp3.getAlias()));
@@ -278,21 +298,30 @@ public class AliasLifeCycleFilterTest extends AbstractUnitTest {
         //fail on REMOVE INDEX
         checkAliases.clear();
         checkAliases.add(aliasName1);
-        RemoveIndexAliasMapping remIAM1 = new RemoveIndexAliasMapping.Builder("dev").build();
-        AddAliasMapping addAliasMapping6 = new AddAliasMapping.Builder(indexName1, aliasName1).build();
-        ModifyAliases modifyAliases6 = new ModifyAliases.Builder(Arrays.asList(addAliasMapping6, remIAM1)).build();
-        result = client.executeE(modifyAliases6);
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
+
+        ElasticsearchStatusException aliasFail8 = expectThrows(ElasticsearchStatusException.class, () ->
+                client.indices().updateAliases(new IndicesAliasesRequest()
+                        .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                                .indices(indexName1)
+                                .alias("index_deflector"))
+                        .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE_INDEX)
+                                .indices("dev")), RequestOptions.DEFAULT));
+
+
+        Assert.assertTrue(aliasFail8.status().equals(RestStatus.FORBIDDEN));
 
         //Remove index on REMOVE INDEX
         checkAliases.clear();
         checkAliases.add(aliasName1);
-        RemoveIndexAliasMapping remIAM2 = new RemoveIndexAliasMapping.Builder(indexName2).build();
-        AddAliasMapping addAliasMapping7 = new AddAliasMapping.Builder(indexName1, aliasName1).build();
-        ModifyAliases modifyAliases7 = new ModifyAliases.Builder(Arrays.asList(addAliasMapping7, remIAM2)).build();
-        result = client.executeE(modifyAliases7);
-        Assert.assertTrue(result.v1().isSucceeded());
+
+        AcknowledgedResponse aliasResp8 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                        .indices(indexName1)
+                        .alias(aliasName1))
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.REMOVE_INDEX)
+                        .indices(indexName2)), RequestOptions.DEFAULT);
+
+        Assert.assertTrue(aliasResp8.isAcknowledged());
         Assert.assertTrue(hasSent.get());
         Assert.assertTrue(indexSent.get());
         Assert.assertEquals(AliasOperation.Type.ADD, producedObject.get(0).getType());

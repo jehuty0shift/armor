@@ -8,8 +8,13 @@ import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.core.DeleteByQuery;
 import org.apache.http.HttpResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.query.MatchAllQueryBuilder;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -17,7 +22,7 @@ import org.junit.Test;
  * Created by jehuty0shift on 21/11/18.
  */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class DeleteByQueryTest extends AbstractUnitTest {
+public class DeleteByQueryTest extends AbstractArmorTest {
 
     @Test
     public void testDeleteByQuery() throws Exception {
@@ -27,7 +32,7 @@ public class DeleteByQueryTest extends AbstractUnitTest {
 
         final String index = "internal";
 
-        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "deletebyquery","forbidden")
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "deletebyquery", "forbidden")
                 .putList("armor.actionrequestfilter.deletebyquery.allowed_actions", "indices:data/write/delete/byquery")
                 .putList("armor.actionrequestfilter.forbidden.forbidden_actions", "cluster:admin*")
                 .put(ConfigConstants.ARMOR_KIBANA_HELPER_ENABLED, true)
@@ -37,19 +42,14 @@ public class DeleteByQueryTest extends AbstractUnitTest {
 
         setupTestDataWithFilteredAlias("ac_rules_16.json");
 
-        JestClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-        DeleteByQuery dbq = new DeleteByQuery.Builder("{\"query\" : {\"match_all\" : {} } }").addIndex(index).setParameter("wait_for_completion",true).build();
+        BulkByScrollResponse delResp = client.deleteByQuery(new DeleteByQueryRequest(index).setQuery(new MatchAllQueryBuilder()), RequestOptions.DEFAULT);
 
-        final Tuple<JestResult, HttpResponse> resulttu = ((HeaderAwareJestHttpClient) client).executeE(dbq);
+        Assert.assertTrue(delResp.getBulkFailures().isEmpty());
+        Assert.assertEquals(delResp.getDeleted(), delResp.getTotal());
 
-        Assert.assertTrue(resulttu.v1().isSucceeded());
-
-        JsonObject resultObject = resulttu.v1().getJsonObject();
-
-        Assert.assertTrue(resultObject.get("total").getAsInt() == resultObject.get("deleted").getAsInt());
-
-        log.info("result is {}", resulttu.v1().getJsonString());
+        log.info("result is {}", delResp.toString());
 
     }
 

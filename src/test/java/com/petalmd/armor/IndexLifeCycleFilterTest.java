@@ -31,11 +31,19 @@ import org.apache.kafka.common.utils.Time;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.mock.orig.Mockito;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.net.InetSocketAddress;
 import java.util.*;
@@ -48,7 +56,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class IndexLifeCycleFilterTest extends AbstractUnitTest {
+public class IndexLifeCycleFilterTest extends AbstractArmorTest {
 
     @Test
     public void testKafkaConfigurationCodec() {
@@ -141,7 +149,7 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
 
         String originalMessage = "test";
 
-        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage,lsj,privateKey);
+        KSerSecuredMessage kserSecMess = new KSerSecuredMessage(originalMessage, lsj, privateKey);
 
         String nonceStr = kserSecMess.getNonce();
 
@@ -174,7 +182,7 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX,5)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 5)
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 2)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
@@ -201,16 +209,11 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
         KafkaService.setKafkaProducer(mockProducer);
 
-        // avoid conflicting with MongoServer
-        System.setProperty("es.set.netty.runtime.available.processors", "false");
-
         startES(settings);
         setupTestData("ac_rules_25.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
+        RestHighLevelClient client = getRestClient(false, username, password);
 
-
-        CreateIndex createIndex = new CreateIndex.Builder(indexName.get()).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
 
         final AtomicReference<Boolean> hasSent = new AtomicReference<>();
         hasSent.set(false);
@@ -239,31 +242,45 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
                 }
         );
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(createIndex);
+
+        CreateIndexResponse cIResp = client.indices().create(
+                new CreateIndexRequest(indexName.get())
+                        .settings(Settings.builder()
+                                .put("index.number_of_shards", 3)
+                                .put("index.number_of_replicas", 1)
+                                .build())
+                , RequestOptions.DEFAULT);
 
         Assert.assertTrue(hasSent.get());
+        Assert.assertTrue(cIResp.isAcknowledged());
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
-        Assert.assertTrue(result.v1().getJsonString().contains("true"));
+        indexName.set(username + "-i-test-2");
 
-        indexName.set(username +"-i-test-2");
+        ElasticsearchStatusException createFail1 = expectThrows(ElasticsearchStatusException.class, () -> {
+            client.indices().create(
+                    new CreateIndexRequest(indexName.get())
+                            .settings(Settings.builder()
+                                    .put("index.number_of_shards", 8)
+                                    .put("index.number_of_replicas", 1)
+                                    .build())
+                    , RequestOptions.DEFAULT);
 
-        CreateIndex createIndex2 = new CreateIndex.Builder(indexName.get()).settings(Map.of("number_of_shards", 8, "index.number_of_replicas", 1)).build();
-        result = client.executeE(createIndex2);
+        });
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-
+        Assert.assertTrue(createFail1.status().equals(RestStatus.FORBIDDEN));
         hasSent.set(false);
 
-        indexName.set(username +"-i-test-3");
+        indexName.set(username + "-i-test-3");
 
-        CreateIndex createIndex3 = new CreateIndex.Builder(indexName.get()).settings(Map.of("index.number_of_shards", 1, "number_of_replicas", 2)).build();
-        result = client.executeE(createIndex3);
+        CreateIndexResponse cIResp2 = client.indices().create(
+                new CreateIndexRequest(indexName.get())
+                        .settings(Settings.builder()
+                                .put("index.number_of_shards", 3)
+                                .put("index.number_of_replicas", 1)
+                                .build())
+                , RequestOptions.DEFAULT);
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertEquals(200, result.v2().getStatusLine().getStatusCode());
+        Assert.assertTrue(cIResp2.isAcknowledged());
         Assert.assertTrue(hasSent.get());
 
     }
@@ -288,7 +305,7 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
-                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX,5)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 5)
                 .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 2)
                 .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
                 .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
@@ -315,15 +332,10 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
         KafkaService.setKafkaProducer(mockProducer);
 
-        System.setProperty("es.set.netty.runtime.available.processors", "false");
-
         startES(settings);
         setupTestData("ac_rules_25.json");
 
-        HeaderAwareJestHttpClient client = getJestClient(getServerUri(false), username, password);
-
-
-        CreateIndex createIndex = new CreateIndex.Builder(indexName).settings(Map.of("index.number_of_shards", 3, "index.number_of_replicas", 1)).build();
+        RestHighLevelClient client = getRestClient(false, username, password);
 
         final AtomicReference<Boolean> hasSent = new AtomicReference<>();
         final AtomicReference<String> checkDelete = new AtomicReference<>();
@@ -355,39 +367,39 @@ public class IndexLifeCycleFilterTest extends AbstractUnitTest {
                 }
         );
 
-        Tuple<JestResult, HttpResponse> result = client.executeE(createIndex);
+
+        CreateIndexResponse cIResp = client.indices().create(
+                new CreateIndexRequest(indexName)
+                        .settings(Settings.builder()
+                                .put("index.number_of_shards", 3)
+                                .put("index.number_of_replicas", 1)
+                                .build())
+                , RequestOptions.DEFAULT);
 
 
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
-        Assert.assertTrue(result.v1().getJsonString().contains("true"));
+        Assert.assertTrue(cIResp.isAcknowledged());
+
 
         //DeleteIndex Failed
-        DeleteIndex deleteIndexFail = new DeleteIndex.Builder("dev").build();
-        result = client.executeE(deleteIndexFail);
+        ElasticsearchStatusException delFail1 = expectThrows(ElasticsearchStatusException.class,
+                () -> client.indices().delete(new DeleteIndexRequest("dev"), RequestOptions.DEFAULT));
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains("dev"));
+        Assert.assertTrue(delFail1.status().equals(RestStatus.FORBIDDEN));
+        Assert.assertTrue(delFail1.getDetailedMessage().contains("dev"));
 
-        DeleteIndex deleteIndexFail2 = new DeleteIndex.Builder("logs-xv-12345-i-*").build();
-        result = client.executeE(deleteIndexFail2);
 
-        Assert.assertFalse(result.v1().isSucceeded());
-        Assert.assertEquals(403, result.v2().getStatusLine().getStatusCode());
-        Assert.assertTrue(result.v1().getErrorMessage().contains("logs-xv-12345-i-*"));
+        ElasticsearchStatusException delFail2 = expectThrows(ElasticsearchStatusException.class,
+                () -> client.indices().delete(new DeleteIndexRequest("logs-xv-12345-i-*"), RequestOptions.DEFAULT));
+
+        Assert.assertTrue(delFail2.status().equals(RestStatus.FORBIDDEN));
+        Assert.assertTrue(delFail2.getDetailedMessage().contains("logs-xv-12345-i-*"));
 
         checkDelete.set(indexName);
-
-        DeleteIndex deleteIndexSuccess = new DeleteIndex.Builder(indexName).build();
-        result = client.executeE(deleteIndexSuccess);
+        
+        AcknowledgedResponse delResp = client.indices().delete(new DeleteIndexRequest(indexName), RequestOptions.DEFAULT);
 
         Assert.assertTrue(hasSent.get());
-
-        Assert.assertTrue(result.v1().isSucceeded());
-        Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
-        Assert.assertTrue(result.v1().getJsonString().contains("true"));
-
+        Assert.assertTrue(delResp.isAcknowledged());
 
     }
 

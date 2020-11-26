@@ -4,8 +4,10 @@ import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestResult;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,7 +27,10 @@ public class AuditLogTest extends AbstractScenarioTest {
 
         startES(settings);
         setupTestData("ac_rules_execute_all.json");
-        executeIndexAsString("{ \"user\" : \"goku\"}", "audittest", "x1", false, false);
+        ElasticsearchStatusException indexFail1 = expectThrows(ElasticsearchStatusException.class,
+                () -> executeIndexAsString("{ \"user\" : \"goku\"}", "audittest", "x1", false, false));
+
+        Assert.assertTrue(indexFail1.status().equals(RestStatus.FORBIDDEN));
 
         Thread.sleep(3000);
         long  totalHits = 0;

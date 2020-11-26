@@ -26,6 +26,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
@@ -38,10 +40,9 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.network.NetworkAddress;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -207,14 +208,45 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         return 1;
     }
 
-    public final void startES(final Settings settings) throws Exception {
+    public final void startES(final Settings settings, boolean ensureGreenWithTestCase) {
         //List<Settings> nodesSettings = IntStream.range(0,3).map(i -> getDefaultSettingsBuilder(i).put(settings).build()).collect(Collectors.toList());
         internalCluster().startNodes(3, getDefaultSettingsBuilder().put(settings).build());
-        ensureGreen();
+        if (ensureGreenWithTestCase) {
+            ensureGreen();
+        } else {
+            ensureGreenCustom();
+        }
 
-        NodesInfoResponse response = internalCluster().client().admin().cluster().prepareNodesInfo().get();
+        NodesInfoResponse response = internalCluster().client("node_t0").admin().cluster().prepareNodesInfo().get();
         assertFalse(response.hasFailures());
         nodeInfos = response.getNodes();
+    }
+
+    protected void ensureGreenCustom() {
+        ClusterHealthRequest healthRequest = Requests.clusterHealthRequest()
+                .timeout(TimeValue.timeValueSeconds(30))
+                .waitForStatus(ClusterHealthStatus.GREEN)
+                .waitForEvents(Priority.LANGUID)
+                .waitForNoRelocatingShards(true)
+                // We currently often use ensureGreen or ensureYellow to check whether the cluster is back in a good state after shutting down
+                // a node. If the node that is stopped is the master node, another node will become master and publish a cluster state where it
+                // is master but where the node that was stopped hasn't been removed yet from the cluster state. It will only subsequently
+                // publish a second state where the old master is removed. If the ensureGreen/ensureYellow is timed just right, it will get to
+                // execute before the second cluster state update removes the old master and the condition ensureGreen / ensureYellow will
+                // trivially hold if it held before the node was shut down. The following "waitForNodes" condition ensures that the node has
+                // been removed by the master so that the health check applies to the set of nodes we expect to be part of the cluster.
+                .waitForNodes(Integer.toString(cluster().size()));
+
+        ClusterHealthResponse actionGet = internalCluster().client("node_t0").admin().cluster().health(healthRequest).actionGet();
+
+        Assert.assertFalse(actionGet.isTimedOut());
+        Assert.assertTrue(actionGet.getStatus().equals(ClusterHealthStatus.GREEN));
+
+
+    }
+
+    public final void startES(final Settings settings) {
+        startES(settings, true);
     }
 
     public final void startLDAPServer() throws Exception {
@@ -326,9 +358,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         HttpHost httpHost;
         if (connectFromLocalhost) {
-            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(),enableSSL?"https":"http");
+            httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(), enableSSL ? "https" : "http");
         } else {
-            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(),enableSSL?"https":"http");
+            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(), enableSSL ? "https" : "http");
         }
 
         clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
@@ -713,9 +745,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         HttpHost httpHost;
         if (connectFromLocalhost) {
-            httpHost = new HttpHost("localhost", hosts.get(0).getPort(),enableSSL?"https":"http");
+            httpHost = new HttpHost("localhost", hosts.get(0).getPort(), enableSSL ? "https" : "http");
         } else {
-            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(),enableSSL?"https":"http");
+            httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(), enableSSL ? "https" : "http");
         }
 
         RestClientBuilder clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {

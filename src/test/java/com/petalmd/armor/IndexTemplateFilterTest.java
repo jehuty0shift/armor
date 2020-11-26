@@ -221,12 +221,12 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
 
         RestHighLevelClient client = getRestClient(false, username, password);
 
-        final AtomicReference<Boolean> hasSent = new AtomicReference<>();
+        final AtomicReference<Boolean> aliasSent = new AtomicReference<>();
         final AtomicReference<Boolean> indexSent = new AtomicReference<>();
         final List<String> checkAliases = new ArrayList<>();
         final List<AliasOperation> producedObject = new ArrayList<>();
         final AtomicInteger offset = new AtomicInteger(0);
-        hasSent.set(false);
+        aliasSent.set(false);
         indexSent.set(false);
 
 
@@ -247,7 +247,7 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
                             if (aOp.getIndices().contains(indexName3) || aOp.getIndices().contains(indexName2)) {
                                 Assert.assertTrue(aOp.getType().equals(AliasOperation.Type.UPDATE));
                             }
-                            hasSent.set(true);
+                            aliasSent.set(true);
                         }
                     } else {
                         Assert.assertTrue(Stream.of(indexName1, indexName2, indexName3).filter(s -> kserOpString.contains(s)).findAny().isPresent());
@@ -287,10 +287,10 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
 
         Assert.assertTrue(gaResp.getAliases().get(indexName1).stream().allMatch(a -> a.alias().equals(aliasName1)));
         Assert.assertTrue(indexSent.get());
-        Assert.assertTrue(hasSent.get());
+        Assert.assertTrue(aliasSent.get());
 
         //reset everything
-        hasSent.set(false);
+        aliasSent.set(false);
         indexSent.set(false);
 
         CreateIndexResponse cIResp2 = client.indices().create(new CreateIndexRequest(indexName2)
@@ -303,7 +303,7 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
         Assert.assertTrue(cIResp2.isAcknowledged());
 
         //reset everything
-        hasSent.set(false);
+        aliasSent.set(false);
         indexSent.set(false);
 
 
@@ -318,7 +318,7 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
 
 
         Assert.assertTrue(indexSent.get());
-        Assert.assertTrue(hasSent.get());
+        Assert.assertTrue(aliasSent.get());
 
 
     }

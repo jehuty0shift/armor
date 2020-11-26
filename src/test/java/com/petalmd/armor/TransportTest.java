@@ -5,7 +5,9 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -16,11 +18,16 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.io.stream.NotSerializableExceptionWrapper;
+import org.elasticsearch.common.network.NetworkAddress;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.network.InetAddresses;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.http.HttpInfo;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.test.ESIntegTestCase;
+import org.elasticsearch.transport.Transport;
+import org.elasticsearch.transport.TransportInfo;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,13 +37,16 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class TransportTest extends AbstractUnitTest {
+@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST,numDataNodes = 0, minNumDataNodes = 0)
+public class TransportTest extends AbstractArmorTest {
 
     @Test
     public void sslFail() throws Exception {
@@ -46,6 +56,7 @@ public class TransportTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.names", "readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search", "cluster:monitor/health")
                 .put("transport.type","armor_ssl_netty4transport")
+                .putList("node.roles", "data", "ingest","master")
                 .put(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
@@ -56,7 +67,7 @@ public class TransportTest extends AbstractUnitTest {
 
                 .put(getAuthSettings(false, "ceo")).build();
 
-        startES(settings);
+        startES(settings,false);
 
         setupTestData("ac_rules_1.json");
 
@@ -66,13 +77,13 @@ public class TransportTest extends AbstractUnitTest {
                 .put("client.type", "transport")
                 .build();
 
-        final TransportClient tc = new PreBuiltTransportClient(tSettings, ArmorPlugin.class)
+        final TransportClient tc = new PreBuiltTransportClient(tSettings, Arrays.asList(ArmorPlugin.class))
                 .addTransportAddress(
-                        new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1)
+                        new TransportAddress(InetAddress.getByName("127.0.0.1"), returnTransportPort())
                 );
 
         try {
-            waitForGreenClusterState(tc);
+            ensureGreenCustom();
             Assert.fail();
         } catch (final Exception e) {
             Assert.assertTrue(e.getClass().toString(), e instanceof NoNodeAvailableException);
@@ -125,10 +136,10 @@ public class TransportTest extends AbstractUnitTest {
 
         final Client tc = new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
                 .addTransportAddress(
-                        new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1)
+                        new TransportAddress(InetAddress.getByName("127.0.0.1"),returnTransportPort())
                 );
 
-        waitForGreenClusterState(tc);
+        ensureGreen();
 
         final SearchRequest sr = new SearchRequest(indices).source(new SearchSourceBuilder().query(new MatchAllQueryBuilder()));
 
@@ -171,12 +182,12 @@ public class TransportTest extends AbstractUnitTest {
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks"))
                 .build();
 
-        final Client tc = new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
-                .addTransportAddress(
-                        new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1)
-                );
+        final Client tc = null;//new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
+//                .addTransportAddress(
+//                        new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1)
+//                );
 
-        waitForGreenClusterState(tc);
+        ensureGreen();
 
         final SearchRequest sr = new SearchRequest(new String[]{"ceo", "future"}).source(new SearchSourceBuilder().query(new MatchAllQueryBuilder()));
 
@@ -202,12 +213,12 @@ public class TransportTest extends AbstractUnitTest {
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION, false)
                 .build();
 
-        final Client tc = new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1))
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort2))
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1));
-
-        waitForGreenClusterState(tc);
+        final Client tc = null;//new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1))
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort2))
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1));
+//
+//        ensureGreen();
         return tc;
     }
 
@@ -249,14 +260,14 @@ public class TransportTest extends AbstractUnitTest {
         Map<String, String> credsMap = new HashMap<>();
         credsMap.put("armor_transport_creds", "amFja3Nvbm06c2VjcmV0");
 
-        final Client tc = new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1))
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort2))
-                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort3))
-                .filterWithHeader(credsMap);
-
-
-        waitForGreenClusterState(tc);
+        final Client tc = null;//new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort1))
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort2))
+//                .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), elasticsearchNodePort3))
+//                .filterWithHeader(credsMap);
+//
+//
+//        ensureGreen();
 
         SearchRequest sr = new SearchRequest(indices).source(new SearchSourceBuilder().query(new MatchAllQueryBuilder()));
 
@@ -264,7 +275,7 @@ public class TransportTest extends AbstractUnitTest {
         assertSearchResult(response, 7);
 
         try {
-            final GetRequest getRequest = new GetRequest(indices[0], "test", "dummy");
+            final GetRequest getRequest = new GetRequest(indices[0],  "dummy");
 
             final GetResponse getResponse = newTransportClient().get(getRequest).actionGet();
             Assert.fail();
@@ -275,7 +286,7 @@ public class TransportTest extends AbstractUnitTest {
         }
 
         try {
-            final IndexRequest indexRequest = new IndexRequest(indices[0], "test");
+            final IndexRequest indexRequest = new IndexRequest(indices[0]);
             indexRequest.source(new HashMap<String, String>());
 
             final IndexResponse indexResponse = tc.index(indexRequest).actionGet();
@@ -287,7 +298,7 @@ public class TransportTest extends AbstractUnitTest {
         }
 
         try (Client unauthClient = tc.filterWithHeader(new HashMap<>())) {
-            unauthClient.index(new IndexRequest(indices[0], "test").source(new HashMap())).actionGet();
+            unauthClient.index(new IndexRequest(indices[0]).source(new HashMap())).actionGet();
             Assert.fail();
         } catch (final RuntimeException e) {
             Assert.assertTrue(e.getMessage().contains("Unauthenticated request"));
@@ -331,5 +342,22 @@ public class TransportTest extends AbstractUnitTest {
         Assert.assertEquals(0, response.getFailedShards());
         Assert.assertEquals(count, response.getHits().getTotalHits());
         Assert.assertFalse(response.isTimedOut());
+    }
+
+    @Override
+    protected boolean addMockTransportService() {
+        return false;
+    }
+
+
+    private int returnTransportPort() {
+        for (NodeInfo node : nodeInfos) {
+            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+                TransportAddress[] publishAddress = node.getInfo(TransportInfo.class).address().boundAddresses();
+                InetSocketAddress address = publishAddress[0].address();
+                return address.getPort();
+            }
+        }
+        return -1;
     }
 }

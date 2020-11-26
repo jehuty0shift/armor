@@ -84,34 +84,6 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
         testProxyAuth();
     }
 
-    @Test
-    public void testSpnegoAuth_TT() throws Exception {
-        cacheEnabled = true;
-        wrongPwd = true;
-        testSpnegoAuth();
-    }
-
-    @Test
-    public void testSpnegoAuth_TF() throws Exception {
-        cacheEnabled = true;
-        wrongPwd = false;
-        testSpnegoAuth();
-    }
-
-    @Test
-    public void testSpnegoAuth_FF() throws Exception {
-        cacheEnabled = false;
-        wrongPwd = false;
-        testSpnegoAuth();
-    }
-
-    @Test
-    public void testSpnegoAuth_FT() throws Exception {
-        cacheEnabled = false;
-        wrongPwd = true;
-        testSpnegoAuth();
-    }
-
     public void testLdapAuth() throws Exception {
         //Basic/Ldap/Ldap
         startLDAPServer();
@@ -151,7 +123,7 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
                 .put("armor.authentication.authorization.ldap.rolename", "cn").build();
 
         Header xAuthUser = new BasicHeader("X-Authenticated-User", "jacksonm" + (wrongPwd ? "-wrong" : ""));
-        List<Header> headerList = Arrays.asList(headers);
+        List<Header> headerList = new ArrayList<>(Arrays.asList(headers));
         headerList.add(xAuthUser);
 
         headers = headerList.toArray(new Header[headerList.size()]);
@@ -159,32 +131,5 @@ public class AuthNAuthZTest extends AbstractScenarioTest {
         searchOnlyAllowed(settings, wrongPwd);
     }
 
-
-    public void testSpnegoAuth() throws Exception {
-        //SPNEGO/Always/Ldap
-        useSpnego = true;
-
-        startLDAPServer();
-
-        ldapServer.applyLdif(SecurityUtil.getAbsoluteFilePathFromClassPath("ldif1.ldif").toFile());
-
-        final Settings settings = cacheEnabled(cacheEnabled)
-                .put("armor.authentication.http_authenticator.impl",
-                        "com.petalmd.armor.authentication.http.spnego.HTTPSpnegoAuthenticator")
-                .put("armor.authentication.spnego.login_config_filepath", System.getProperty("java.security.auth.login.config"))
-                .put("armor.authentication.spnego.krb5_config_filepath", System.getProperty("java.security.krb5.conf"))
-                .put("armor.authentication.authorizer.impl", "com.petalmd.armor.authorization.ldap.LDAPAuthorizator")
-                .put("armor.authentication.authentication_backend.impl",
-                        "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
-                .putList("armor.authentication.ldap.host", "localhost:" + ldapServerPort)
-                .put("armor.authentication.ldap.usersearch", "(uid={0})")
-                .put("armor.authentication.authorization.ldap.rolesearch", "(uniqueMember={0})")
-                .put("armor.authentication.authorization.ldap.rolename", "cn").build();
-
-        DummyLoginModule.username = "hnelson";
-        DummyLoginModule.password = ("secret" + (wrongPwd ? "-wrong" : "")).toCharArray();
-
-        searchOnlyAllowed(settings, wrongPwd);
-    }
 
 }

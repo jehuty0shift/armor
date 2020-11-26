@@ -30,7 +30,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-public class AuthCacheTest extends AbstractUnitTest {
+public class AuthCacheTest extends AbstractLDAPTest {
 
     @Test
     public void testAuthentication() throws Exception {
