@@ -160,7 +160,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         @Override
         protected void finished(final Description description) {
-            //System.out.println("-----------------------------------------------------------------------------------------");
+            System.out.println("-----------------------------------------------------------------------------------------");
         }
 
     };
@@ -774,7 +774,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected Settings.Builder getDefaultSettingsBuilder() {
         //by default ES nodes have all roles (master, data(s),ingest, client cross-cluster-search)
         return Settings.builder()
-                //.put("node.name", "armor_testnode_" + nodeNum)//.put("node.data", dataNode)
+                //.put("node.name", "armor_testnode_" + nodeNum)
                 .put("network.bind_host", "0.0.0.0")
                 .putList("node.roles", "data", "ingest")
                 .put("network.publish_host", "127.0.0.1")

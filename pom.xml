@@ -52,6 +52,7 @@
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <lucene.maven.version>8.7.0</lucene.maven.version>
+        <surefire-log4j.file>file://${basedir}/src/test/resources/log4j2.properties</surefire-log4j.file>
     </properties>
 
     <scm>
@@ -397,12 +398,6 @@
             <!--scope>test</scope-->
         </dependency>
 
-        <!--dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
-            <scope>provided</scope>
-        </dependency-->
 
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -720,9 +715,11 @@
                 <version>3.0.0-M5</version>
                 <configuration>
                     <systemPropertyVariables>
-                    <java.security.policy>${basedir}/src/test/resources/plugin-security.policy</java.security.policy>
+                        <java.security.policy>${basedir}/src/test/resources/plugin-security.policy
+                        </java.security.policy>
                         <es.path.conf>.</es.path.conf>
                         <es.set.netty.runtime.available.processors>false</es.set.netty.runtime.available.processors>
+                        <log4j.configurationFile>${surefire-log4j.file}</log4j.configurationFile>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
@@ -822,6 +819,17 @@
         </plugins>
     </reporting>
     <profiles>
+        <profile>
+            <id>quiet-log</id>
+            <activation>
+                <property>
+                    <name>env.TEST_QUIETER_LOGGING</name>
+                </property>
+            </activation>
+            <properties>
+                <surefire-log4j.file>file://${basedir}/src/test/resources/log4j2-quiet.properties</surefire-log4j.file>
+            </properties>
+        </profile>
         <profile>
             <id>release</id>
             <build>
