@@ -38,7 +38,7 @@ import java.util.function.Consumer;
 public class LDPProcessorTest extends AbstractArmorTest {
 
 
-    public void testKafka() throws Exception {
+    private void testKafka() throws Exception {
         final Settings settings = Settings.builder()
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ENABLED, true)
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, true)

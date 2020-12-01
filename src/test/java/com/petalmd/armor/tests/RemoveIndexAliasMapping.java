@@ -1,6 +1,5 @@
 package com.petalmd.armor.tests;
 
-import com.google.common.base.Joiner;
 import io.searchbox.indices.aliases.AbstractAliasMappingBuilder;
 import io.searchbox.indices.aliases.AliasMapping;
 

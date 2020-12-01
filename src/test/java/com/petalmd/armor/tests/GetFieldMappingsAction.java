@@ -1,14 +1,11 @@
 package com.petalmd.armor.tests;
 
 import com.google.common.base.Joiner;
-import io.searchbox.action.AbstractMultiIndexActionBuilder;
 import io.searchbox.action.AbstractMultiTypeActionBuilder;
 import io.searchbox.action.GenericResultAbstractAction;
 import io.searchbox.client.config.ElasticsearchVersion;
 
-import java.io.UnsupportedEncodingException;
 import java.util.List;
-import java.util.StringJoiner;
 
 /**
  * Created by jehuty0shift on 26/10/18.

@@ -7,6 +7,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.netty4.Netty4HttpChannel;
 import org.elasticsearch.http.netty4.Netty4HttpRequest;
 import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -21,13 +22,13 @@ public class SSLPrincipalExtractor {
 
     public static Principal extractPrincipalfromChannel(RestChannel channel, ThreadContext threadContext) throws AuthException {
 
-        if (channel instanceof Netty4HttpChannel) {
+        if (!(channel instanceof RestChannel) || !(channel.request().getHttpChannel() instanceof Netty4HttpChannel)) {
             return null;
         }
 
-        final Netty4HttpChannel netty4Channel = (Netty4HttpChannel)channel;
+        Netty4HttpChannel netty4HttpChannel = (Netty4HttpChannel)channel.request().getHttpChannel();
 
-        final SslHandler sslHandler = (SslHandler)netty4Channel.getNettyChannel().pipeline().get("ssl_http");
+        final SslHandler sslHandler = (SslHandler)netty4HttpChannel.getNettyChannel().pipeline().get("ssl_http");
         try {
             final Principal principal = sslHandler.engine().getSession().getPeerPrincipal();
             if (threadContext.getTransient(ArmorConstants.ARMOR_SSL_CERT_PRINCIPAL) == null) {

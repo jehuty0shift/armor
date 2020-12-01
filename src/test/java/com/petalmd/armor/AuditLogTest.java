@@ -1,16 +1,13 @@
 package com.petalmd.armor;
 
-import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.client.JestResult;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class AuditLogTest extends AbstractScenarioTest {

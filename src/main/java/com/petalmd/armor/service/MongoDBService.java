@@ -72,7 +72,10 @@ public class MongoDBService extends AbstractLifecycleComponent {
     @Override
     protected void doClose() {
         if (mongoClient != null) {
-            mongoClient.close();
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                mongoClient.close();
+                return null;
+            });
         }
     }
 

@@ -21,7 +21,6 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
-import waffle.mock.MockWindowsAuthProvider;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class WindowsTest extends AbstractScenarioTest {

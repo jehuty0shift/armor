@@ -20,7 +20,6 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.petalmd.armor.tests.DummyLoginModule;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;

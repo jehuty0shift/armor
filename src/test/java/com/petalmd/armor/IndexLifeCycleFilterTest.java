@@ -17,11 +17,6 @@ import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
 import de.bwaldvogel.mongo.backend.memory.MemoryBackend;
-import io.searchbox.client.JestResult;
-import io.searchbox.indices.CreateIndex;
-import io.searchbox.indices.DeleteIndex;
-import kong.unirest.Unirest;
-import org.apache.http.HttpResponse;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.producer.internals.FutureRecordMetadata;
 import org.apache.kafka.clients.producer.internals.ProduceRequestResult;
@@ -38,7 +33,6 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.mock.orig.Mockito;
 import org.elasticsearch.rest.RestStatus;
@@ -105,7 +99,7 @@ public class IndexLifeCycleFilterTest extends AbstractArmorTest {
 
     }
 
-    public void testKafka() throws Exception {
+    private void testKafka() throws Exception {
 
         Properties props = new Properties();
 

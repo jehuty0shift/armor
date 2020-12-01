@@ -1,23 +1,11 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.gson.JsonObject;
-import com.petalmd.armor.authorization.ForbiddenException;
-import com.petalmd.armor.tests.DeleteByQueryNew;
-import com.petalmd.armor.tests.UpdateByQueryNew;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestResult;
-import io.searchbox.core.UpdateByQuery;
-import org.apache.http.HttpResponse;
 import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.UpdateByQueryAction;

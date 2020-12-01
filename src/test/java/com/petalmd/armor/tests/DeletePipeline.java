@@ -4,10 +4,6 @@ import io.searchbox.action.AbstractAction;
 import io.searchbox.action.GenericResultAbstractAction;
 import io.searchbox.client.config.ElasticsearchVersion;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * Created by jehuty0shift on 11/03/2020.
  */

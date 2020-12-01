@@ -339,7 +339,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         //Generic Armor settings
         settings.add(Setting.simpleString(ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, Setting.Property.NodeScope, Setting.Property.Filtered));
-        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ENABLED, false, Setting.Property.NodeScope));
         settings.add(Setting.intSetting(ConfigConstants.ARMOR_AUDITLOG_NUM_REPLICAS, 1, 1, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDITLOG_COMPRESSION, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_ALLOW_ALL_FROM_LOOPBACK, true, Setting.Property.NodeScope, Setting.Property.Filtered));
@@ -519,7 +519,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public Map<String, Supplier<Transport>> getTransports(Settings settings, ThreadPool threadPool, PageCacheRecycler pageCacheRecycler,
                                                           CircuitBreakerService circuitBreakerService,
                                                           NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService) {
-        return Collections.singletonMap("armor_ssl_netty4transport", () -> new SSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, getSharedGroupFactory(settings)));
+        return Collections.singletonMap(SSLNettyTransport.TRANSPORT_NAME, () -> new SSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, getSharedGroupFactory(settings)));
     }
 
     private SharedGroupFactory getSharedGroupFactory(Settings settings) {

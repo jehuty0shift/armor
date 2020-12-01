@@ -30,6 +30,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -81,7 +82,7 @@ import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
 
-@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, supportsDedicatedMasters = false)
+@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, supportsDedicatedMasters = true)
 public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     public static boolean debugAll = false;
@@ -98,7 +99,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected Header[] headers = new Header[]{};
     protected RestHighLevelClient client;
 
-    protected final Logger log = LogManager.getLogger(AbstractUnitTest.class);
+    protected final Logger log = LogManager.getLogger(AbstractArmorTest.class);
 
     protected final int ldapServerPort = EmbeddedLDAPServer.ldapPort;
     protected final int ldapsServerPort = EmbeddedLDAPServer.ldapsPort;
@@ -217,7 +218,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             ensureGreenCustom();
         }
 
-        NodesInfoResponse response = internalCluster().client("node_t0").admin().cluster().prepareNodesInfo().get();
+        NodesInfoResponse response = internalCluster().dataNodeClient().admin().cluster().prepareNodesInfo().get();
         assertFalse(response.hasFailures());
         nodeInfos = response.getNodes();
     }
@@ -228,16 +229,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                 .waitForStatus(ClusterHealthStatus.GREEN)
                 .waitForEvents(Priority.LANGUID)
                 .waitForNoRelocatingShards(true)
-                // We currently often use ensureGreen or ensureYellow to check whether the cluster is back in a good state after shutting down
-                // a node. If the node that is stopped is the master node, another node will become master and publish a cluster state where it
-                // is master but where the node that was stopped hasn't been removed yet from the cluster state. It will only subsequently
-                // publish a second state where the old master is removed. If the ensureGreen/ensureYellow is timed just right, it will get to
-                // execute before the second cluster state update removes the old master and the condition ensureGreen / ensureYellow will
-                // trivially hold if it held before the node was shut down. The following "waitForNodes" condition ensures that the node has
-                // been removed by the master so that the health check applies to the set of nodes we expect to be part of the cluster.
                 .waitForNodes(Integer.toString(cluster().size()));
 
-        ClusterHealthResponse actionGet = internalCluster().client("node_t0").admin().cluster().health(healthRequest).actionGet();
+        ClusterHealthResponse actionGet = internalCluster().dataNodeClient().admin().cluster().health(healthRequest).actionGet();
 
         Assert.assertFalse(actionGet.isTimedOut());
         Assert.assertTrue(actionGet.getStatus().equals(ClusterHealthStatus.GREEN));
@@ -277,7 +271,8 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
-            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+            if (node.getInfo(HttpInfo.class) != null
+                && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false) == true) {
                 TransportAddress[] publishAddress = node.getInfo(HttpInfo.class).address().boundAddresses();
                 InetSocketAddress address = publishAddress[0].address();
                 hosts.add(new HttpHost(NetworkAddress.format(address.getAddress()), address.getPort(), "http"));
@@ -347,7 +342,8 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
-            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+            if (node.getInfo(HttpInfo.class) != null
+                && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false) == true) {
                 TransportAddress[] publishAddress = node.getInfo(HttpInfo.class).address().boundAddresses();
                 InetSocketAddress address = publishAddress[0].address();
                 hosts.add(new HttpHost(NetworkAddress.format(address.getAddress()), address.getPort(), "http"));
@@ -735,7 +731,8 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
-            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+            if (node.getInfo(HttpInfo.class) != null
+                    && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false).booleanValue() == true) {
                 TransportAddress publishAddress = node.getInfo(HttpInfo.class).address().publishAddress();
                 InetSocketAddress address = publishAddress.address();
 

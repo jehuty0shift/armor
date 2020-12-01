@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,15 +13,20 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.util.SecurityUtil;
+import org.apache.http.ConnectionClosedException;
 import org.apache.http.NoHttpResponseException;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -39,18 +44,18 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .put("http.type","armor_ssl_netty4")
+                .put("http.type", "armor_ssl_netty4")
                 .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
-                        .put("armor.authentication.authorizer.cache.enable", "false")
-                        .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
-                                .put("armor.authentication.authentication_backend.cache.enable", "false")
-                                .put("armor.ssl.transport.http.enabled", true)
+                .put("armor.authentication.authorizer.cache.enable", "false")
+                .put("armor.authentication.authentication_backend.impl",
+                        "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
+                .put("armor.authentication.authentication_backend.cache.enable", "false")
+                .put("armor.ssl.transport.http.enabled", true)
                 .put("armor.ssl.transport.http.enforce_clientauth", true)
-                                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
-                                .put("armor.ssl.transport.http.truststore_filepath",
+                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
+                .put("armor.ssl.transport.http.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
         username = "jacksonm";
@@ -90,30 +95,40 @@ public class SslTest extends AbstractScenarioTest {
 
     @Test
     public void testHttpsFail() throws Exception {
-        thrown.expect(NoHttpResponseException.class);
+        thrown.expect(ConnectionClosedException.class);
 
         enableSSL = false;
 
         final Settings settings = Settings
                 .builder()
-                .put("http.type","armor_ssl_netty4")
+                .put("http.type", "armor_ssl_netty4")
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .putList("armor.authentication.settingsdb.usercreds", "jacksonm@ceo:secret")
                 .put("armor.authentication.authorizer.impl",
                         "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
-                        .put("armor.authentication.authorizer.cache.enable", "false")
-                        .put("armor.authentication.authentication_backend.impl",
-                                "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
-                                .put("armor.authentication.authentication_backend.cache.enable", "false")
-                                .put("armor.ssl.transport.http.enabled", true)
+                .put("armor.authentication.authorizer.cache.enable", "false")
+                .put("armor.authentication.authentication_backend.impl",
+                        "com.petalmd.armor.authentication.backend.simple.SettingsBasedAuthenticationBackend")
+                .put("armor.authentication.authentication_backend.cache.enable", "false")
+                .put("armor.ssl.transport.http.enabled", true)
                 .put("armor.ssl.transport.http.enforce_clientauth", true)
-                                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
-                                .put("armor.ssl.transport.http.truststore_filepath",
+                .put("armor.ssl.transport.http.keystore_filepath", SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
+                .put("armor.ssl.transport.http.truststore_filepath",
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks")).build();
 
         username = "jacksonm";
         password = "secret";
 
-        searchOnlyAllowed(settings, false);
+
+        final String[] indices = new String[]{"internal"};
+
+        startES(settings);
+
+        getRestClient(false,username,password)
+                .cluster().health(new ClusterHealthRequest(), RequestOptions.DEFAULT);
+
+
     }
 
 
@@ -124,22 +139,22 @@ public class SslTest extends AbstractScenarioTest {
 
         final Settings settings = Settings
                 .builder()
-                .put("http.type","armor_ssl_netty4")
+                .put("http.type", "armor_ssl_netty4")
                 .put("armor.authentication.http_authenticator.impl",
-                    "com.petalmd.armor.authentication.http.clientcert.HTTPSClientCertAuthenticator")
+                        "com.petalmd.armor.authentication.http.clientcert.HTTPSClientCertAuthenticator")
                 .putList("armor.authentication.authorization.settingsdb.roles.localhost", "ceo")
                 .put("armor.authentication.authorizer.impl",
-                    "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
+                        "com.petalmd.armor.authorization.simple.SettingsBasedAuthorizator")
                 .put("armor.authentication.authorizer.cache.enable", "false")
                 .put("armor.authentication.authentication_backend.impl",
-                    "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
+                        "com.petalmd.armor.authentication.backend.simple.AlwaysSucceedAuthenticationBackend")
                 .put("armor.authentication.authentication_backend.cache.enable", "false")
                 .put("armor.ssl.transport.http.enabled", true)
                 .put("armor.ssl.transport.http.enforce_clientauth", true)
                 .put("armor.ssl.transport.http.keystore_filepath",
-                    SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
+                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
                 .put("armor.ssl.transport.http.truststore_filepath",
-                    SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks"))
+                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks"))
                 .build();
 
         searchOnlyAllowed(settings, false);

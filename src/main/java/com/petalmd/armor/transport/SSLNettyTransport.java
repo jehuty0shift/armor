@@ -46,7 +46,9 @@ public class SSLNettyTransport extends Netty4Transport {
     private final boolean resolveHostname;
 
     private static final Logger log = LogManager.getLogger(SSLNettyTransport.class);
-    
+
+    public static final String TRANSPORT_NAME = "armor_ssl_netty4transport";
+
     public SSLNettyTransport(Settings settings, Version version, ThreadPool threadPool, NetworkService networkService,
                              PageCacheRecycler pageCacheRecycler, NamedWriteableRegistry namedWriteableRegistry,
                              CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory) {

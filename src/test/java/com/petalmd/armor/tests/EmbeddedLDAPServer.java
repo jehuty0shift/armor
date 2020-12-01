@@ -18,7 +18,7 @@
 
 package com.petalmd.armor.tests;
 
-import com.petalmd.armor.AbstractUnitTest;
+import com.petalmd.armor.AbstractArmorTest;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.directory.api.ldap.model.constants.SupportedSaslMechanisms;
@@ -33,12 +33,12 @@ import org.apache.directory.server.annotations.SaslMechanism;
 import org.apache.directory.server.core.annotations.*;
 import org.apache.directory.server.core.api.DirectoryService;
 import org.apache.directory.server.core.factory.DSAnnotationProcessor;
+import org.apache.directory.server.core.kerberos.KeyDerivationInterceptor;
 import org.apache.directory.server.factory.ServerAnnotationProcessor;
 import org.apache.directory.server.kerberos.kdc.KdcServer;
 import org.apache.directory.server.kerberos.shared.crypto.encryption.KerberosKeyFactory;
 import org.apache.directory.server.kerberos.shared.keytab.Keytab;
 import org.apache.directory.server.kerberos.shared.keytab.KeytabEntry;
-import org.apache.directory.server.core.kerberos.KeyDerivationInterceptor;
 import org.apache.directory.server.ldap.LdapServer;
 import org.apache.directory.server.ldap.handlers.extended.StartTlsHandler;
 import org.apache.directory.server.ldap.handlers.sasl.cramMD5.CramMd5MechanismHandler;
@@ -154,7 +154,7 @@ public class EmbeddedLDAPServer {
 
         final File newLdif = new File("target/tmp/" + ldifFile.getName());
         String ldif = FileUtils.readFileToString(ldifFile);
-        ldif = ldif.replace("${hostname}", AbstractUnitTest.getNonLocalhostAddress());
+        ldif = ldif.replace("${hostname}", AbstractArmorTest.getNonLocalhostAddress());
         FileUtils.write(newLdif, ldif);
 
         int i = 0;

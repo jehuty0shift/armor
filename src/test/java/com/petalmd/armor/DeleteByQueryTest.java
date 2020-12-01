@@ -1,16 +1,9 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.google.gson.JsonObject;
-import com.petalmd.armor.tests.DeleteByQueryNew;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestResult;
-import io.searchbox.core.DeleteByQuery;
-import org.apache.http.HttpResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;

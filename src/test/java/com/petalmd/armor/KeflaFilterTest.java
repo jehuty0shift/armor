@@ -2,14 +2,8 @@ package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.filter.kefla.KeflaUtils;
-import com.petalmd.armor.tests.GetFieldMappingsAction;
 import com.petalmd.armor.util.ConfigConstants;
 import com.sun.net.httpserver.HttpServer;
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestResult;
-import io.searchbox.fields.FieldCapabilities;
-import kong.unirest.*;
-import org.apache.http.HttpResponse;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -18,12 +12,10 @@ import org.elasticsearch.client.indices.GetFieldMappingsRequest;
 import org.elasticsearch.client.indices.GetFieldMappingsResponse;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
-import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -126,6 +118,8 @@ public class KeflaFilterTest extends AbstractArmorTest {
         Assert.assertTrue(jsonNode.path("properties").size() > 5);
         Assert.assertTrue(jsonNode.path("properties").has("user"));
         Assert.assertTrue(jsonNode.path("properties").has("previous_club"));
+
+        httpServer.stop(0);
 
     }
 

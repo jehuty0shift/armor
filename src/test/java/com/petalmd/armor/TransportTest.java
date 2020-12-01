@@ -3,11 +3,13 @@ package com.petalmd.armor;
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.petalmd.armor.service.ArmorService;
+import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -18,17 +20,16 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.io.stream.NotSerializableExceptionWrapper;
-import org.elasticsearch.common.network.NetworkAddress;
+import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.network.InetAddresses;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.http.HttpInfo;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.test.ESIntegTestCase;
-import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInfo;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.transport.netty4.Netty4Transport;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,12 +41,17 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 @RunWith(RandomizedRunner.class)
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
-@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST,numDataNodes = 0, minNumDataNodes = 0)
+//SSL Clusters are only made of enabled ArmorPlugin nodes. We don't let the Test Framework spawn additional node (numDataNodes = minNumDataNodes = 0).
+// transportClientRatio is set at 0 so all internal test framework actions (wipe indices etc) will be done using
+// the client contained inside the nodes started (so With SSL properly activated).
+// Otherwise the Test framework will try to start its own transport clients with its Mock-Nio Transport type (which doesn't support SSL).
+@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, minNumDataNodes = 0, numDataNodes = 0, transportClientRatio = 0.0)
 public class TransportTest extends AbstractArmorTest {
 
     @Test
@@ -55,8 +61,9 @@ public class TransportTest extends AbstractArmorTest {
                 .builder()
                 .putList("armor.actionrequestfilter.names", "readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search", "cluster:monitor/health")
-                .put("transport.type","armor_ssl_netty4transport")
-                .putList("node.roles", "data", "ingest","master")
+                .put("transport.type", "armor_ssl_netty4transport")
+                .putList("node.roles", "data", "ingest", "master")
+                .putList("cluster.initial_master_nodes", "node_t0", "node_t1", "node_t2")
                 .put(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
@@ -67,13 +74,13 @@ public class TransportTest extends AbstractArmorTest {
 
                 .put(getAuthSettings(false, "ceo")).build();
 
-        startES(settings,false);
+        startES(settings, false);
 
         setupTestData("ac_rules_1.json");
 
         log.debug("------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
-        final Settings tSettings = Settings.builder().put("cluster.name", "armor_testcluster")
+        final Settings tSettings = Settings.builder().put("cluster.name", cluster().getClusterName())
                 .put("client.type", "transport")
                 .build();
 
@@ -81,9 +88,9 @@ public class TransportTest extends AbstractArmorTest {
                 .addTransportAddress(
                         new TransportAddress(InetAddress.getByName("127.0.0.1"), returnTransportPort())
                 );
-
         try {
-            ensureGreenCustom();
+            tc.admin().cluster()
+                    .health(new ClusterHealthRequest().waitForGreenStatus().timeout(TimeValue.timeValueSeconds(30))).get();
             Assert.fail();
         } catch (final Exception e) {
             Assert.assertTrue(e.getClass().toString(), e instanceof NoNodeAvailableException);
@@ -103,7 +110,9 @@ public class TransportTest extends AbstractArmorTest {
                 .builder()
                 .putList("armor.actionrequestfilter.names", "readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search", "cluster:monitor/health")
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
+                .putList("node.roles", "data", "ingest", "master")
+                .putList("cluster.initial_master_nodes", "node_t0", "node_t1", "node_t2")
                 .put(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
@@ -114,7 +123,7 @@ public class TransportTest extends AbstractArmorTest {
                 .put(getAuthSettings(false, "ceo"))
                 .build();
 
-        startES(settings);
+        startES(settings, false);
 
         setupTestData("ac_rules_1.json");
 
@@ -122,9 +131,10 @@ public class TransportTest extends AbstractArmorTest {
 
         final Settings tsettings = Settings
                 .builder()
-                .put("cluster.name", "armor_testcluster")
+                .put("cluster.name", cluster().getClusterName())
                 .put("client.type", "transport")
-                .put("transport.type","armor_ssl_netty4transport")
+                .putList("node.roles", Collections.emptyList())
+                .put("transport.type", "armor_ssl_netty4transport")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
@@ -136,10 +146,10 @@ public class TransportTest extends AbstractArmorTest {
 
         final Client tc = new PreBuiltTransportClient(tsettings, ArmorPlugin.class)
                 .addTransportAddress(
-                        new TransportAddress(InetAddress.getByName("127.0.0.1"),returnTransportPort())
+                        new TransportAddress(InetAddress.getByName("127.0.0.1"), returnTransportPort())
                 );
 
-        ensureGreen();
+        ensureGreenCustom();
 
         final SearchRequest sr = new SearchRequest(indices).source(new SearchSourceBuilder().query(new MatchAllQueryBuilder()));
 
@@ -161,7 +171,7 @@ public class TransportTest extends AbstractArmorTest {
 
         final Settings settings = Settings.builder().putList("armor.dlsfilter.names", "dummy2-only")
                 .putList("armor.dlsfilter.dummy2-only", "term", "user", "umberto", "true")
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
@@ -174,7 +184,7 @@ public class TransportTest extends AbstractArmorTest {
         setupTestData("ac_rules_execute_all.json");
 
         final Settings tsettings = Settings.builder().put("cluster.name", "armor_testcluster")
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENABLED, true)
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
@@ -205,7 +215,7 @@ public class TransportTest extends AbstractArmorTest {
     protected final Client newTransportClient() throws IOException {
         final Settings tsettings = Settings.builder().put("cluster.name", "armor_testcluster")
                 .put("client.type", "transport")
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH,
@@ -230,7 +240,7 @@ public class TransportTest extends AbstractArmorTest {
         password = "secret";
 
         final Settings settings = Settings.builder()
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
                 .putList("armor.actionrequestfilter.names", "readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:data/read/search")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
@@ -248,9 +258,9 @@ public class TransportTest extends AbstractArmorTest {
 
         log.debug("------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
-        final Settings tsettings = Settings.builder().put("cluster.name", "armor_testcluster")
+        final Settings tsettings = Settings.builder().put("cluster.name", cluster().getClusterName())
                 .put("client.type", "transport")
-                .put("transport.type","armor_ssl_netty4transport")
+                .put("transport.type", "armor_ssl_netty4transport")
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
                         SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
                 .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH,
@@ -275,7 +285,7 @@ public class TransportTest extends AbstractArmorTest {
         assertSearchResult(response, 7);
 
         try {
-            final GetRequest getRequest = new GetRequest(indices[0],  "dummy");
+            final GetRequest getRequest = new GetRequest(indices[0], "dummy");
 
             final GetResponse getResponse = newTransportClient().get(getRequest).actionGet();
             Assert.fail();
@@ -340,7 +350,7 @@ public class TransportTest extends AbstractArmorTest {
     protected void assertSearchResult(final SearchResponse response, final int count) {
         Assert.assertNotNull(response);
         Assert.assertEquals(0, response.getFailedShards());
-        Assert.assertEquals(count, response.getHits().getTotalHits());
+        Assert.assertEquals(count, response.getHits().getTotalHits().value);
         Assert.assertFalse(response.isTimedOut());
     }
 
@@ -350,9 +360,33 @@ public class TransportTest extends AbstractArmorTest {
     }
 
 
+    @Override
+    protected boolean ignoreExternalCluster() {
+        return true;
+    }
+
+
+    @Override
+    protected Settings nodeSettings(int nodeOrdinal) {
+        Settings.Builder builder = Settings.builder().put(super.nodeSettings(nodeOrdinal));
+        // randomize netty settings
+        if (randomBoolean()) {
+            builder.put(Netty4Transport.WORKER_COUNT.getKey(), random().nextInt(3) + 1);
+        }
+        builder.put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_KEYSTORE_FILEPATH,
+                SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks"))
+                .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_TRUSTSTORE_FILEPATH,
+                        SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorTS.jks"))
+                .put(ConfigConstants.ARMOR_SSL_TRANSPORT_NODE_ENFORCE_HOSTNAME_VERIFICATION, false);
+
+        builder.put(NetworkModule.TRANSPORT_TYPE_KEY, SSLNettyTransport.TRANSPORT_NAME);
+        return builder.build();
+    }
+
     private int returnTransportPort() {
         for (NodeInfo node : nodeInfos) {
-            if (node.getInfo(HttpInfo.class) != null && node.getNode().isDataNode() && !node.getNode().isMasterNode()) {
+            if (node.getInfo(TransportInfo.class) != null &&
+                    node.getInfo(PluginsAndModules.class).getPluginInfos().stream().anyMatch(p -> p.getClassname().equals(ArmorPlugin.class.getName()))) {
                 TransportAddress[] publishAddress = node.getInfo(TransportInfo.class).address().boundAddresses();
                 InetSocketAddress address = publishAddress[0].address();
                 return address.getPort();
@@ -360,4 +394,6 @@ public class TransportTest extends AbstractArmorTest {
         }
         return -1;
     }
+
+
 }

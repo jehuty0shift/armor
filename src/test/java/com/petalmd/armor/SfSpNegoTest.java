@@ -85,7 +85,7 @@ public class SfSpNegoTest extends AbstractArmorTest {
             }
         }
 
-        hcon.connect(new URL("http://" + getNonLocalhostAddress()+":"+ port + "/internal/_search"));
+        hcon.connect(new URL("http://localhost" +":"+ port + "/internal/_search"));
 
         Assert.assertEquals(200, hcon.getResponseCode());
 

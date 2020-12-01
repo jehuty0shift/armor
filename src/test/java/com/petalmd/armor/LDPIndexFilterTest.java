@@ -8,14 +8,9 @@ import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.tests.PutSettings;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.core.Bulk;
-import io.searchbox.core.Index;
 import org.apache.http.entity.BasicHttpEntity;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.ingest.GetPipelineRequest;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -34,7 +29,6 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -87,7 +81,7 @@ public class LDPIndexFilterTest extends AbstractArmorTest {
         Assert.assertTrue(cir.isAcknowledged());
 
 
-        int count = 300;
+        int count = 600;
         while (count > 0) {
             try {
                 GetPipelineResponse getResp = localHostClient.ingest().getPipeline(new GetPipelineRequest(ldpPipelineName), RequestOptions.DEFAULT);

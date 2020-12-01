@@ -17,20 +17,6 @@
 
 package com.petalmd.armor.config;
 
-import com.google.common.collect.Lists;
-import com.petalmd.armor.authentication.User;
-import com.petalmd.armor.tokeneval.MalformedConfigurationException;
-import com.petalmd.armor.tokeneval.TokenEvaluator;
-import com.petalmd.armor.tokeneval.TokenEvaluator.FilterAction;
-import org.apache.commons.io.IOUtils;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.io.IOException;
-import java.io.StringWriter;
-import java.net.InetAddress;
-
 public class EvaluatorTest {
 //
 //    @Test
