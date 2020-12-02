@@ -277,7 +277,6 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             this.mapper = mapper;
             this.indexSettings = indexSettings;
             this.clusterService = clusterService;
-            final SortedMap<String, IndexAbstraction> aliasIndexLookup = clusterService.state().getMetadata().getIndicesLookup();
             oldAliases = new HashSet<>();
             if (action.equals(DeleteIndexAction.NAME)) {
                 // Restrict oldAliases to the indices concerned by the request

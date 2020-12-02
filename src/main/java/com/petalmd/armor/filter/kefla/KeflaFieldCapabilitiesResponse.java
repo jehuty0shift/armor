@@ -47,8 +47,9 @@ public class KeflaFieldCapabilitiesResponse extends ActionResponse implements Ke
                 if (indices == null) {
                     log.debug("indices is null, checking all indices one by one");
                     List<String> tempNewIndices = new ArrayList<>();
-                    for (String index : allowedIndexMap.keySet()) {
-                        if (!allowedIndexMap.get(index).containsKey(fieldName)) {
+                    for (Map.Entry<String, Map< String, KeflaRestType>> entry : allowedIndexMap.entrySet()) {
+                        final String index = entry.getKey();
+                        if (!entry.getValue().containsKey(fieldName)) {
                             log.debug("field {} is not present in index {}", fieldName, index);
                             //the field is not present in all indices. but we continue to check the others
                             shouldAddForAll = false;

@@ -52,7 +52,7 @@ public class KafkaService extends AbstractLifecycleComponent {
             );
             clientId = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID);
             if (clientId == null) {
-                clientId = "client-" + (int) (Math.random() * 1000);
+                clientId = "client-" + Double.valueOf(Math.random()).intValue();
             }
             kafkaConfig = AccessController.doPrivileged((PrivilegedAction<KafkaConfig>) () -> collection.find(Filters.eq("name", "configuration")).first());
             if (kafkaConfig == null || !kafkaConfig.isValid()) {
@@ -62,7 +62,7 @@ public class KafkaService extends AbstractLifecycleComponent {
                 log.info("KafkaService is enabled with the following bootstrap servers {}", kafkaConfig.bootstrapServers);
             }
 
-            enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig.kSerPrivateKey));
+            enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig==null?"":kafkaConfig.kSerPrivateKey));
             //This one should be wrapped also
 
             lsj = AccessController.doPrivileged((PrivilegedAction<LazySodiumJava>) () -> {
@@ -104,7 +104,7 @@ public class KafkaService extends AbstractLifecycleComponent {
         return topicList;
     }
 
-    public Optional<Producer> getKafkaProducer() {
+    public synchronized Optional<Producer> getKafkaProducer() {
         if (!enabled) {
             return Optional.empty();
         }

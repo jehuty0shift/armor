@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 /**
  * Created by jehuty0shift on 09/01/2020.
  */
-public class Evaluator implements Serializable {
+public class Evaluator  {
 
     protected static final Logger log = LogManager.getLogger(Evaluator.class);
 
