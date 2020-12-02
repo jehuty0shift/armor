@@ -1,6 +1,7 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.petalmd.armor.audit.AuditListener;
 import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.search.SearchResponse;
@@ -31,9 +32,10 @@ public class AuditLogTest extends AbstractScenarioTest {
 
         Thread.sleep(3000);
         long  totalHits = 0;
+        SearchResponse sResp = null;
         while (totalHits == 0) {
             try {
-                SearchResponse sResp = executeSearch("ac_query_matchall.json", new String[]{ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit"}, true, true);
+                sResp = executeSearch("ac_query_matchall.json", new String[]{ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit"}, true, true);
 
 
                 totalHits = sResp.getHits().getTotalHits().value;
@@ -48,6 +50,7 @@ public class AuditLogTest extends AbstractScenarioTest {
         }
 
         Assert.assertTrue(totalHits == 1);
+        Assert.assertTrue(sResp.getHits().getHits()[0].getSourceAsMap().get(AuditListener.AUDIT_ITEMS).toString().contains("audittest"));
     }
 
 }

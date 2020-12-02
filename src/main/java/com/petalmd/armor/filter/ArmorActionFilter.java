@@ -54,6 +54,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Filter;
 
 public class ArmorActionFilter implements ActionFilter {
 
@@ -189,6 +190,7 @@ public class ArmorActionFilter implements ActionFilter {
 
             if (request instanceof IndicesRequest) {
                 final IndicesRequest ir = (IndicesRequest) request;
+                List<String> indicesList = FilterHelper.getIndices(ir);
                 addType(ir, types, action);
                 if (log.isTraceEnabled()) {
                     log.trace("Indices {}", Arrays.toString(ir.indices()));
@@ -197,17 +199,19 @@ public class ArmorActionFilter implements ActionFilter {
                 }
                 if (wildcardExpEnabled && ir instanceof IndicesRequest.Replaceable) {
                     FilterHelper.replaceWildcardOrAllIndices(ir, userRulesEntities, ci, aliases, aliasesAndIndicesMap);
+                    //reload indicesList since it may have changed
+                    indicesList = FilterHelper.getIndices(ir);
                 } else {
-                    if (ir.indices() != null) {
-                        ci.addAll(FilterHelper.getOnlyIndices(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
-                        aliases.addAll(FilterHelper.getOnlyAliases(Arrays.asList(ir.indices()), aliasesAndIndicesMap));
+                    if (!indicesList.isEmpty()) {
+                        ci.addAll(FilterHelper.getOnlyIndices(indicesList, aliasesAndIndicesMap));
+                        aliases.addAll(FilterHelper.getOnlyAliases(indicesList, aliasesAndIndicesMap));
                     }
                 }
 
 
-                if (!allowedForAllIndices && (ir.indices() == null || Arrays.asList(ir.indices()).contains("_all") || ir.indices().length == 0)) {
+                if (!allowedForAllIndices && (indicesList.isEmpty() || indicesList.contains("_all"))) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                    if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+                    if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) == null) {
                         threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(ir.indices()));
                     }
                     auditListener.onMissingPrivileges(user.getName(), request, threadContext);
@@ -231,7 +235,7 @@ public class ArmorActionFilter implements ActionFilter {
                 }
                 if (!allowedForAllIndices && (cirDetails.getIndices() == null || cirDetails.getIndices().contains("_all") || cirDetails.getIndices().size() == 0)) {
                     log.error("Attempt from {} to _all indices for {} and {}", request.remoteAddress(), action, user);
-                    if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+                    if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) == null) {
                         threadContext.putTransient(AuditListener.AUDIT_ITEMS, new ArrayList<>(cirDetails.getIndices()));
                     }
                     auditListener.onMissingPrivileges(user.getName(), request, threadContext);
@@ -244,7 +248,7 @@ public class ArmorActionFilter implements ActionFilter {
             if (!settings.getAsBoolean(ConfigConstants.ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX, false) && ci.contains(settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX))) {
                 final String armorIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME, ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
                 log.error("Attempt from " + request.remoteAddress() + " on " + armorIndex);
-                if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+                if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) == null) {
                     threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(armorIndex));
                 }
                 auditListener.onMissingPrivileges(user.getName(), request, threadContext);
@@ -301,7 +305,7 @@ public class ArmorActionFilter implements ActionFilter {
             final List<String> filters = new ArrayList<>(evalResult.filters);
 
             log.warn("Action '{}' is forbidden due to {}", action, filters.isEmpty()?"UNKNOWN":filters);
-            if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) != null) {
+            if (threadContext.getTransient(AuditListener.AUDIT_ITEMS) == null) {
                 threadContext.putTransient(AuditListener.AUDIT_ITEMS, Arrays.asList(item));
             }
             auditListener.onMissingPrivileges(user.getName(), request, threadContext);

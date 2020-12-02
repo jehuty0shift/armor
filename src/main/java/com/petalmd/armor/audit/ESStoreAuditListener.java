@@ -46,6 +46,7 @@ import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -86,7 +87,7 @@ public class ESStoreAuditListener implements AuditListener {
     @Override
     public void onMissingPrivileges(final String username, final RestRequest request, final ThreadContext threadContext) {
 
-        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request, settings);
+        final AuditMessage msg = new AuditMessage(username, "missing_privileges", request, threadContext);
         index(msg, threadContext);
 
     }
@@ -240,12 +241,31 @@ public class ESStoreAuditListener implements AuditListener {
             auditInfo.put("audit_date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
             //TODO add first failing item
             if (threadContext.getTransient(AUDIT_ITEMS) != null) {
-                auditInfo.put(AUDIT_ITEMS, threadContext.getTransient(AUDIT_ITEMS));
+                List<String> failingItems = threadContext.getTransient(AUDIT_ITEMS);
+                auditInfo.put(AUDIT_ITEMS, failingItems);
             }
             //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
             //auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
             auditInfo.put("audit_details_class", request.getClass().toString());
             final String ip = String.valueOf(request.remoteAddress());
+            if (!"null".equals(ip)) {
+                auditInfo.put("audit_ip", ip);
+            }
+        }
+
+        private AuditMessage(final String username, final String message, final RestRequest request, final ThreadContext threadContext) {
+            auditInfo.put("audit_user", username);
+            auditInfo.put("audit_message", message);
+            auditInfo.put("audit_date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            //TODO add first failing item
+            if (threadContext.getTransient(AUDIT_ITEMS) != null) {
+                List<String> failingItems = threadContext.getTransient(AUDIT_ITEMS);
+                auditInfo.put(AUDIT_ITEMS, failingItems);
+            }
+            //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
+            //auditInfo.put("audit_details_headers", String.valueOf(request.getHeaders()));
+            auditInfo.put("audit_details_class", request.getClass().toString());
+            final String ip = String.valueOf(request.getHttpChannel().getRemoteAddress().getAddress().getHostAddress());
             if (!"null".equals(ip)) {
                 auditInfo.put("audit_ip", ip);
             }
@@ -260,6 +280,7 @@ public class ESStoreAuditListener implements AuditListener {
             //auditInfo.put("audit_details_headers", Iterables.toString(request.headers()));
             auditInfo.put("audit_details_rest", request.method() + " " + request.path() + " " + request.params());
             auditInfo.put("audit_details_class", request.getClass().toString());
+
             try {
                 final String ip = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings).getHostAddress();
                 if (ip != null && !"null".equals(ip)) {

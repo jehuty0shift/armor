@@ -27,13 +27,17 @@ import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.mock.orig.Mockito;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.Assert;
@@ -276,6 +280,93 @@ public class IndexLifeCycleFilterTest extends AbstractArmorTest {
 
         Assert.assertTrue(cIResp2.isAcknowledged());
         Assert.assertTrue(hasSent.get());
+
+    }
+
+    @Test
+    public void testAutoCreate() throws Exception {
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final AtomicReference<String> indexName = new AtomicReference<>(username + "-i-test-1");
+
+        final String engineDatabaseName = "engine";
+
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "forbidden")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/auto_create", "indices:data/write/index", "indices:data/write/bulk*", "indices:admin/mapping/auto_put", "indices:admin/mapping/put")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 5)
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 2)
+                .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
+                .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
+                .put(authSettings).build();
+
+        MongoServer server = new MongoServer(new MemoryBackend());
+        InetSocketAddress serverAddress = server.bind();
+        MongoClient mongoClient = new MongoClient(new ServerAddress(serverAddress));
+        MongoDBService.setMongoClient(mongoClient);
+
+        MongoDatabase engineTestDatabase = mongoClient.getDatabase(engineDatabaseName);
+        EngineUser currentUser = new EngineUser();
+        currentUser.setRegion(Region.EU);
+        currentUser.setUsername(username);
+        currentUser.setTrusted(true);
+
+        configureEngineDatabase(engineTestDatabase, Arrays.asList(currentUser));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
+        KafkaService.setKafkaProducer(mockProducer);
+
+        startES(settings);
+        setupTestData("ac_rules_25.json");
+
+        RestHighLevelClient client = getRestClient(false, username, password);
+
+        final AtomicReference<Boolean> hasSent = new AtomicReference<>();
+        hasSent.set(false);
+
+        Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+
+                    IndexOperation iOp = IndexOperation.fromKserMessage(kSerMessage);
+                    Assert.assertEquals(username, iOp.getUsername());
+                    Assert.assertEquals(IndexOperation.Type.CREATE, iOp.getType());
+                    Assert.assertEquals(indexName.get(), iOp.getIndex());
+                    //inspired by MockProducer from KafkaInternals
+                    TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
+                    ProduceRequestResult result = new ProduceRequestResult(topicPartition);
+                    result.set(0, 1, null);
+                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
+                    result.done();
+                    hasSent.set(true);
+                    return future;
+                }
+        );
+
+
+        IndexResponse iResp = client.index(new IndexRequest(indexName.get()).source("{\"name\": \"goku\"}", XContentType.JSON),RequestOptions.DEFAULT);
+
+        Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED));
+        Assert.assertTrue(hasSent.get());
+
+
 
     }
 

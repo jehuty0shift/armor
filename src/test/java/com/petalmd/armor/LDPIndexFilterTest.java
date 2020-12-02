@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.petalmd.armor.processor.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
-import com.petalmd.armor.tests.PutSettings;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.http.entity.BasicHttpEntity;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -240,12 +239,6 @@ public class LDPIndexFilterTest extends AbstractArmorTest {
                 "}", XContentType.JSON), RequestOptions.DEFAULT);
 
         Assert.assertTrue(pMR.isAcknowledged());
-
-        PutSettings putSettings = new PutSettings.Builder("{\n" +
-                "    \"index\" : {\n" +
-                "        \"number_of_replicas\" : 2\n" +
-                "    }\n" +
-                "}").addIndex(ldpIndex).addIndex("dev").build();
 
 
         AcknowledgedResponse pSR = client.indices().putSettings(new UpdateSettingsRequest(ldpIndex, "dev")

@@ -44,7 +44,7 @@ public class LDPProcessorTest extends AbstractArmorTest {
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, true)
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID, "id-1")
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG, "all")
-                .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS, "kafka-1.alpha.thot.ovh.com:9094")
+                .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS, "test-kafka.com:9094")
                 .put(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, "alpha.log1")
                 .build();
 

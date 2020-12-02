@@ -230,7 +230,7 @@ public abstract class AbstractActionFilter implements ActionFilter {
             st.routing(item.routing());
             st.indices(item.indices());
             st.preference(multiGetRequest.preference());
-            st.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().types(item.type()).addIds(item.id())));
+            st.source(SearchSourceBuilder.searchSource().query(new IdsQueryBuilder().addIds(item.id())));
             msearch.add(st);
         }
 

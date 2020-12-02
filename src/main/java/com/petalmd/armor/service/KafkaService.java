@@ -41,6 +41,7 @@ public class KafkaService extends AbstractLifecycleComponent {
     private boolean enabled;
     private String clientId;
 
+
     public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
         topicList = new ArrayList<>();

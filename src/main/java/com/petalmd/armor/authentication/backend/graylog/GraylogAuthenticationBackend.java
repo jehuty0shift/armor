@@ -67,7 +67,7 @@ public class GraylogAuthenticationBackend
                 try {
                     HttpResponse jsonResponse = Unirest.get(this.graylogAPIEndpoint + "/roles").basicAuth(username, password).asJson();
                     if (jsonResponse.getStatus() == 401) {
-                        throw new AuthException("Unauthorized by Graylog");
+                        throw new AuthException("Unauthorized by Graylog", AuthException.ExceptionType.NOT_FOUND);
                     }
                     if (jsonResponse.getStatus() == 403) {
                         String message = ((JsonNode) jsonResponse.getBody()).getObject().getString("message");

@@ -41,11 +41,9 @@ public abstract class AbstractLDAPTest {
 
     protected String username;
     protected String password;
-    protected boolean useSpnego = false;
     protected boolean enableSSL = false;
 
 
-    protected List<NodeInfo> nodeInfos;
     protected Header[] headers = new Header[]{};
     protected RestHighLevelClient client;
 

@@ -82,7 +82,7 @@ import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
 
-@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST, supportsDedicatedMasters = true)
+@ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
 public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     public static boolean debugAll = false;
@@ -166,7 +166,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     };
 
     @Before
-    public void setUpTest() throws Exception {
+    public void setUpTest() {
 
         headers = new Header[]{};
         username = password = null;
@@ -177,7 +177,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     @After
     public void shutDownLDAPServer() throws Exception {
-        internalCluster().close();
 
         if (ldapServer != null) {
             ldapServer.stop();

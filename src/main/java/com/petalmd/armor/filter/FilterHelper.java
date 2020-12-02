@@ -8,6 +8,7 @@ import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -21,7 +22,6 @@ import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Created by jehuty0shift on 30/01/19.
@@ -32,9 +32,22 @@ public class FilterHelper {
 
     public static void replaceWildcardOrAllIndices(IndicesRequest ir, RulesEntities rulesEntities, final List<String> ci, final List<String> aliases, final Map<String, IndexAbstraction> indicesAbstractionMap) {
 
-        List<String> irIndices = ir.indices() == null? new ArrayList<>():Arrays.asList(ir.indices());
+        List<String> irIndices = ir.indices() == null ? new ArrayList<>() : Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
+        //PutMappingRequest has an internal getConcreteIndex option triggered when using action indices:admin/mapping/auto_put,
+        // we handle this special case here.
+        if (ir instanceof PutMappingRequest) {
+            PutMappingRequest pmr = (PutMappingRequest) ir;
+            if (pmr.getConcreteIndex() != null) {
+                otherIndicesOrAliases.add(pmr.getConcreteIndex().getName());
+                ci.addAll(getOnlyIndices(otherIndicesOrAliases, indicesAbstractionMap));
+                aliases.addAll(getOnlyAliases(otherIndicesOrAliases, indicesAbstractionMap));
+                //no need to continue since the concrete index is provided
+                return;
+            }
+
+        }
         if (log.isDebugEnabled()) {
             log.debug("replace index for {}", irIndices);
         }
@@ -192,4 +205,14 @@ public class FilterHelper {
         return result;
     }
 
+
+    public static List<String> getIndices(IndicesRequest iR) {
+        if (iR instanceof PutMappingRequest) {
+            PutMappingRequest pmr = (PutMappingRequest) iR;
+            if (pmr.getConcreteIndex() != null) {
+                return Arrays.asList(pmr.getConcreteIndex().getName());
+            }
+        }
+        return iR.indices() == null ? Collections.emptyList() : Arrays.asList(iR.indices());
+    }
 }

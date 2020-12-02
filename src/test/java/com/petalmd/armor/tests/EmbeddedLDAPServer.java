@@ -1,11 +1,11 @@
 /*
  * Copyright 2015 floragunn UG (haftungsbeschränkt)
  * Copyright 2015 PetalMD
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -13,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.petalmd.armor.tests;
@@ -46,6 +46,7 @@ import org.apache.directory.server.ldap.handlers.sasl.digestMD5.DigestMd5Mechani
 import org.apache.directory.server.ldap.handlers.sasl.gssapi.GssapiMechanismHandler;
 import org.apache.directory.server.ldap.handlers.sasl.ntlm.NtlmMechanismHandler;
 import org.apache.directory.server.ldap.handlers.sasl.plain.PlainMechanismHandler;
+import org.apache.directory.server.protocol.shared.transport.TcpTransport;
 import org.apache.directory.shared.kerberos.KerberosTime;
 import org.apache.directory.shared.kerberos.codec.types.EncryptionType;
 import org.apache.directory.shared.kerberos.components.EncryptionKey;
@@ -94,12 +95,12 @@ public class EmbeddedLDAPServer {
         log.debug("Keytab with " + keytab.getEntries().size() + " entries written to " + keytabFile.getAbsolutePath());
     }
 
-    @CreateDS(name = "ExampleComDS", allowAnonAccess = true, partitions = { @CreatePartition(name = "examplecom", suffix = "o=TEST", contextEntry = @ContextEntry(entryLdif = "dn: o=TEST\n"
-            + "dc: TEST\n" + "objectClass: top\n" + "objectClass: domain\n\n"), indexes = { @CreateIndex(attribute = "objectClass"),
-        @CreateIndex(attribute = "dc"), @CreateIndex(attribute = "ou") }) }, additionalInterceptors = { KeyDerivationInterceptor.class })
+    @CreateDS(name = "ExampleComDS", allowAnonAccess = true, partitions = {@CreatePartition(name = "examplecom", suffix = "o=TEST", contextEntry = @ContextEntry(entryLdif = "dn: o=TEST\n"
+            + "dc: TEST\n" + "objectClass: top\n" + "objectClass: domain\n\n"), indexes = {@CreateIndex(attribute = "objectClass"),
+            @CreateIndex(attribute = "dc"), @CreateIndex(attribute = "ou")})}, additionalInterceptors = {KeyDerivationInterceptor.class})
     @CreateLdapServer(allowAnonymousAccess = true, transports = {
             @CreateTransport(protocol = "LDAP", address = "localhost", port = ldapPort),
-            @CreateTransport(protocol = "LDAPS", address = "localhost", port = ldapsPort) },
+            @CreateTransport(protocol = "LDAPS", address = "localhost", port = ldapsPort, ssl = true)},
 
             saslHost = "localhost", saslPrincipal = "ldap/localhost@EXAMPLE.COM", saslMechanisms = {
             @SaslMechanism(name = SupportedSaslMechanisms.PLAIN, implClass = PlainMechanismHandler.class),
@@ -107,13 +108,13 @@ public class EmbeddedLDAPServer {
             @SaslMechanism(name = SupportedSaslMechanisms.DIGEST_MD5, implClass = DigestMd5MechanismHandler.class),
             @SaslMechanism(name = SupportedSaslMechanisms.GSSAPI, implClass = GssapiMechanismHandler.class),
             @SaslMechanism(name = SupportedSaslMechanisms.NTLM, implClass = NtlmMechanismHandler.class),
-            @SaslMechanism(name = SupportedSaslMechanisms.GSS_SPNEGO, implClass = NtlmMechanismHandler.class) }, extendedOpHandlers = { StartTlsHandler.class }
+            @SaslMechanism(name = SupportedSaslMechanisms.GSS_SPNEGO, implClass = NtlmMechanismHandler.class)}, extendedOpHandlers = {StartTlsHandler.class}
 
-            )
+    )
     @CreateKdcServer(primaryRealm = "example.com", kdcPrincipal = "krbtgt/example.com@example.com", searchBaseDn = "o=TEST",
-    //maxTicketLifetime = 1000,
-    //maxRenewableLifetime = 2000,
-    transports = { @CreateTransport(protocol = "TCP", port = kdcPort), @CreateTransport(protocol = "UDP", port = kdcPort) })
+            //maxTicketLifetime = 1000,
+            //maxRenewableLifetime = 2000,
+            transports = {@CreateTransport(protocol = "TCP", port = kdcPort), @CreateTransport(protocol = "UDP", port = kdcPort)})
     public void start() throws Exception {
 
         directoryService = DSAnnotationProcessor.getDirectoryService();
@@ -125,8 +126,10 @@ public class EmbeddedLDAPServer {
 
         ldapServer.setKeystoreFile(SecurityUtil.getAbsoluteFilePathFromClassPath("ArmorKS.jks").toAbsolutePath().toString());
         ldapServer.setCertificatePassword("changeit");
-        ldapServer.setEnabledCipherSuites(Arrays.asList(SecurityUtil.getEnabledSslCiphers()));
+        Arrays.stream(ldapServer.getTransports()).filter(t -> t instanceof TcpTransport && t.isSSLEnabled()).forEach(
+                t -> ((TcpTransport) t).setEnabledCiphers(Arrays.asList(SecurityUtil.getEnabledSslCiphers()))
 
+        );
         if (ldapServer.isStarted()) {
             throw new IllegalStateException("Service already running");
         }
