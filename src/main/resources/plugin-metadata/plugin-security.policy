@@ -19,6 +19,7 @@ grant {
 
   permission java.io.FilePermission "${java.home}${/}lib${/}security${/}cacerts", "read";
   permission java.io.FilePermission "${es.path.conf}${/}armor_node_key.key", "read,readlink,write";
+  permission java.io.FilePermission "${es.path.conf}", "read,readlink";
   permission java.io.FilePermission "${deployment.system.security.cacerts}", "read,readlink";
   permission java.security.SecurityPermission "createAccessControlContext";
   permission java.net.SocketPermission "*", "accept,resolve,listen,connect";
