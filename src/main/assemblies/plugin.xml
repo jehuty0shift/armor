@@ -18,27 +18,13 @@
         </file>
    </files>
     <dependencySets>
-         <dependencySet>
-     	 <!-- jffi native jar has to be renamed to not conflict with the jffi normal jar in bootstrap when analyzing codebase grant permissions --> 
-	    <useProjectArtifact>true</useProjectArtifact>
-            <useTransitiveFiltering>true</useTransitiveFiltering>
-            <useTransitiveDependencies>true</useTransitiveDependencies>
-            <scope>runtime</scope>
-            <includes>
-                <include>*:jffi:jar:native*</include>
-	    </includes>
-            <outputFileNameMapping>${artifact.artifactId}Native-${artifact.version}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
-        </dependencySet>
         <dependencySet>
             <useProjectArtifact>true</useProjectArtifact>
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <scope>runtime</scope>
             <excludes>
-                <exclude>*:jna:jar:4.5.1</exclude>
                 <exclude>*:jna:jar:5.5.0</exclude>
-                <exclude>*:jffi:jar:native*</exclude>
                 <exclude>org.elasticsearch:elasticsearch</exclude>
-                <exclude>org.slf4j:jcl-over-slf4j:*</exclude>
                 <exclude>org.apache.logging.log4j:log4j-*</exclude>
             </excludes>
         </dependencySet>

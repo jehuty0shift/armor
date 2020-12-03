@@ -48,7 +48,8 @@
         <elasticsearch.version>7.10.0</elasticsearch.version>
         <apache.ds.version>2.0.0.AM26</apache.ds.version>
         <apache.ds.api.version>2.0.1</apache.ds.api.version>
-        <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
+        <slf4j.api.bundleversion>1.7.30</slf4j.api.bundleversion>
+        <log4j.slf4j.version>2.14.0</log4j.slf4j.version>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
         <lucene.maven.version>8.7.0</lucene.maven.version>
@@ -173,16 +174,11 @@
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.api.bundleversion}</version>
         </dependency>
+
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>${slf4j.api.bundleversion}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.waffle</groupId>

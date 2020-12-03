@@ -80,6 +80,8 @@ import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PrivilegedExceptionAction;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @ESIntegTestCase.ClusterScope(scope = ESIntegTestCase.Scope.TEST)
@@ -142,12 +144,16 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     @Rule
     public final TestWatcher testWatcher = new TestWatcher() {
+
+        Instant start;
+
         @Override
         protected void starting(final Description description) {
             final String methodName = description.getMethodName();
             String className = description.getClassName();
             className = className.substring(className.lastIndexOf('.') + 1);
             System.out.println("---------------- Starting JUnit-test: " + className + " " + methodName + " ----------------");
+            start = Instant.now();
         }
 
         @Override
@@ -155,11 +161,15 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             final String methodName = description.getMethodName();
             String className = description.getClassName();
             className = className.substring(className.lastIndexOf('.') + 1);
+            Duration testDuration = Duration.between(start,Instant.now());
+            System.out.println("----test lasted : " + testDuration.toString());
             System.out.println(">>>> " + className + " " + methodName + " FAILED due to " + e);
         }
 
         @Override
         protected void finished(final Description description) {
+            Duration testDuration = Duration.between(start,Instant.now());
+            System.out.println("----test lasted : " + testDuration.toString());
             System.out.println("-----------------------------------------------------------------------------------------");
         }
 
