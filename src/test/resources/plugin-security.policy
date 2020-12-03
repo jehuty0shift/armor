@@ -27,6 +27,7 @@ grant {
   permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
   permission java.lang.RuntimePermission "accessClassInPackage.sun.nio.ch";
   permission java.lang.RuntimePermission "reflectionFactoryAccess";
+  permission java.lang.RuntimePermission "accessUserInformation";
   permission java.util.PropertyPermission "*", "read,write";
   //travis strange fix
   permission java.io.FilePermission ".", "read, readlink";
