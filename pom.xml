@@ -677,9 +677,9 @@
                 <version>3.0.0-M5</version>
                 <configuration>
                     <systemPropertyVariables>
+                        <es.path.conf>.</es.path.conf>
                         <java.security.policy>${basedir}/src/test/resources/plugin-security.policy
                         </java.security.policy>
-                        <es.path.conf>.</es.path.conf>
                         <es.set.netty.runtime.available.processors>false</es.set.netty.runtime.available.processors>
                         <log4j.configurationFile>${surefire-log4j.file}</log4j.configurationFile>
                     </systemPropertyVariables>

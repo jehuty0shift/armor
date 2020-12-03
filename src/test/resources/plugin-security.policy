@@ -17,7 +17,6 @@
 grant {   
 
   //TESTS Permissions
-  //permission java.security.AllPermission "", "";
 
   permission java.io.FilePermission "target/tmp/keytab.keytab", "read,readlink,write,delete";
   permission java.io.FilePermission "target/tmp/login.conf", "read,readlink,write,delete";
@@ -29,6 +28,9 @@ grant {
   permission java.lang.RuntimePermission "accessClassInPackage.sun.nio.ch";
   permission java.lang.RuntimePermission "reflectionFactoryAccess";
   permission java.util.PropertyPermission "*", "read,write";
+  //travis strange fix
+  permission java.io.FilePermission ".", "read, readlink";
+
 
 
   //kerberos
