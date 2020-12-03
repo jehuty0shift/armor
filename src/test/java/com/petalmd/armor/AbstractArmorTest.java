@@ -178,6 +178,8 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     @After
     public void shutDownLDAPServer() throws Exception {
 
+        internalCluster().close();
+
         if (ldapServer != null) {
             ldapServer.stop();
         }
