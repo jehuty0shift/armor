@@ -169,7 +169,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         @Override
         protected void finished(final Description description) {
             Duration testDuration = Duration.between(start,Instant.now());
-            System.out.println("----test lasted : " + testDuration.toString());
+            System.out.println("----test " + description.getClassName() + "/"+ description.getMethodName() + " lasted : " + testDuration.toString());
             System.out.println("-----------------------------------------------------------------------------------------");
         }
 
@@ -188,8 +188,10 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     @After
     public void shutDownLDAPServer() throws Exception {
 
+        for (Client client :internalCluster().getClients()) {
+            client.close();
+        }
         internalCluster().close();
-
         if (ldapServer != null) {
             ldapServer.stop();
         }

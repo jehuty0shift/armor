@@ -82,7 +82,6 @@ public class ArmorService extends AbstractLifecycleComponent {
         final String keyPath = System.getProperty("es.path.conf");
         SecretKey sc = null;
         try {
-            AccessController.checkPermission(new FilePermission(keyPath+File.separator+"armor_node_key.key", "write"));
             sc = AccessController.doPrivileged(new PrivilegedExceptionAction<SecretKey>() {
                 @Override
                 public SecretKey run() throws Exception {
