@@ -175,17 +175,14 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     @Before
     public void setUpTest() {
-
         headers = new Header[]{};
         username = password = null;
         enableSSL = false;
-
     }
 
 
     @After
     public void shutDownLDAPServer() throws Exception {
-
         for (Client client : internalCluster().getClients()) {
             client.close();
         }
@@ -193,7 +190,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         if (ldapServer != null) {
             ldapServer.stop();
         }
-
     }
 
     @Override
@@ -221,7 +217,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     }
 
     public final void startES(final Settings settings, boolean ensureGreenWithTestCase) {
-        //List<Settings> nodesSettings = IntStream.range(0,3).map(i -> getDefaultSettingsBuilder(i).put(settings).build()).collect(Collectors.toList());
         internalCluster().startNodes(3, getDefaultSettingsBuilder().put(settings).build());
         if (ensureGreenWithTestCase) {
             ensureGreen();
@@ -246,8 +241,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
         Assert.assertFalse(actionGet.isTimedOut());
         Assert.assertTrue(actionGet.getStatus().equals(ClusterHealthStatus.GREEN));
-
-
     }
 
     public final void startES(final Settings settings) {
@@ -255,8 +248,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     }
 
     public final void startLDAPServer() throws Exception {
-
-
         log.debug("non localhost address: {}", getNonLocalhostAddress());
         AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
             ldapServer = new EmbeddedLDAPServer();
@@ -274,7 +265,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
 
     protected final IndexResponse executeIndex(final String file, final String index, final String id,
-                                               final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                               final boolean mustBeSuccessful, final boolean connectFromLocalhost) throws Exception {
 
         if (nodeInfos == null) {
             throw new Exception("Cluster not started");
@@ -290,8 +281,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             }
         }
 
-        RestClientBuilder clientBuilder;
-
         HttpHost httpHost;
         if (connectFromLocalhost) {
             httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(), enableSSL ? "https" : "http");
@@ -299,7 +288,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(), enableSSL ? "https" : "http");
         }
 
-        clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
+        RestClientBuilder clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
             try {
                 return customizeHttpClient(hacb, enableSSL, useSpnego, username, password);
             } catch (Exception e) {
@@ -321,14 +310,14 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
             IndexResponse iResp = innerClient.index(iReq, RequestOptions.DEFAULT);
 
-            if (mustBeSuccesfull) {
+            if (mustBeSuccessful) {
                 Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED) || iResp.getResult().equals(DocWriteResponse.Result.UPDATED));
             }
 
             return iResp;
 
         } catch (ElasticsearchException ex) {
-            if (!mustBeSuccesfull) {
+            if (!mustBeSuccessful) {
                 Assert.assertTrue(!ex.status().equals(RestStatus.OK) && !ex.status().equals(RestStatus.CREATED));
                 log.debug("Index operation result fails as expected: " + ex.getDetailedMessage());
                 throw ex;
@@ -346,7 +335,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
 
     protected final IndexResponse executeIndexAsString(final String string, final String index,
-                                                       final String id, final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                       final String id, final boolean mustBeSuccessful, final boolean connectFromLocalhost) throws Exception {
 
         if (nodeInfos == null) {
             throw new Exception("Cluster not started");
@@ -362,8 +351,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             }
         }
 
-        RestClientBuilder clientBuilder;
-
         HttpHost httpHost;
         if (connectFromLocalhost) {
             httpHost = new HttpHost("127.0.0.1", hosts.get(0).getPort(), enableSSL ? "https" : "http");
@@ -371,7 +358,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             httpHost = new HttpHost(getNonLocalhostAddress(), hosts.get(0).getPort(), enableSSL ? "https" : "http");
         }
 
-        clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
+        RestClientBuilder clientBuilder = RestClient.builder(httpHost).setHttpClientConfigCallback(hacb -> {
             try {
                 return customizeHttpClient(hacb, enableSSL, useSpnego, username, password);
             } catch (Exception e) {
@@ -396,21 +383,20 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
             IndexResponse iResp = innerClient.index(iReq, RequestOptions.DEFAULT);
 
-            if (mustBeSuccesfull) {
+            if (mustBeSuccessful) {
                 Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED));
             }
 
             return iResp;
 
         } catch (ElasticsearchStatusException ex) {
-            if (!mustBeSuccesfull) {
+            if (!mustBeSuccessful) {
                 Assert.assertTrue(!ex.status().equals(RestStatus.OK) && !ex.status().equals(RestStatus.CREATED));
                 log.debug("Index operation result fails as expected: " + ex.getDetailedMessage());
-                throw ex;
             } else {
                 log.error("Index operation result: {}", ex.getDetailedMessage());
-                throw ex;
             }
+            throw ex;
         } catch (Exception ex) {
             log.error("Operation failed unexpectedly");
             throw ex;
@@ -419,7 +405,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     }
 
     protected final SearchResponse executeSearch(final String file, final String[] indices,
-                                                 final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                                 final boolean mustBeSuccessful, final boolean connectFromLocalhost) throws Exception {
 
         RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
@@ -432,7 +418,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                                 .createParser(new NamedXContentRegistry(searchModule.getNamedXContents()), LoggingDeprecationHandler.INSTANCE, loadFile(file))));
 
         try (innerClient) {
-            if (mustBeSuccesfull) {
+            if (mustBeSuccessful) {
                 try {
                     sResp = innerClient.search(sr, RequestOptions.DEFAULT);
                     Assert.assertTrue(sResp.status().equals(RestStatus.OK));
@@ -453,7 +439,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     }
 
     protected final SearchResponse executeSearchWithScroll(final String file, final String[] indices,
-                                                           final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final TimeValue keepAlive, final int size) throws Exception {
+                                                           final boolean mustBeSuccessful, final boolean connectFromLocalhost, final TimeValue keepAlive, final int size) throws Exception {
 
         RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
@@ -468,7 +454,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                 .scroll(keepAlive);
 
         try (innerClient) {
-            if (mustBeSuccesfull) {
+            if (mustBeSuccessful) {
                 try {
                     sResp = innerClient.search(sr, RequestOptions.DEFAULT);
                     Assert.assertTrue(sResp.status().equals(RestStatus.OK));
@@ -490,7 +476,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
 
     protected final GetResponse executeGet(final String index, final String id,
-                                           final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
+                                           final boolean mustBeSuccessful, final boolean connectFromLocalhost) throws Exception {
 
         RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
@@ -498,7 +484,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         GetResponse gResp;
 
         try (innerClient) {
-            if (mustBeSuccesfull) {
+            if (mustBeSuccessful) {
                 try {
                     gResp = innerClient.get(gReq, RequestOptions.DEFAULT);
                     Assert.assertTrue(gResp.getId() != null);

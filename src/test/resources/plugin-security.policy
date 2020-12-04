@@ -22,6 +22,7 @@ grant {
   permission java.io.FilePermission "target/tmp/login.conf", "read,readlink,write,delete";
   permission java.io.FilePermission "target/tmp", "read,readlink,write,delete";
   permission java.io.FilePermission "target/tmp/-", "read";
+  permission java.io.FilePermission "/tmp/-", "read,readlink,write,delete";
 //  permission java.io.FilePermission "./armor_node_key.key", "read,readlink,write";
   permission java.lang.RuntimePermission "accessClassInPackage.sun.reflect";
   permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.misc";
