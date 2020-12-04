@@ -18,6 +18,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.ingest.GetPipelineRequest;
 import org.elasticsearch.action.ingest.GetPipelineResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.master.AcknowledgedRequest;
@@ -94,7 +95,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
         if (action.equals(IndexAction.NAME)) {
             IndexRequest iReq = (IndexRequest) request;
             if (iReq.index().equals(ldpIndex) && iReq.getPipeline() == null) {
-                if (!ldpPipelineBuilt.get()) {
+                if (!ldpPipelineBuilt.get() && !pipelineIsFound()) {
                     listener.onFailure(new ForbiddenException("this index is not ready"));
                     return;
                 } else if (!putPipelineTask.isCancelled()) {
@@ -108,7 +109,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
             for (DocWriteRequest dwr : bReq.requests()) {
                 if (ldpIndex.equals(dwr.index())) {
                     log.debug("inner bulkRequest target ldp index {}", ldpIndex);
-                    if (!ldpPipelineBuilt.get()) {
+                    if (!ldpPipelineBuilt.get() && !pipelineIsFound()) {
                         listener.onFailure(new ForbiddenException("this index is not yet ready"));
                         return;
                     } else if (!putPipelineTask.isCancelled()) {
@@ -161,6 +162,11 @@ public class LDPIndexFilter extends AbstractActionFilter {
         }
 
         chain.proceed(task, action, request, listener);
+    }
+
+    private boolean pipelineIsFound() {
+        GetPipelineResponse gPr = client.admin().cluster().getPipeline(new GetPipelineRequest(ldpPipelineName)).actionGet();
+        return gPr.isFound();
     }
 
     private void putLDPPipelineIfNeeded() {
