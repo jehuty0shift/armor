@@ -30,7 +30,6 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -99,7 +98,6 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
 
     protected List<NodeInfo> nodeInfos;
     protected Header[] headers = new Header[]{};
-    protected RestHighLevelClient client;
 
     protected final Logger log = LogManager.getLogger(AbstractArmorTest.class);
 
@@ -161,15 +159,15 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             final String methodName = description.getMethodName();
             String className = description.getClassName();
             className = className.substring(className.lastIndexOf('.') + 1);
-            Duration testDuration = Duration.between(start,Instant.now());
+            Duration testDuration = Duration.between(start, Instant.now());
             System.out.println("----test lasted : " + testDuration.toString());
             System.out.println(">>>> " + className + " " + methodName + " FAILED due to " + e);
         }
 
         @Override
         protected void finished(final Description description) {
-            Duration testDuration = Duration.between(start,Instant.now());
-            System.out.println("----test " + description.getClassName() + "/"+ description.getMethodName() + " lasted : " + testDuration.toString());
+            Duration testDuration = Duration.between(start, Instant.now());
+            System.out.println("----test " + description.getClassName() + "/" + description.getMethodName() + " lasted : " + testDuration.toString());
             System.out.println("-----------------------------------------------------------------------------------------");
         }
 
@@ -188,7 +186,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     @After
     public void shutDownLDAPServer() throws Exception {
 
-        for (Client client :internalCluster().getClients()) {
+        for (Client client : internalCluster().getClients()) {
             client.close();
         }
         internalCluster().close();
@@ -285,7 +283,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
             if (node.getInfo(HttpInfo.class) != null
-                && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false) == true) {
+                    && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED, false) == true) {
                 TransportAddress[] publishAddress = node.getInfo(HttpInfo.class).address().boundAddresses();
                 InetSocketAddress address = publishAddress[0].address();
                 hosts.add(new HttpHost(NetworkAddress.format(address.getAddress()), address.getPort(), "http"));
@@ -311,9 +309,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             return hacb;
         }).setDefaultHeaders(headers);
 
-        client = new RestHighLevelClient(clientBuilder);
+        RestHighLevelClient innerClient = new RestHighLevelClient(clientBuilder);
 
-        try {
+        try (innerClient) {
 
             IndexRequest iReq = new IndexRequest(index)
                     .id(id)
@@ -321,7 +319,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                     .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                     .source(loadFile(file), XContentType.JSON);
 
-            IndexResponse iResp = client.index(iReq, RequestOptions.DEFAULT);
+            IndexResponse iResp = innerClient.index(iReq, RequestOptions.DEFAULT);
 
             if (mustBeSuccesfull) {
                 Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED) || iResp.getResult().equals(DocWriteResponse.Result.UPDATED));
@@ -343,6 +341,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             throw ex;
         }
 
+
     }
 
 
@@ -356,7 +355,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
             if (node.getInfo(HttpInfo.class) != null
-                && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false) == true) {
+                    && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED, false) == true) {
                 TransportAddress[] publishAddress = node.getInfo(HttpInfo.class).address().boundAddresses();
                 InetSocketAddress address = publishAddress[0].address();
                 hosts.add(new HttpHost(NetworkAddress.format(address.getAddress()), address.getPort(), "http"));
@@ -382,9 +381,9 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             return hacb;
         }).setDefaultHeaders(headers);
 
-        client = new RestHighLevelClient(clientBuilder);
+        RestHighLevelClient innerClient = new RestHighLevelClient(clientBuilder);
 
-        try {
+        try (innerClient) {
 
             IndexRequest iReq = new IndexRequest(index)
                     .timeout(TimeValue.timeValueMinutes(1))
@@ -395,7 +394,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                 iReq.id(id);
             }
 
-            IndexResponse iResp = client.index(iReq, RequestOptions.DEFAULT);
+            IndexResponse iResp = innerClient.index(iReq, RequestOptions.DEFAULT);
 
             if (mustBeSuccesfull) {
                 Assert.assertTrue(iResp.getResult().equals(DocWriteResponse.Result.CREATED));
@@ -422,7 +421,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected final SearchResponse executeSearch(final String file, final String[] indices,
                                                  final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getRestClient(connectFromLocalhost, username, password);
+        RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
         SearchResponse sResp;
 
@@ -432,20 +431,22 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                         XContentFactory.xContent(XContentType.JSON)
                                 .createParser(new NamedXContentRegistry(searchModule.getNamedXContents()), LoggingDeprecationHandler.INSTANCE, loadFile(file))));
 
-        if (mustBeSuccesfull) {
-            try {
-                sResp = client.search(sr, RequestOptions.DEFAULT);
-                Assert.assertTrue(sResp.status().equals(RestStatus.OK));
+        try (innerClient) {
+            if (mustBeSuccesfull) {
+                try {
+                    sResp = innerClient.search(sr, RequestOptions.DEFAULT);
+                    Assert.assertTrue(sResp.status().equals(RestStatus.OK));
 
-            } catch (ElasticsearchStatusException ex) {
-                log.error("Search operation result: {}", ex.getDetailedMessage());
-                throw ex;
+                } catch (ElasticsearchStatusException ex) {
+                    log.error("Search operation result: {}", ex.getDetailedMessage());
+                    throw ex;
+                }
+            } else {
+                ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> innerClient.search(sr, RequestOptions.DEFAULT));
+                log.debug("Search operation fails as expected");
+                Assert.assertTrue(failure != null);
+                throw failure;
             }
-        } else {
-            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> client.search(sr, RequestOptions.DEFAULT));
-            log.debug("Search operation fails as expected");
-            Assert.assertTrue(failure != null);
-            throw failure;
         }
 
         return sResp;
@@ -454,7 +455,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected final SearchResponse executeSearchWithScroll(final String file, final String[] indices,
                                                            final boolean mustBeSuccesfull, final boolean connectFromLocalhost, final TimeValue keepAlive, final int size) throws Exception {
 
-        client = getRestClient(connectFromLocalhost, username, password);
+        RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
         SearchResponse sResp;
 
@@ -466,20 +467,22 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
                                 .createParser(new NamedXContentRegistry(searchModule.getNamedXContents()), LoggingDeprecationHandler.INSTANCE, loadFile(file))).size(size))
                 .scroll(keepAlive);
 
-        if (mustBeSuccesfull) {
-            try {
-                sResp = client.search(sr, RequestOptions.DEFAULT);
-                Assert.assertTrue(sResp.status().equals(RestStatus.OK));
+        try (innerClient) {
+            if (mustBeSuccesfull) {
+                try {
+                    sResp = innerClient.search(sr, RequestOptions.DEFAULT);
+                    Assert.assertTrue(sResp.status().equals(RestStatus.OK));
 
-            } catch (ElasticsearchStatusException ex) {
-                log.error("Search operation result: {}", ex.getDetailedMessage());
-                throw ex;
+                } catch (ElasticsearchStatusException ex) {
+                    log.error("Search operation result: {}", ex.getDetailedMessage());
+                    throw ex;
+                }
+            } else {
+                ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> innerClient.search(sr, RequestOptions.DEFAULT));
+                log.debug("Search operation fails as expected");
+                Assert.assertTrue(failure != null);
+                throw failure;
             }
-        } else {
-            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> client.search(sr, RequestOptions.DEFAULT));
-            log.debug("Search operation fails as expected");
-            Assert.assertTrue(failure != null);
-            throw failure;
         }
 
         return sResp;
@@ -489,26 +492,28 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected final GetResponse executeGet(final String index, final String id,
                                            final boolean mustBeSuccesfull, final boolean connectFromLocalhost) throws Exception {
 
-        client = getRestClient(connectFromLocalhost, username, password);
+        RestHighLevelClient innerClient = getRestClient(connectFromLocalhost, username, password);
 
         GetRequest gReq = new GetRequest(index, id).refresh(true);
         GetResponse gResp;
 
-        if (mustBeSuccesfull) {
-            try {
-                gResp = client.get(gReq, RequestOptions.DEFAULT);
-                Assert.assertTrue(gResp.getId() != null);
-            } catch (ElasticsearchStatusException ex) {
-                log.error("Get operation result: {}", ex.getDetailedMessage());
-                throw ex;
+        try (innerClient) {
+            if (mustBeSuccesfull) {
+                try {
+                    gResp = innerClient.get(gReq, RequestOptions.DEFAULT);
+                    Assert.assertTrue(gResp.getId() != null);
+                } catch (ElasticsearchStatusException ex) {
+                    log.error("Get operation result: {}", ex.getDetailedMessage());
+                    throw ex;
+                }
+            } else {
+                ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> innerClient.get(gReq, RequestOptions.DEFAULT));
+                log.debug("Get operation fails as expected");
+                Assert.assertTrue(failure != null);
+                throw failure;
             }
-        } else {
-            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> client.get(gReq, RequestOptions.DEFAULT));
-            log.debug("Get operation fails as expected");
-            Assert.assertTrue(failure != null);
-            throw failure;
+            return gResp;
         }
-        return gResp;
     }
 
     protected final void setupTestData(final String armorConfig) throws Exception {
@@ -745,7 +750,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         List<HttpHost> hosts = new ArrayList<>();
         for (NodeInfo node : nodeInfos) {
             if (node.getInfo(HttpInfo.class) != null
-                    && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED,false).booleanValue() == true) {
+                    && node.getSettings().getAsBoolean(ConfigConstants.ARMOR_ENABLED, false).booleanValue() == true) {
                 TransportAddress publishAddress = node.getInfo(HttpInfo.class).address().publishAddress();
                 InetSocketAddress address = publishAddress.address();
 
