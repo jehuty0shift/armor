@@ -18,6 +18,7 @@
 
 package com.petalmd.armor.rest;
 
+import com.petalmd.armor.filter.LDPIndexFilter;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
@@ -46,12 +47,13 @@ public class ArmorInfoAction extends BaseRestHandler {
 
     private final Settings settings;
     private final ArmorConfigService armorConfigService;
+    private LDPIndexFilter ldpIndexFilter;
     private static final Logger log = LogManager.getLogger(ArmorInfoAction.class);
     private static final AtomicBoolean available = new AtomicBoolean(true);
 
 
     @Inject
-    public ArmorInfoAction(final Settings settings, RestController controller,
+    public ArmorInfoAction(final Settings settings,
                            final ArmorConfigService armorConfigService) {
         super();
         this.armorConfigService = armorConfigService;
@@ -63,10 +65,15 @@ public class ArmorInfoAction extends BaseRestHandler {
         return "armor_info_action";
     }
 
+    public void setLdpIndexFilter(final LDPIndexFilter ldpIndexFilter) {
+        this.ldpIndexFilter = ldpIndexFilter;
+    }
+
     @Override
     public List<Route> routes() {
         return List.of(
                 new Route(GET, "/_armor"),
+                new Route(GET, "/_armor/ldp_index"),
                 new Route(POST, "/_armor/local/maintenance"));
     }
 
@@ -76,7 +83,11 @@ public class ArmorInfoAction extends BaseRestHandler {
 
         return restChannel -> {
             if (request.method().equals(GET)) {
-                processGET(restChannel, request);
+                if(request.path().endsWith("ldp_index")) {
+                    processGetLdpIndexInfo(restChannel);
+                } else {
+                    processGET(restChannel, request);
+                }
             } else if (request.method().equals(POST)) {
                 processPOST(restChannel, request);
             }
@@ -86,7 +97,20 @@ public class ArmorInfoAction extends BaseRestHandler {
     }
 
 
-    public void processGET(RestChannel restChannel, RestRequest request) throws IOException {
+    private void processGetLdpIndexInfo(RestChannel restChannel) throws IOException {
+        boolean ldpIndexEnabled = ldpIndexFilter != null?ldpIndexFilter.isIndexFilterEnabled():false;
+        final XContentBuilder builder = restChannel.newBuilder();
+        builder.startObject();
+        builder.field("enabled", ldpIndexEnabled);
+        builder.endObject();
+        BytesRestResponse response = new BytesRestResponse(RestStatus.OK, builder);
+
+        restChannel.sendResponse(response);
+
+    }
+
+
+    private void processGET(RestChannel restChannel, RestRequest request) throws IOException {
         final boolean isLoopback = request.getHttpChannel().getRemoteAddress().getAddress().isLoopbackAddress();
         final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
@@ -136,7 +160,7 @@ public class ArmorInfoAction extends BaseRestHandler {
 
     }
 
-    public void processPOST(RestChannel restChannel, RestRequest restRequest) throws IOException {
+    private void processPOST(RestChannel restChannel, RestRequest restRequest) throws IOException {
 
         BytesRestResponse response;
         final XContentBuilder builder = restChannel.newBuilder();

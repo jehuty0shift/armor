@@ -108,6 +108,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
     private ArmorService armorService;
     private IngestService ingestService;
+    private ArmorInfoAction armorInfoAction;
     private ArmorRestShield armorRestShield;
     private ArmorConfigService armorConfigService;
     private AuditListener auditListener;
@@ -256,6 +257,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         //IngestService
         armorService.setIngestService(ingestService);
 
+        //armorInfoAction
+        armorInfoAction = new ArmorInfoAction(settings,  Objects.requireNonNull(armorConfigService));
+
         log.info("added " + componentsList.size() + " components.");
         log.info(authenticationBackend.getClass().getName());
         return componentsList;
@@ -280,7 +284,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new AliasLifeCycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
             actionFilters.add(new IndexTemplateFilter(settings, clusterService, armorService, armorConfigService, threadPool));
             actionFilters.add(new IngestPipelineFilter(settings, clusterService, armorService, armorConfigService, threadPool));
-            actionFilters.add(new LDPIndexFilter(settings, client, clusterService, armorService, armorConfigService, threadPool));
+            actionFilters.add(new LDPIndexFilter(settings, client, clusterService, armorService, armorConfigService, armorInfoAction, threadPool));
             actionFilters.add(new DLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new FLSActionFilter(settings, client, clusterService, threadPool, armorService, armorConfigService));
         }
@@ -303,7 +307,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         if (!enabled) {
             return Collections.emptyList();
         } else {
-            return Collections.singletonList(new ArmorInfoAction(settings, restController, Objects.requireNonNull(armorConfigService)));
+            return Collections.singletonList(armorInfoAction);
         }
     }
 

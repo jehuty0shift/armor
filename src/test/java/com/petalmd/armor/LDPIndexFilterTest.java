@@ -79,18 +79,20 @@ public class LDPIndexFilterTest extends AbstractArmorTest {
         CreateIndexResponse cir = localHostClient.indices().create(new CreateIndexRequest(ldpIndex), RequestOptions.DEFAULT);
         Assert.assertTrue(cir.isAcknowledged());
 
-
+        ObjectMapper objMapper = new ObjectMapper();
         int count = 600;
         while (count > 0) {
             try {
-                GetPipelineResponse getResp = localHostClient.ingest().getPipeline(new GetPipelineRequest(ldpPipelineName), RequestOptions.DEFAULT);
-                if (getResp.isFound()) {
+                Response resp = localHostClient.getLowLevelClient().performRequest(new Request("GET","_armor/ldp_index"));
+                JsonNode ldpInfoNode = objMapper.reader().readTree(resp.getEntity().getContent().readAllBytes());
+                if (ldpInfoNode.get("enabled").asBoolean()) {
+                    log.info("{} has been enabled, breaking", ldpPipelineName);
                     break;
                 }
                 Thread.sleep(1000);
                 count--;
             } catch (ElasticsearchStatusException ex) {
-                log.debug("{} has not been found, retrying", ldpPipelineName);
+                log.info("{} has not been enabled yet, retrying", ldpPipelineName);
                 count--;
             }
         }
@@ -171,8 +173,6 @@ public class LDPIndexFilterTest extends AbstractArmorTest {
         indexReq2.setEntity(bHE2);
 
         Response bResp = client.getLowLevelClient().performRequest(indexReq2);
-
-        ObjectMapper objMapper = new ObjectMapper();
 
         JsonNode bRespJson = objMapper.reader().readTree(bResp.getEntity().getContent().readAllBytes());
         Assert.assertFalse(bRespJson.get("errors").asBoolean());

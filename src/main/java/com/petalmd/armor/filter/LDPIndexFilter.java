@@ -2,6 +2,7 @@ package com.petalmd.armor.filter;
 
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authorization.ForbiddenException;
+import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
@@ -59,13 +60,14 @@ public class LDPIndexFilter extends AbstractActionFilter {
     private final Client client;
 
 
-    public LDPIndexFilter(final Settings settings, final Client client, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool) {
+    public LDPIndexFilter(final Settings settings, final Client client, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ArmorInfoAction armorInfoAction, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_LDP_FILTER_ENABLED, false);
         this.ldpIndex = settings.get(ConfigConstants.ARMOR_LDP_INDEX);
         this.ldpPipelineName = settings.get(ConfigConstants.ARMOR_LDP_FILTER_LDP_PIPELINE_NAME, LDP_DEFAULT_PIPELINE);
         this.client = client;
         this.ldpPipelineBuilt = new AtomicBoolean(false);
+        armorInfoAction.setLdpIndexFilter(this);
         if (enabled) {
             this.putPipelineTask = threadPool.scheduleWithFixedDelay(() -> {
                 putLDPPipelineIfNeeded();
@@ -79,6 +81,10 @@ public class LDPIndexFilter extends AbstractActionFilter {
     @Override
     public int order() {
         return Integer.MIN_VALUE + 14;
+    }
+
+    public boolean isIndexFilterEnabled() {
+        return ldpPipelineBuilt.get();
     }
 
     @Override
@@ -95,7 +101,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
         if (action.equals(IndexAction.NAME)) {
             IndexRequest iReq = (IndexRequest) request;
             if (iReq.index().equals(ldpIndex) && iReq.getPipeline() == null) {
-                if (!ldpPipelineBuilt.get() && !pipelineIsFound()) {
+                if (!ldpPipelineBuilt.get()) {
                     listener.onFailure(new ForbiddenException("this index is not ready"));
                     return;
                 } else if (!putPipelineTask.isCancelled()) {
@@ -109,7 +115,7 @@ public class LDPIndexFilter extends AbstractActionFilter {
             for (DocWriteRequest dwr : bReq.requests()) {
                 if (ldpIndex.equals(dwr.index())) {
                     log.debug("inner bulkRequest target ldp index {}", ldpIndex);
-                    if (!ldpPipelineBuilt.get() && !pipelineIsFound()) {
+                    if (!ldpPipelineBuilt.get()) {
                         listener.onFailure(new ForbiddenException("this index is not yet ready"));
                         return;
                     } else if (!putPipelineTask.isCancelled()) {
@@ -162,11 +168,6 @@ public class LDPIndexFilter extends AbstractActionFilter {
         }
 
         chain.proceed(task, action, request, listener);
-    }
-
-    private boolean pipelineIsFound() {
-        GetPipelineResponse gPr = client.admin().cluster().getPipeline(new GetPipelineRequest(ldpPipelineName)).actionGet();
-        return gPr.isFound();
     }
 
     private void putLDPPipelineIfNeeded() {

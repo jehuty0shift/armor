@@ -187,6 +187,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             client.close();
         }
         internalCluster().close();
+        internalCluster().assertAfterTest();
         if (ldapServer != null) {
             ldapServer.stop();
         }
