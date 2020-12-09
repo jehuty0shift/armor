@@ -63,7 +63,7 @@ public class MongoDBAuthBackendTest  {
 
 
     @Test
-    public void passwordIsntToken() throws Exception {
+    public void passwordIsNotToken() throws Exception {
 
         MongoServer server = new MongoServer(new MemoryBackend());
 
@@ -90,7 +90,7 @@ public class MongoDBAuthBackendTest  {
             User userOne = mongoAuthBackend.authenticate(new AuthCredentials("7tjlgvrx7fq84an4t0yny7sg4c1225likmwvzeq626dvov3qgjp", "thisisnotToken".toCharArray()));
             throw new IllegalStateException("Shouldn't reach here");
         } catch (AuthException ex) {
-            Assert.assertTrue(ex.getMessage().contains("Unauthorized"));
+            Assert.assertTrue(ex.getMessage().contains("Not a token"));
         }
     }
 
@@ -156,7 +156,7 @@ public class MongoDBAuthBackendTest  {
 
         token3.put("token", "hp5z1gionln12u9sov0tiec2b6eykx56bktliy14i62izt9hb0x");
         token3.put("last_access", Date.from(Instant.parse("2019-11-03T06:45:23.000Z")));
-        token3.put("username", "logs-ab-12789");
+        token3.put("username", "logs-gd-44789");
         token3.put("NAME", "token3");
 
         mongoCollection.insertOne(token3);

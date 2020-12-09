@@ -265,6 +265,13 @@
             <artifactId>guava</artifactId>
             <version>29.0-jre</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.cryptomator</groupId>
+            <artifactId>siv-mode</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
         <!-- Only test scoped dependencies hereafter -->
 
         <dependency>

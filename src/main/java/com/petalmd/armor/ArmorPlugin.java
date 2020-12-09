@@ -141,7 +141,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     @Override
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry, Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
 
-        List<Object> componentsList = new ArrayList<Object>();
+        List<Object> componentsList = new ArrayList<>();
 
         if (!enabled) {
             return componentsList;
@@ -222,7 +222,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //create sessionStore
         Boolean enableHTTPSession = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false);
-        if (enableHTTPSession != null && enableHTTPSession.booleanValue()) {
+        if (enableHTTPSession != null && enableHTTPSession) {
             sessionStore = new DefaultSessionStore();
         } else {
             sessionStore = new NullSessionStore();
@@ -231,7 +231,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //create auditLog
         Boolean enableAuditLog = settings.getAsBoolean(ConfigConstants.ARMOR_AUDITLOG_ENABLED, true);
-        if (enableAuditLog.booleanValue()) {
+        if (enableAuditLog) {
             auditListener = new ESStoreAuditListener(client, settings);
         } else {
             auditListener = new NullStoreAuditListener();
@@ -332,7 +332,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         if (enabled) {
             return (rh) -> armorRestShield.shield(rh);
         } else {
-            return (rh) -> ((request, channel, client1) -> rh.handleRequest(request, channel, client1));
+            return (rh) -> (rh::handleRequest);
         }
     }
 
@@ -427,6 +427,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //GRAYLOG backend
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //Encrypted Backend
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_ENCRYPTED_TOKEN_PRIVATE_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //ldap backend
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES, false, Setting.Property.NodeScope, Setting.Property.Filtered));
