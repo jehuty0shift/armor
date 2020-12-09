@@ -43,6 +43,7 @@ public class IndexTemplateFilter extends AbstractActionFilter {
     private final List<String> allowedSettings;
     private final Optional<String> ldpIndex;
     private static final int MAX_NUM_FIELDS = 5000;
+    private static final int MAX_NUM_SHARDS = 16;
 
     public IndexTemplateFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
@@ -123,9 +124,13 @@ public class IndexTemplateFilter extends AbstractActionFilter {
                     log.debug("keeping setting {}", filteredSetting.toString());
                     newSettingsBuilder.put(filteredSetting);
                     //Check index.mapping.total_fields.limit
-                    int value = filteredSetting.getAsInt("index.mapping.total_fields.limit", MAX_NUM_FIELDS);
-                    if (value > MAX_NUM_FIELDS) {
+                    int numFields = filteredSetting.getAsInt("index.mapping.total_fields.limit", MAX_NUM_FIELDS);
+                    if (numFields > MAX_NUM_FIELDS) {
                         newSettingsBuilder.put("index.mapping.total_fields.limit", MAX_NUM_FIELDS);
+                    }
+                    int numShards = filteredSetting.getAsInt("index.number_of_shards", MAX_NUM_SHARDS);
+                    if(numShards > MAX_NUM_SHARDS) {
+                        newSettingsBuilder.put("index.number_of_shards", MAX_NUM_SHARDS);
                     }
                 }
             }

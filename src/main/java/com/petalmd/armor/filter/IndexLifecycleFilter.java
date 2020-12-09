@@ -157,19 +157,32 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 return;
             }
 
-            int numberOfShards = cirSettings.hasValue("number_of_shards")?
-                    cirSettings.getAsInt("number_of_shards",1):cirSettings.getAsInt("index.number_of_shards", 1);
+            Optional<Integer> numberOfShards;
+            if(cirSettings.hasValue("number_of_shards")) {
+                numberOfShards = Optional.of(cirSettings.getAsInt("number_of_shards", 1));
+            } else if (cirSettings.hasValue("index.number_of_shards")) {
+                numberOfShards = Optional.of(cirSettings.getAsInt("index.number_of_shards",1));
+            } else {
+                numberOfShards = Optional.empty();
+            }
+
             int maxShardAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX, 16);
-            if (numberOfShards > maxShardAllowed) {
+            if (numberOfShards.orElse(1) > maxShardAllowed) {
                 log.error("number of shards asked ({}) for index {} is too high, max allowed is {}", numberOfShards, indexName, maxShardAllowed);
                 listener.onFailure(new ForbiddenException("number of shards asked ({}) for index {} is too high", numberOfShards, indexName));
                 return;
             }
 
-            int numberOfReplicas = cirSettings.hasValue("number_of_replicas")?
-                    cirSettings.getAsInt("number_of_replicas",1):cirSettings.getAsInt("index.number_of_replicas",1);
-            int maxReplicasAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX,1);
-            if (numberOfReplicas > maxReplicasAllowed) {
+            Optional<Integer> numberOfReplicas;
+            if(cirSettings.hasValue("number_of_replicas")) {
+                numberOfReplicas = Optional.of(cirSettings.getAsInt("number_of_replicas", 1));
+            } else if (cirSettings.hasValue("index.number_of_replicas")) {
+                numberOfReplicas = Optional.of(cirSettings.getAsInt("index.number_of_replicas", 1));
+            } else {
+                numberOfReplicas = Optional.empty();
+            }
+            int maxReplicasAllowed = settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX, 1);
+            if (numberOfReplicas.orElse(1) > maxReplicasAllowed) {
                 log.error("number of replicas asked ({}) for index {} is too high, max allowed is {}", numberOfReplicas, indexName, maxReplicasAllowed);
                 listener.onFailure(new ForbiddenException("number of replicas asked ({}) for index {} is too high", numberOfReplicas, indexName));
                 return;
@@ -183,7 +196,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
             }
 
-            if (totalShardsForUser + numberOfShards > settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER, 1000)) {
+            if (totalShardsForUser + numberOfShards.orElse(1) > settings.getAsInt(ConfigConstants.ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER, 1000)) {
                 log.error("the number of total shards of the user {} : {} will exceed the maximum number of shards by user with the new index {} of {} shards", restUser.getName(), totalShardsForUser, indexName, numberOfShards);
                 listener.onFailure(new ForbiddenException("this index {} with {} shards will exceed the number of shards allowed by user", indexName, numberOfShards));
                 return;
@@ -201,8 +214,9 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                 }
             }
 
-            newSettingsBuilder.put("index.number_of_replicas", numberOfReplicas);
-            newSettingsBuilder.put("index.number_of_shards", numberOfShards);
+            //to honor template settings, we do not force the number of shards or number of replicas if not present.
+            numberOfReplicas.ifPresent(i -> newSettingsBuilder.put("index.number_of_replicas", i));
+            numberOfShards.ifPresent(i -> newSettingsBuilder.put("index.number_of_shards", i));
             cir.settings(newSettingsBuilder.build());
 
             indexSettings = newSettingsBuilder.build();
@@ -284,9 +298,11 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
             try {
                 final IndexOperation.Type type = action.equals(CreateIndexAction.NAME) ? IndexOperation.Type.CREATE : IndexOperation.Type.DELETE;
                 //report creation.
-                int numberOfShards = indexSettings.getAsInt("index.number_of_shards", -1);
-                if (type.equals(IndexOperation.Type.CREATE) && numberOfShards < 1) {
-                    throw new ElasticsearchException("Illegal number of shards during index creation");
+                final int numberOfShards;
+                if(type.equals(IndexOperation.Type.CREATE)) {
+                    numberOfShards = clusterService.state().getMetaData().getIndices().get(indices.get(0)).getNumberOfShards();
+                } else {
+                    numberOfShards = 1;
                 }
                 List<IndexOperation> indexOps = indices.stream().map(i -> new IndexOperation(type, engineUser.getUsername(), i, numberOfShards)).collect(Collectors.toList());
                 final List<String> indexOpStrings = indexOps.stream().map(iOp -> {
