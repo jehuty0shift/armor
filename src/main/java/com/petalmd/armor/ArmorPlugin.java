@@ -82,6 +82,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.util.logging.Filter;
 
 //TODO FUTURE store users/roles also in elasticsearch armor index
 //TODO FUTURE Multi authenticator/authorizator
@@ -418,6 +419,9 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //GRAYLOG backend
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUTHENTICATION_GRAYLOG_ENDPOINT, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //Encrypted Backend
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_ENCRYPTED_TOKEN_PRIVATE_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //ldap backend
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_RESOLVE_NESTED_ROLES, false, Setting.Property.NodeScope, Setting.Property.Filtered));
