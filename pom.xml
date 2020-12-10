@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>7.10.0-1</version>
+    <version>7.10.1-1</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -45,7 +45,7 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>7.10.0</elasticsearch.version>
+        <elasticsearch.version>7.10.1</elasticsearch.version>
         <apache.ds.version>2.0.0.AM26</apache.ds.version>
         <apache.ds.api.version>2.0.1</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.30</slf4j.api.bundleversion>
