@@ -25,15 +25,13 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
-import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.exception.LdapOperationException;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
@@ -84,7 +82,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
                 });
             } catch (final Exception e) {
                 log.error(e.toString(), e);
-                throw new AuthException("cannot get a valid Ldap Connection");
+                throw new AuthException("cannot get a valid Ldap Connection", e);
             }
 
             if (bindDn != null) {
@@ -121,7 +119,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
                 });
             } catch (final Exception e) {
                 log.error(e.toString(), e);
-                throw new AuthException("error during second bind",e);
+                throw new AuthException("error during second bind", e);
             }
 
             log.trace("Try to authenticate dn {}", dn);
@@ -139,6 +137,9 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
             return new LdapUser(username, entry);
 
+        } catch (LdapOperationException e) {
+            log.warn("cannot authenticate due to {}",e);
+            throw new AuthException("error during bind with the user credentials", AuthException.ExceptionType.NOT_FOUND);
         } catch (final Exception e) {
             log.error(e.toString(), e);
             throw new AuthException("error during bind with the user credentials", e);

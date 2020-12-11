@@ -123,6 +123,6 @@ public class SettingsBasedAuthenticationBackend implements NonCachingAuthenticat
 
         }
 
-        throw new AuthException("No user " + user + " or wrong password (digest: " + (digest == null ? "plain/none" : digest) + ")");
+        throw new AuthException("No user " + user + " or wrong password (digest: " + (digest == null ? "plain/none" : digest) + ")", AuthException.ExceptionType.NOT_FOUND);
     }
 }
