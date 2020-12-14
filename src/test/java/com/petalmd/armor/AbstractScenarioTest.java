@@ -167,7 +167,7 @@ public abstract class AbstractScenarioTest extends AbstractArmorTest {
             SearchResponse sResp = executeSearch("ac_query_matchall.json", indices, true, false);
             Assert.assertEquals(7, sResp.getHits().getTotalHits().value);
 
-            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0],  "dummy", false, false));
+            ElasticsearchStatusException failure = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0], "dummy", false, false));
 //            assertJestResultError(result, "ForbiddenException[Forbidden action RestGetAction . Allowed actions: [RestSearchAction]]");
             failure.getDetailedMessage().equals("{\"root_cause\":[{\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}],\"type\":\"forbidden_exception\",\"reason\":\"Action 'indices:data/read/get' is forbidden due to [DEFAULT]\"}");
             ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], "id1", false, false));
@@ -177,19 +177,19 @@ public abstract class AbstractScenarioTest extends AbstractArmorTest {
         } else {
 
             ElasticsearchStatusException failure1 = expectThrows(ElasticsearchStatusException.class, () -> executeSearch("ac_query_matchall.json", indices, false, false));
-            failure1.getDetailedMessage().contains("Cannot authenticate user");
-            failure1.getDetailedMessage().contains("Unauthorized");
-            failure1.getDetailedMessage().contains("No user");
+            Assert.assertTrue(failure1.getDetailedMessage().contains("Cannot authenticate user") ||
+                    failure1.getDetailedMessage().contains("Unauthorized") ||
+                    failure1.getDetailedMessage().contains("No user"));
 
-            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0],  "dummy", false, false));
-            failure2.getDetailedMessage().contains("Cannot authenticate user");
-            failure2.getDetailedMessage().contains("Unauthorized");
-            failure2.getDetailedMessage().contains("No user");
+            ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0], "dummy", false, false));
+            Assert.assertTrue(failure1.getDetailedMessage().contains("Cannot authenticate user") ||
+                    failure1.getDetailedMessage().contains("Unauthorized") ||
+                    failure1.getDetailedMessage().contains("No user"));
 
             ElasticsearchStatusException failure3 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], "idDummy", false, false));
-            failure3.getDetailedMessage().contains("Cannot authenticate user");
-            failure3.getDetailedMessage().contains("Unauthorized");
-            failure3.getDetailedMessage().contains("No user");
+            Assert.assertTrue(failure1.getDetailedMessage().contains("Cannot authenticate user") ||
+                    failure1.getDetailedMessage().contains("Unauthorized") ||
+                    failure1.getDetailedMessage().contains("No user"));
 
         }
     }
@@ -233,18 +233,18 @@ public abstract class AbstractScenarioTest extends AbstractArmorTest {
             ElasticsearchStatusException failure1 = expectThrows(ElasticsearchStatusException.class, () -> executeSearch("ac_query_matchall.json", indices, false, false));
             Assert.assertTrue(failure1.status().equals(RestStatus.FORBIDDEN));
             Assert.assertTrue(failure1.getDetailedMessage().contains("No user"));
-            log.info("Cannot authenticate user {} as expected",username);
+            log.info("Cannot authenticate user {} as expected", username);
 
 
             ElasticsearchStatusException failure2 = expectThrows(ElasticsearchStatusException.class, () -> executeGet(indices[0], "0", false, false));
             Assert.assertTrue(failure2.status().equals(RestStatus.FORBIDDEN));
             Assert.assertTrue(failure2.getDetailedMessage().contains("No user"));
-            log.info("Cannot authenticate user {} as expected",username);
+            log.info("Cannot authenticate user {} as expected", username);
 
             ElasticsearchStatusException failure3 = expectThrows(ElasticsearchStatusException.class, () -> executeIndexAsString("{}", indices[0], null, false, false));
             Assert.assertTrue(failure3.status().equals(RestStatus.FORBIDDEN));
             Assert.assertTrue(failure3.getDetailedMessage().contains("No user"));
-            log.info("Cannot authenticate user {} as expected",username);
+            log.info("Cannot authenticate user {} as expected", username);
         }
     }
 

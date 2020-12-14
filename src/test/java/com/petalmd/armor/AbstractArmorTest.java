@@ -104,6 +104,7 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
     protected final int ldapServerPort = EmbeddedLDAPServer.ldapPort;
     protected final int ldapsServerPort = EmbeddedLDAPServer.ldapsPort;
     protected EmbeddedLDAPServer ldapServer;
+    protected List<RestHighLevelClient> restClientList;
 
 
     static {
@@ -178,12 +179,17 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
         headers = new Header[]{};
         username = password = null;
         enableSSL = false;
+        restClientList = new ArrayList<>();
     }
 
 
     @After
     public void shutDownLDAPServer() throws Exception {
         for (Client client : internalCluster().getClients()) {
+            client.close();
+        }
+
+        for (RestHighLevelClient client : restClientList) {
             client.close();
         }
         internalCluster().close();
@@ -762,7 +768,10 @@ public abstract class AbstractArmorTest extends ESIntegTestCase {
             return hacb;
         }).setDefaultHeaders(headers);
 
-        return new RestHighLevelClient(clientBuilder);
+
+        RestHighLevelClient client = new RestHighLevelClient(clientBuilder);
+        restClientList.add(client); //add it to List to close them.
+        return client;
 
     }
 
