@@ -139,7 +139,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
         } catch (LdapOperationException e) {
             log.warn("cannot authenticate due to {}",e);
-            throw new AuthException("error during bind with the user credentials", AuthException.ExceptionType.NOT_FOUND);
+            throw new AuthException("Cannot authenticate user", AuthException.ExceptionType.NOT_FOUND);
         } catch (final Exception e) {
             log.error(e.toString(), e);
             throw new AuthException("error during bind with the user credentials", e);
