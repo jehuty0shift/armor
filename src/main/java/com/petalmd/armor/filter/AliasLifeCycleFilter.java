@@ -59,12 +59,14 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
     private boolean enabled;
     private final MongoCollection<EngineUser> engineUsers;
+    private final List<String> additionalRightsLightCheck;
     private KafkaService kService;
     private ObjectMapper mapper;
 
     public AliasLifeCycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, false);
+        this.additionalRightsLightCheck = settings.getAsList(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ADDITIONAL_RIGHTS_LIGHT_CHECK, Collections.emptyList());
         if (enabled) {
             if (!mongoService.getEngineDatabase().isPresent()) {
                 log.error("IndexLifeCycled need a working engine Mongo DB Database ! Disabling the filter !");
@@ -113,6 +115,13 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         log.info("user {} is requesting {} alias actions", restUser.getName(), aliasActions.size());
 
+        List<String> additionalRights = new ArrayList<>();
+        if (threadContext.getTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS) != null) {
+            additionalRights.addAll((List<String>) threadContext.getTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS));
+        }
+
+        boolean shouldCheckLightly = additionalRightsLightCheck.stream().anyMatch(r -> additionalRights.contains(r));
+
         Set<String> newAliases = new HashSet<>();
 
         final String aliasPrefix = restUser.getName() + "-a-";
@@ -141,7 +150,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
             }
 
             Optional<String> forbiddenAliasName = actionsAliasesList.stream().filter(s -> !s.startsWith(aliasPrefix)).findAny();
-            if (forbiddenAliasName.isPresent()) {
+            if (forbiddenAliasName.isPresent() && !shouldCheckLightly) {
                 log.warn("user {} tries to create an alias {}, this is not allowed.", restUser.getName(), forbiddenAliasName);
                 listener.onFailure(new ForbiddenException("Alias names MUST start with " + aliasPrefix));
                 return;

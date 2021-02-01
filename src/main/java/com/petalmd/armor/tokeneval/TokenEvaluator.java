@@ -302,7 +302,7 @@ public class TokenEvaluator {
 
         log.debug("Checking " + (acRules.getAcl().size() - 1) + " rules");
 
-        final List<String> requestedIndicesExp = new ArrayList();
+        final List<String> requestedIndicesExp = new ArrayList<>();
         final List<String> requestedAliasesExp = new ArrayList<>();
 
         if ((requestedIndices == null || requestedIndices.isEmpty()) && (requestedAliases == null || requestedAliases.isEmpty())) {
