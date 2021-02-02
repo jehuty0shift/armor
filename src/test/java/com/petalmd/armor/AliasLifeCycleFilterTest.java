@@ -364,4 +364,133 @@ public class AliasLifeCycleFilterTest extends AbstractArmorTest {
         }
 
     }
+
+    @Test
+    public void aliasCreationCheckLightly() throws Exception {
+
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final String indexName1 = username + "-i-test_1";
+        final String indexName2 = username + "-i-test_2";
+
+        final String aliasName1 = username + "-i-test";
+
+        final String engineDatabaseName = "engine";
+
+        final SodiumJava sodium = new SodiumJava();
+        LazySodiumJava lazySodium = new LazySodiumJava(sodium);
+        final String privateKey = Base64.getEncoder().encodeToString(lazySodium.cryptoSecretBoxKeygen().getAsBytes());
+
+        final Settings settings = Settings.builder().putList("armor.actionrequestfilter.names", "lifecycle_index", "lifecycle_alias", "forbidden")
+                .putList("armor.actionrequestfilter.lifecycle_index.allowed_actions", "indices:admin/create", "indices:admin/delete")
+                .putList("armor.actionrequestfilter.lifecycle_alias.allowed_actions", "indices:data/read*")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:admin/aliases", "indices:data/read/scroll", "indices:data/read/scroll/clear")
+                .put(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER+"kibana","myawesomekibanaheader")
+                .putList(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ADDITIONAL_RIGHTS_LIGHT_CHECK, "kibana")
+                .put(ConfigConstants.ARMOR_MONGODB_URI, "test")
+                .put(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, engineDatabaseName)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, true)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, privateKey)
+                .put(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, "dummy")
+                .put(authSettings).build();
+
+        MongoServer server = new MongoServer(new MemoryBackend());
+        InetSocketAddress serverAddress = server.bind();
+        MongoClient mongoClient = new MongoClient(new ServerAddress(serverAddress));
+        MongoDBService.setMongoClient(mongoClient);
+
+        MongoDatabase engineTestDatabase = mongoClient.getDatabase(engineDatabaseName);
+        EngineUser currentUser = new EngineUser();
+        currentUser.setRegion(Region.EU);
+        currentUser.setUsername(username);
+        currentUser.setTrusted(true);
+
+        configureEngineDatabase(engineTestDatabase, List.of(currentUser));
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
+        KafkaService.setKafkaProducer(mockProducer);
+
+        startES(settings);
+        setupTestData("ac_rules_26.json");
+
+        RestHighLevelClient client = getRestClient(false, username, password);
+
+        final AtomicReference<Boolean> hasSent = new AtomicReference<>();
+        final AtomicReference<Boolean> indexSent = new AtomicReference<>();
+        final List<String> checkAliases = new ArrayList<>();
+        final List<AliasOperation> producedObject = new ArrayList<>();
+        final AtomicInteger offset = new AtomicInteger(0);
+        hasSent.set(false);
+        indexSent.set(false);
+
+
+        Mockito.when(mockProducer.send(Mockito.any())).then(invocationOnMock -> {
+                    ProducerRecord<String, String> producerRecord = (ProducerRecord<String, String>) invocationOnMock.getArguments()[0];
+                    KSerSecuredMessage kSerSecMess = objectMapper.readValue(producerRecord.value(), KSerSecuredMessage.class);
+                    String nonceStr = kSerSecMess.getNonce();
+                    byte[] nonceByte = Base64.getDecoder().decode(nonceStr);
+                    LazySodiumJava lsj = new LazySodiumJava(sodium);
+                    String kserOpString = lsj.cryptoSecretBoxOpenEasy(lsj.toHexStr(Base64.getDecoder().decode(kSerSecMess.getData())), nonceByte, Key.fromBase64String(privateKey));
+                    KSerMessage kSerMessage = objectMapper.readValue(kserOpString, KSerMessage.class);
+                    if (kSerMessage.getEntrypoint().toLowerCase().contains("alias")) {
+
+                        AliasOperation aOp = AliasOperation.fromKSerMessage(kSerMessage);
+                        producedObject.add(aOp);
+                        if (!checkAliases.isEmpty()) {
+                            Assert.assertEquals(username, aOp.getUsername());
+                            Assert.assertTrue(checkAliases.contains(aOp.getAlias()));
+                            hasSent.set(true);
+                        }
+                    } else {
+                        Assert.assertTrue(kserOpString.contains(indexName1) || kserOpString.contains(indexName2));
+                        indexSent.set(true);
+                    }
+                    //inspired by MockProducer from KafkaInternals
+                    TopicPartition topicPartition = new TopicPartition(producerRecord.topic(), 0);
+                    ProduceRequestResult result = new ProduceRequestResult(topicPartition);
+                    result.set(offset.getAndIncrement(), 1, null);
+                    FutureRecordMetadata future = new FutureRecordMetadata(result, 0L, -1L, 0L, 0, 0, Time.SYSTEM);
+                    result.done();
+                    return future;
+                }
+        );
+
+        CreateIndexResponse ciResp = client.indices().create(new CreateIndexRequest(indexName1)
+                .settings(Settings.builder()
+                        .put("index.number_of_shards", 3)
+                        .put("index.number_of_replicas", 1)
+                        .build()), RequestOptions.DEFAULT);
+
+        Assert.assertTrue(ciResp.isAcknowledged());
+
+        CreateIndexResponse ciResp2 = client.indices().create(new CreateIndexRequest(indexName2)
+                .settings(Settings.builder()
+                        .put("index.number_of_shards", 3)
+                        .put("index.number_of_replicas", 1)
+                        .build()), RequestOptions.DEFAULT);
+
+        Assert.assertTrue(ciResp2.isAcknowledged());
+
+        checkAliases.clear();
+        checkAliases.add(aliasName1);
+
+        AcknowledgedResponse aliasResp1 = client.indices().updateAliases(new IndicesAliasesRequest()
+                .addAliasAction(new IndicesAliasesRequest.AliasActions(IndicesAliasesRequest.AliasActions.Type.ADD)
+                        .indices(indexName1, indexName2)
+                        .alias(aliasName1)), RequestOptions.DEFAULT.toBuilder().addHeader("kibana","myawesomekibanaheader").build());
+
+        Assert.assertTrue(aliasResp1.isAcknowledged());
+        Assert.assertTrue(hasSent.get());
+
+        //reset hasSent
+        hasSent.set(false);
+        producedObject.clear();
+    }
 }
