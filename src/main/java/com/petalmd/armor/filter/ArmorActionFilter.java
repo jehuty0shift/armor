@@ -174,9 +174,9 @@ public class ArmorActionFilter implements ActionFilter {
             threadContext.putTransient(ArmorConstants.ARMOR_TOKEN_EVALUATOR, evaluator);
         }
 
-        final List<String> ci = new ArrayList<String>();
-        final List<String> aliases = new ArrayList<String>();
-        final List<String> types = new ArrayList<String>();
+        final List<String> ci = new ArrayList<>();
+        final List<String> aliases = new ArrayList<>();
+        final List<String> types = new ArrayList<>();
         boolean wildcardExpEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true);
 
 

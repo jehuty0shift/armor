@@ -25,13 +25,11 @@ import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.ResponseException;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.PutMappingRequest;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
@@ -269,7 +267,6 @@ public class MiscTest extends AbstractArmorTest {
     @Test
     public void additionalRightsTest() throws Exception {
 
-        final boolean wrongPassword = false;
         username = "jacksonm";
         password = "secret";
         Settings authSettings = getAuthSettings(false, "ceo");
@@ -308,6 +305,48 @@ public class MiscTest extends AbstractArmorTest {
         final RestHighLevelClient client2 = getRestClient(false, username, password);
         IndexResponse iresp = client2.index( new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}",XContentType.JSON),RequestOptions.DEFAULT);
         Assert.assertTrue(iresp.status().equals(RestStatus.CREATED));
+
+    }
+
+    @Test
+    public void getAliasesRequest() throws Exception {
+
+        username = "jacksonm";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings
+                .builder()
+               .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:admin/aliases/get")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put(authSettings)
+                .build();
+
+        startES(settings);
+        username = "jacksonm";
+        password = "secret";
+        setupTestData("ac_rules_19.json");
+
+        final RestHighLevelClient client = getRestClient(false, username, password);
+
+        GetAliasesResponse gar = client.indices().getAlias(new GetAliasesRequest("internal"), RequestOptions.DEFAULT);
+
+        Assert.assertEquals(3,gar.getAliases().size());
+        Assert.assertTrue(gar.getAliases().containsKey("marketing"));
+        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch( a -> a.alias().equals("internal"))));
+
+        GetAliasesResponse gar2 = client.indices().getAlias(new GetAliasesRequest(), RequestOptions.DEFAULT);
+        Assert.assertEquals(3, gar2.getAliases().size());
+        Assert.assertTrue(gar2.getAliases().containsKey("marketing"));
+        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch( a -> a.alias().equals("internal"))));
+
+
+        ElasticsearchStatusException gaFail = expectThrows(ElasticsearchStatusException.class, () -> client.indices().getAlias(new GetAliasesRequest("crucial"),RequestOptions.DEFAULT));
+
+        Assert.assertEquals(RestStatus.FORBIDDEN, gaFail.status());
 
     }
 

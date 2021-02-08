@@ -8,6 +8,7 @@ import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -35,6 +36,40 @@ public class FilterHelper {
         List<String> irIndices = ir.indices() == null ? new ArrayList<>() : Arrays.asList(ir.indices());
         List<String> newIndices = new ArrayList<>();
         List<String> otherIndicesOrAliases = new ArrayList<>();
+
+        //GetAliasesRequest is a special case, we need to only add aliases to this request.
+        if (ir instanceof GetAliasesRequest) {
+            GetAliasesRequest gar = (GetAliasesRequest) ir;
+            if (gar.aliases() == null || gar.aliases().length == 0) {
+                //we don't add indices on this alias Request
+                gar.aliases(rulesEntities.getAliases().toArray(String[]::new));
+                aliases.addAll(rulesEntities.getAliases());
+                //no need to continue since aliases are provided
+                return;
+            } else {
+                List<String> aliasFiltered = new ArrayList<>();
+                for(String reqAlias : gar.aliases()) {
+                    if(reqAlias.contains("*")) {
+                        for (String reAlias : rulesEntities.getAliases()) {
+                            //check if Alias match rulesEntity (if its the case, we keep the rulesEntity).
+                            if (SecurityUtil.isWildcardMatch(reAlias, reqAlias, false)) {
+                                log.debug("index " + reqAlias + " match an alias contained in a rule: " + reAlias);
+                                aliasFiltered.add(reAlias);
+                                //check if rulesEntity match the alias (if it is the case, we keep the indexOrAlias)
+                            } else if (SecurityUtil.isWildcardMatch(reqAlias, reAlias, false)) {
+                                log.debug("index " + reqAlias + "has been matched by an alias contained in a rule " + reAlias);
+                                aliasFiltered.add(reAlias);
+                            }
+                        }
+                    } else {
+                        aliasFiltered.add(reqAlias);
+                    }
+                }
+                aliases.addAll(aliasFiltered);
+                gar.aliases(aliasFiltered.toArray(String[]::new));
+            }
+        }
+
         //PutMappingRequest has an internal getConcreteIndex option triggered when using action indices:admin/mapping/auto_put,
         // we handle this special case here.
         if (ir instanceof PutMappingRequest) {
