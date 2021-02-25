@@ -33,6 +33,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.FutureUtils;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.*;
 
@@ -40,6 +41,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
 
     private final AuditListener auditListener;
     private final Client client;
+    private final ThreadPool threadPool;
     private final String securityConfigurationIndex;
     private volatile BytesReference securityConfiguration;
     private ScheduledThreadPoolExecutor scheduler;
@@ -49,10 +51,11 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(ArmorConfigService.class);
 
     @Inject
-    public ArmorConfigService(final Settings settings, final Client client, final AuditListener auditListener) {
+    public ArmorConfigService(final Settings settings, final Client client, final AuditListener auditListener, final ThreadPool threadPool) {
         super();
         this.client = client;
         this.auditListener = auditListener;
+        this.threadPool = threadPool;
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME,
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX);
 
@@ -108,7 +111,7 @@ public class ArmorConfigService extends AbstractLifecycleComponent {
     private void configAuditListener(){
 
         if (!auditListener.isReady()) {
-            if(auditListener.setupAuditListener()){
+            if(auditListener.setupAuditListener(threadPool)){
                 log.info("audit Listener is ready");
             } else {
                 log.info("audit Listener is not yet ready");
