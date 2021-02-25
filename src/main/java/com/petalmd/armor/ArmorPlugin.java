@@ -240,7 +240,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         componentsList.add(armorRestShield);
 
         //create Armor Config Service
-        armorConfigService = new ArmorConfigService(settings, client, auditListener);
+        armorConfigService = new ArmorConfigService(settings, client, auditListener,threadPool);
         componentsList.add(armorConfigService);
 
         //create Kefla Engine Service

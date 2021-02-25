@@ -1,4 +1,4 @@
-package com.petalmd.armor.processor.kafka;
+package com.petalmd.armor.common;
 
 import com.petalmd.armor.common.KafkaOutput;
 import com.petalmd.armor.common.LDPGelf;

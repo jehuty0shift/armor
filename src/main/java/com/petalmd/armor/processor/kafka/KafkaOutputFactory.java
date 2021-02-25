@@ -1,6 +1,7 @@
 package com.petalmd.armor.processor.kafka;
 
 import com.petalmd.armor.common.KafkaOutput;
+import com.petalmd.armor.common.KafkaOutputConsumer;
 import com.petalmd.armor.util.ConfigConstants;
 import org.elasticsearch.common.settings.Settings;
 

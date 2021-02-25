@@ -8,6 +8,7 @@ import org.joda.time.DateTimeZone;
 import java.net.InetAddress;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class KafkaAuditMessage {
 
@@ -117,8 +118,11 @@ public class KafkaAuditMessage {
         ldpGelf.setTimestamp(org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
         ldpGelf.setHost(clientId);
         ldpGelf.addDate("end", org.joda.time.Instant.ofEpochMilli(end.toEpochMilli()).toDateTime(DateTimeZone.UTC));
-        ldpGelf.setMessage(method + " " + url);
-        ldpGelf.addIP("remote_address", remoteAddress);
+        ldpGelf.addDate("start", org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
+        ldpGelf.setMessage(user + ": " + method + " " + url);
+        if(remoteAddress != null) {
+            ldpGelf.addIP("remote_address", remoteAddress);
+        }
         ldpGelf.addString("status", status.label);
         ldpGelf.addString("action", action);
         ldpGelf.addString("cluster_name", clusterName);
@@ -132,6 +136,11 @@ public class KafkaAuditMessage {
 
         if (exceptionMessage != null) {
             ldpGelf.addString("exception_message", exceptionMessage);
+        }
+
+        if(items != null && !items.isEmpty()) {
+            items.sort(String::compareTo);
+            ldpGelf.addString("_items", items.stream().collect(Collectors.joining(", ")));
         }
 
         return ldpGelf;

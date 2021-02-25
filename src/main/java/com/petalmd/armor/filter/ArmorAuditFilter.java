@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ArmorAuditFilter implements ActionFilter {
 
@@ -73,6 +74,13 @@ public class ArmorAuditFilter implements ActionFilter {
 
         ThreadContext threadContext = threadpool.getThreadContext();
 
+        AtomicBoolean isExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
+        if (action.startsWith("internal") || isExternal == null || !isExternal.get()) {
+            log.debug("we don't audit internal requests");
+            chain.proceed(task, action, request, listener);
+            return;
+        }
+
         User user = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
         if (user == null) {
             user = new User("unknown");
@@ -83,6 +91,8 @@ public class ArmorAuditFilter implements ActionFilter {
         final String url = threadContext.getTransient(ArmorConstants.ARMOR_AUDIT_REQUEST_URL);
         final InetAddress resolvedAddress = threadContext.getTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS);
 
+
+
         if (RestRequest.Method.OPTIONS.equals(method) ||
                 RestRequest.Method.GET.equals(method) ||
                 RestRequest.Method.HEAD.equals(method)) {
@@ -91,7 +101,7 @@ public class ArmorAuditFilter implements ActionFilter {
             return;
         }
 
-        log.debug("Auditing request from {} by user : {}, url : {}, method : {}",resolvedAddress.toString(), user.toString(),url, method.toString());
+        log.debug("Auditing request from {} by user : {}, url : {}, method : {}", resolvedAddress!=null?resolvedAddress.toString():"unknown address", user.toString(),url, method.toString());
         AuditListener auditListener = new AuditListener(listener, kafkaAuditFactory, action, request, user, method, url, resolvedAddress, clusterName, clientId);
         chain.proceed(task, action, request, auditListener);
 

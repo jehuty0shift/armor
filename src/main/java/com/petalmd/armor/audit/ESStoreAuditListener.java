@@ -39,6 +39,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
 import java.io.IOException;
@@ -145,10 +146,19 @@ public class ESStoreAuditListener implements AuditListener {
     }
 
     @Override
-    public boolean setupAuditListener() {
+    public boolean setupAuditListener(final ThreadPool threadPool) {
 
         if (!auditIndexCreated.get()) {
             try {
+                ThreadContext threadContext = threadPool.getThreadContext();
+
+                AtomicBoolean isRequestExternal = threadContext.getTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL);
+                if (isRequestExternal != null) {
+                    isRequestExternal.set(false);
+                } else {
+                    threadContext.putTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL, new AtomicBoolean(false));
+                }
+
                 log.info("Checking if the audit index exists");
                 IndicesExistsResponse resp = client.execute(IndicesExistsAction.INSTANCE, new IndicesExistsRequest(securityConfigurationIndex)).actionGet(TimeValue.timeValueSeconds(10));
 

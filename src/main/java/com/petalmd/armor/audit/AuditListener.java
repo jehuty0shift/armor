@@ -20,6 +20,7 @@ package com.petalmd.armor.audit;
 
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 
 public interface AuditListener {
@@ -28,7 +29,7 @@ public interface AuditListener {
 
     default boolean isReady(){ return true;};
 
-    default boolean setupAuditListener(){return true;};
+    default boolean setupAuditListener(final ThreadPool threadPool){return true;};
 
     default void onFailedLogin(String username, RestRequest request, ThreadContext threadContext){}
 
