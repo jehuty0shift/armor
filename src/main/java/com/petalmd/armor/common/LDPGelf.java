@@ -1,8 +1,8 @@
-package com.petalmd.armor.processor;
+package com.petalmd.armor.common;
 
-import com.petalmd.armor.processor.kafka.KafkaOutput;
-import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
 
 import java.net.InetAddress;
 import java.util.HashMap;
@@ -103,6 +103,10 @@ public class LDPGelf {
     public LDPGelf setTimestamp(final DateTime timestamp) {
         document.put("timestamp", timestamp.toInstant().getMillis() / 1000.0);
         return this;
+    }
+
+    public DateTime getTimestamp(){
+        return Instant.ofEpochMilli((long)document.get("timestamp")*1000l).toDateTime(DateTimeZone.UTC);
     }
 
     public LDPGelf setHost(final String host) {

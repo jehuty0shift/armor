@@ -25,6 +25,10 @@ public final class ArmorConstants {
     public static final String ARMOR_REQUEST_IS_EXTERNAL = "armor_request_is_external";
     //Session
     public static final String ARMOR_ES_ARMOR_SESSION = "es_armor_session";
+    //Audit
+    public static final String ARMOR_AUDIT_REQUEST_METHOD = "armor_audit_request_method";
+    public static final String ARMOR_AUDIT_REQUEST_URL = "armor_audit_request_url";
+    public static final String ARMOR_AUDIT_REQUEST_IP = "armor_audit_request_ip";
 
 
 }

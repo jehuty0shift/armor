@@ -1,8 +1,8 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.petalmd.armor.processor.LDPGelf;
-import com.petalmd.armor.processor.kafka.KafkaOutput;
+import com.petalmd.armor.common.KafkaOutput;
+import com.petalmd.armor.common.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.util.ConfigConstants;

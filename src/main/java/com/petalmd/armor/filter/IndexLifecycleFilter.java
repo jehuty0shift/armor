@@ -15,7 +15,7 @@ import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
@@ -68,10 +68,10 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
     private boolean enabled;
     private final List<String> allowedIndexSettings;
     private final MongoCollection<EngineUser> engineUsers;
-    private KafkaService kService;
+    private KafkaEngineService kService;
     private ObjectMapper mapper;
 
-    public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
+    public IndexLifecycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaEngineService kafkaEngineService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false);
         allowedIndexSettings = settings.getAsList(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS);
@@ -87,7 +87,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
                                 .withDocumentClass(EngineUser.class));
                 log.info("connected to Users Database");
             }
-            kService = kafkaService;
+            kService = kafkaEngineService;
             mapper = new ObjectMapper();
         } else {
             engineUsers = null;
@@ -98,7 +98,7 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 10;
+        return Integer.MIN_VALUE + 11;
     }
 
     @Override
@@ -266,14 +266,14 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         private final EngineUser engineUser;
         private final ObjectMapper mapper;
         private final ActionListener<Response> origListener;
-        private final KafkaService kService;
+        private final KafkaEngineService kService;
 
-        public IndexLifeCycleListener(String action, List<String> indices, final ClusterService clusterService, final Settings indexSettings, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener<Response> origListener, final ObjectMapper mapper) {
+        public IndexLifeCycleListener(String action, List<String> indices, final ClusterService clusterService, final Settings indexSettings, final EngineUser engineUser, final KafkaEngineService kafkaEngineService, final ActionListener<Response> origListener, final ObjectMapper mapper) {
             this.action = action;
             this.indices = indices;
             this.engineUser = engineUser;
             this.origListener = origListener;
-            this.kService = kafkaService;
+            this.kService = kafkaEngineService;
             this.mapper = mapper;
             this.indexSettings = indexSettings;
             this.clusterService = clusterService;

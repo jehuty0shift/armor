@@ -14,7 +14,7 @@ import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.Region;
 import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
@@ -102,7 +102,7 @@ public class AliasLifeCycleFilterTest extends AbstractArmorTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         startES(settings);
         setupTestData("ac_rules_26.json");
@@ -415,7 +415,7 @@ public class AliasLifeCycleFilterTest extends AbstractArmorTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         startES(settings);
         setupTestData("ac_rules_26.json");

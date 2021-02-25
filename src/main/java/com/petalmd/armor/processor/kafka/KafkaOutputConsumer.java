@@ -1,6 +1,7 @@
 package com.petalmd.armor.processor.kafka;
 
-import com.petalmd.armor.processor.LDPGelf;
+import com.petalmd.armor.common.KafkaOutput;
+import com.petalmd.armor.common.LDPGelf;
 
 import java.util.function.Consumer;
 

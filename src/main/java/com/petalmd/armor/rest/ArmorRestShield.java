@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 /**
  * Created by Babacar Diassé on 14/09/17.
@@ -93,6 +94,10 @@ public class ArmorRestShield {
         //we always mark the request as external to the cluster.
         threadContext.putTransient(ArmorConstants.ARMOR_REQUEST_IS_EXTERNAL, new AtomicBoolean(true));
 
+        threadContext.putTransient(ArmorConstants.ARMOR_AUDIT_REQUEST_METHOD, request.method());
+        threadContext.putTransient(ArmorConstants.ARMOR_AUDIT_REQUEST_URL, request.path());
+
+
         //allow all if request is coming from loopback
         if (isLoopback) {
             threadContext.putTransient(ArmorConstants.ARMOR_IS_LOOPBACK, Boolean.TRUE);
@@ -100,12 +105,18 @@ public class ArmorRestShield {
             return true;
         }
 
+
+        final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
+        log.debug("This is a connection from {}", resolvedAddress.getHostAddress());
+        threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS, resolvedAddress);
+
+
         if (request.method() == RestRequest.Method.OPTIONS) {
             log.debug("This is a OPTIONS request, will allow");
             return true;
         }
 
-        if(request.method() == RestRequest.Method.GET && request.path().startsWith("/_armor")) {
+        if (request.method() == RestRequest.Method.GET && request.path().startsWith("/_armor")) {
             log.debug("checking armor status, will allow");
             return true;
         }
@@ -117,10 +128,15 @@ public class ArmorRestShield {
         }
 
         //log.debug("execute filter {}", filterName == null ? "DEFAULT" : filterName);
-        if(log.isTraceEnabled()) {
+        if (log.isTraceEnabled()) {
             log.trace("Path: {} {}", request.method(), request.path());
 
-            log.trace("Headers: {}", request.getHeaders().toString());
+            if (log.isTraceEnabled()) {
+                log.trace("Headers: {}", "{ \n" + request.getHeaders().entrySet().stream()
+                        .map(e ->  "[" + e.getKey() + ": " + e.getValue().stream().collect(Collectors.joining(",")) + "],")
+                        .collect(Collectors.joining(", ")) + "\n}");
+            }
+
             try {
                 log.trace("Source: {}", request.content() == null ? "null" : request.content().utf8ToString());
             } catch (final Exception e) {
@@ -129,9 +145,7 @@ public class ArmorRestShield {
             }
         }
 
-        final InetAddress resolvedAddress = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
 
-        log.debug("This is a connection from {}", resolvedAddress.getHostAddress());
 
         User sessionUser = null;
 
@@ -189,7 +203,6 @@ public class ArmorRestShield {
             threadContext.putTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS, additionalRightsList);
 
             threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedUser);
-            threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS, resolvedAddress);
             return true;
 
         } catch (final AuthException e1) {

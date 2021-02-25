@@ -30,9 +30,9 @@ import java.util.stream.Collectors;
 /**
  * Created by jehuty0shift on 28/01/2020.
  */
-public class KafkaService extends AbstractLifecycleComponent {
+public class KafkaEngineService extends AbstractLifecycleComponent {
 
-    private static final Logger log = LogManager.getLogger(KafkaService.class);
+    private static final Logger log = LogManager.getLogger(KafkaEngineService.class);
     private static Producer kafkaProducer = null;
     private final List<String> topicList;
     private final LazySodiumJava lsj;
@@ -42,7 +42,7 @@ public class KafkaService extends AbstractLifecycleComponent {
     private String clientId;
 
 
-    public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
+    public KafkaEngineService(final Settings settings, final MongoDBService mongoDBService) {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
         topicList = new ArrayList<>();
         if (enabled) {

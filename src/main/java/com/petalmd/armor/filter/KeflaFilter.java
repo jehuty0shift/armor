@@ -59,7 +59,7 @@ public class KeflaFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 9;
+        return Integer.MIN_VALUE + 10;
     }
 
     @Override

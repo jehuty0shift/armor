@@ -25,6 +25,19 @@ public final class ConfigConstants {
     public static final String ARMOR_ALLOW_NON_LOOPBACK_QUERY_ON_ARMOR_INDEX = "armor.allow_non_loopback_query_on_armor_index";
     public static final String ARMOR_ALLOW_KIBANA_ACTIONS = "armor.allow_kibana_actions";
     public static final String ARMOR_AUDITLOG_ENABLED = "armor.auditlog.enabled";
+    public static final String ARMOR_AUDIT_KAFKA_ENABLED = "armor.audit.kafka.enabled";
+    public static final String ARMOR_AUDIT_KAFKA_BOOTSTRAP_SERVERS = "armor.audit.kafka.bootstrap_servers";
+    public static final String ARMOR_AUDIT_KAFKA_CLIENT_ID = "armor.audit.kafka.client_id";
+    public static final String ARMOR_AUDIT_KAFKA_COMPRESSION_CODEC = "armor.audit.kafka.compression_codec";
+    public static final String ARMOR_AUDIT_KAFKA_TOPIC = "armor.audit.kafka.topic";
+    public static final String ARMOR_AUDIT_KAFKA_ACKS_CONFIG = "armor.audit.kafka.acks_config";
+    public static final String ARMOR_AUDIT_KAFKA_SECURITY_PROTOCOL = "armor.audit.kafka.security_protocol";
+    public static final String ARMOR_AUDIT_KAFKA_SASL_USERNAME = "armor.audit.kafka.sasl_username";
+    public static final String ARMOR_AUDIT_KAFKA_SASL_PASSWORD = "armor.audit.kafka.sasl_password";
+    public static final String ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_LOCATION = "armor.audit.kafka.ssl_truststore_location";
+    public static final String ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD = "armor.audit.kafka.ssl_truststore_password";
+
+    public static final String ARMOR_AUDIT_KAFKA_USE_IMPL = "armor.audit.kafka.use_impl";
     public static final String ARMOR_TRANSPORT_AUTH_ENABLED = "armor.transport_auth.enabled";
     public static final String ARMOR_AGGREGATION_FILTER_ENABLED = "armor.aggregation_filter.enabled";
     public static final String ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED = "armor.action.wildcard.expansion.enabled";
@@ -81,6 +94,7 @@ public final class ConfigConstants {
     public static final String ARMOR_HTTP_ENABLE_SESSIONS = "armor.http.enable_sessions";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_ENFORCE = "armor.http.xforwardedfor.enforce";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_HEADER = "armor.http.xforwardedfor.header";
+    public static final String ARMOR_HTTP_XFORWARDEDFOR_VALIDATEPROXIES = "armor.http.xforwardedfor.validateproxies";
     public static final String ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES = "armor.http.xforwardedfor.trustedproxies";
     public static final String ARMOR_INDICES_UPDATESETTINGSFILTER_ENABLED = "armor.indices.updatesettingsfilter.enabled";
     public static final String ARMOR_INDICES_UPDATESETTINGSFILTER_ALLOWED = "armor.indices.updatesettingsfilter.allowed_settings";

@@ -422,24 +422,31 @@ public class SecurityUtil {
 
             final boolean xForwardedEnforce = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE, false);
 
+            final boolean validateProxies = settings.getAsBoolean(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_VALIDATEPROXIES, false);
+
             if (xForwardedForValue != null && !xForwardedForValue.isEmpty()) {
-                final List<String> addresses = Arrays.asList(xForwardedForValue.replace(" ", "").split(","));
-                final List<String> proxiesPassed = new ArrayList<String>(addresses.subList(1, addresses.size()));
+                if (validateProxies) {
+                    final List<String> addresses = Arrays.asList(xForwardedForValue.replace(" ", "").split(","));
+                    final List<String> proxiesPassed = new ArrayList<String>(addresses.subList(1, addresses.size()));
 
-                if (xForwardedTrustedProxies.size() == 0) {
-                    throw new UnknownHostException("No trusted proxies");
-                }
+                    if (xForwardedTrustedProxies.size() == 0) {
+                        throw new UnknownHostException("No trusted proxies");
+                    }
 
-                proxiesPassed.removeAll(xForwardedTrustedProxies);
+                    proxiesPassed.removeAll(xForwardedTrustedProxies);
 
-                log.trace(proxiesPassed.size() + "/" + proxiesPassed);
+                    log.trace(proxiesPassed.size() + "/" + proxiesPassed);
 
-                if (proxiesPassed.size() == 0 && (xForwardedTrustedProxies.contains(oaddr) || iaddr.isLoopbackAddress())) {
+                    if (proxiesPassed.size() == 0 && (xForwardedTrustedProxies.contains(oaddr) || iaddr.isLoopbackAddress())) {
 
-                    raddr = addresses.get(0).trim();
+                        raddr = addresses.get(0).trim();
 
+                    } else {
+                        throw new UnknownHostException("Not all proxies are trusted");
+                    }
                 } else {
-                    throw new UnknownHostException("Not all proxies are trusted");
+                    final List<String> addresses = Arrays.asList(xForwardedForValue.split(","));
+                    raddr = addresses.get(0).trim();
                 }
 
             } else {

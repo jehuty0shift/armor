@@ -14,7 +14,7 @@ import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.Region;
 import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
@@ -212,8 +212,13 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
 
         ObjectMapper objectMapper = new ObjectMapper();
 
+<<<<<<< HEAD
         KafkaProducer mockProducer = org.elasticsearch.mock.orig.Mockito.mock(KafkaProducer.class);
         KafkaService.setKafkaProducer(mockProducer);
+=======
+        KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
+        KafkaEngineService.setKafkaProducer(mockProducer);
+>>>>>>> 69b2abd... feat(Audit): add ArmorAuditFilter with KafkaOutput
 
         startES(settings);
         setupTestData("ac_rules_27.json");
