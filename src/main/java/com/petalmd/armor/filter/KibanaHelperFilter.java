@@ -35,7 +35,7 @@ public class KibanaHelperFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return super.order();
+        return super.order()+1;
     }
 
     public void applySecure(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {

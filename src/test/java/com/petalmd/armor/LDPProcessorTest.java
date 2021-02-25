@@ -1,8 +1,8 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.petalmd.armor.processor.LDPGelf;
-import com.petalmd.armor.processor.kafka.KafkaOutput;
+import com.petalmd.armor.common.LDPGelf;
+import com.petalmd.armor.common.KafkaOutput;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.tests.GetPipeline;
@@ -18,7 +18,6 @@ import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.ObjectInputFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;

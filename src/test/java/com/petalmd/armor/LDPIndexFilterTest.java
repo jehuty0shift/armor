@@ -1,13 +1,12 @@
 package com.petalmd.armor;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.petalmd.armor.processor.LDPGelf;
+import com.petalmd.armor.common.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputConsumer;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.tests.GetPipeline;
 import com.petalmd.armor.tests.PutSettings;
 import com.petalmd.armor.util.ConfigConstants;
-import io.searchbox.action.BulkableAction;
 import io.searchbox.client.JestResult;
 import io.searchbox.core.Bulk;
 import io.searchbox.core.Index;

@@ -1,7 +1,8 @@
 package com.petalmd.armor.processor.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.petalmd.armor.processor.LDPGelf;
+import com.petalmd.armor.common.KafkaOutput;
+import com.petalmd.armor.common.LDPGelf;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -15,7 +16,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Optional;
 import java.util.Properties;
 
 public class KafkaOutputImpl implements KafkaOutput {

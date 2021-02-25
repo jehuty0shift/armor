@@ -1,6 +1,7 @@
 package com.petalmd.armor.processor;
 
-import com.petalmd.armor.processor.kafka.KafkaOutput;
+import com.petalmd.armor.common.KafkaOutput;
+import com.petalmd.armor.common.LDPGelf;
 import com.petalmd.armor.processor.kafka.KafkaOutputFactory;
 import com.petalmd.armor.util.ConfigConstants;
 import org.apache.logging.log4j.LogManager;

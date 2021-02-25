@@ -1,6 +1,4 @@
-package com.petalmd.armor.processor.kafka;
-
-import com.petalmd.armor.processor.LDPGelf;
+package com.petalmd.armor.common;
 
 public interface KafkaOutput {
 

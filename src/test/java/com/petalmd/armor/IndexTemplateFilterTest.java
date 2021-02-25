@@ -4,7 +4,6 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
-import com.goterl.lazycode.lazysodium.interfaces.SecretBox;
 import com.goterl.lazycode.lazysodium.utils.Key;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
@@ -15,7 +14,7 @@ import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.Region;
 import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
@@ -225,7 +224,7 @@ public class IndexTemplateFilterTest extends AbstractScenarioTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         System.setProperty("es.set.netty.runtime.available.processors", "false");
 

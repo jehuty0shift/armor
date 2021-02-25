@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.goterl.lazycode.lazysodium.utils.Key;
-import com.goterl.lazycode.lazysodium.utils.LibraryLoader;
 import com.mongodb.MongoClient;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
@@ -13,7 +12,7 @@ import com.mongodb.client.MongoDatabase;
 import com.petalmd.armor.filter.lifecycle.*;
 import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ConfigConstants;
 import de.bwaldvogel.mongo.MongoServer;
@@ -205,7 +204,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         // avoid conflicting with MongoServer
         System.setProperty("es.set.netty.runtime.available.processors", "false");
@@ -319,7 +318,7 @@ public class IndexLifeCycleFilterTest extends AbstractScenarioTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         System.setProperty("es.set.netty.runtime.available.processors", "false");
 

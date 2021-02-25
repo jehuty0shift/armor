@@ -59,7 +59,7 @@ public class IndexTemplateFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 12;
+        return Integer.MIN_VALUE + 13;
     }
 
     @Override

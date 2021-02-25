@@ -14,7 +14,7 @@ import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.Region;
 import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.tests.IndexAliasAction;
 import com.petalmd.armor.tests.RemoveIndexAliasMapping;
@@ -104,7 +104,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         System.setProperty("es.set.netty.runtime.available.processors", "false");
 
@@ -389,7 +389,7 @@ public class AliasLifeCycleFilterTest extends AbstractScenarioTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         System.setProperty("es.set.netty.runtime.available.processors", "false");
 

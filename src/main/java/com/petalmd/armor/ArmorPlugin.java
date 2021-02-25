@@ -41,7 +41,7 @@ import com.petalmd.armor.rest.ArmorInfoAction;
 import com.petalmd.armor.rest.ArmorRestShield;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.transport.SSLNettyTransport;
 import com.petalmd.armor.util.ArmorConstants;
@@ -82,7 +82,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
-import java.util.logging.Filter;
 
 //TODO FUTURE store users/roles also in elasticsearch armor index
 //TODO FUTURE Multi authenticator/authorizator
@@ -111,7 +110,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     private Client client;
     private ClusterService clusterService;
     private HTTPAuthenticator httpAuthenticator;
-    private KafkaService kafkaService;
+    private KafkaEngineService kafkaEngineService;
     private KeflaEngine keflaEngine;
     private MongoDBService mongoDbService;
     private NamedXContentRegistry xContentRegistry;
@@ -129,7 +128,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public ArmorPlugin(final Settings settings) {
         this.settings = settings;
         enabled = this.settings.getAsBoolean(ConfigConstants.ARMOR_ENABLED, false);
-        isPureClient = !"node".equals(settings.get(CLIENT_TYPE,"node"));
+        isPureClient = !"node".equals(settings.get(CLIENT_TYPE, "node"));
     }
 
     @Override
@@ -151,8 +150,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         mongoDbService = new MongoDBService(settings);
         componentsList.add(mongoDbService);
 
-        kafkaService = new KafkaService(settings, mongoDbService);
-        componentsList.add(kafkaService);
+        kafkaEngineService = new KafkaEngineService(settings, mongoDbService);
+        componentsList.add(kafkaEngineService);
 
 
         //create Authenticator
@@ -261,6 +260,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> actionFilters = new ArrayList<>();
         if (enabled && !isPureClient) {
+            actionFilters.add(new ArmorAuditFilter(settings, clusterService, threadPool));
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
@@ -271,8 +271,8 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
             actionFilters.add(new IndicesUpdateSettingsFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new ActionCacheFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new KeflaFilter(settings, keflaEngine, armorService, armorConfigService, clusterService, threadPool));
-            actionFilters.add(new IndexLifecycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
-            actionFilters.add(new AliasLifeCycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaService));
+            actionFilters.add(new IndexLifecycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaEngineService));
+            actionFilters.add(new AliasLifeCycleFilter(settings, clusterService, armorService, armorConfigService, threadPool, mongoDbService, kafkaEngineService));
             actionFilters.add(new IndexTemplateFilter(settings, clusterService, armorService, armorConfigService, threadPool));
             actionFilters.add(new IngestPipelineFilter(settings, clusterService, armorService, armorConfigService, threadPool));
             actionFilters.add(new LDPIndexFilter(settings, client, clusterService, armorService, armorConfigService, threadPool));
@@ -345,6 +345,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_TRANSPORT_AUTH_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_ENABLE_SESSIONS, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_ENFORCE, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_VALIDATEPROXIES, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_HEADER, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_HTTP_XFORWARDEDFOR_TRUSTEDPROXIES, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.groupSetting(ConfigConstants.ARMOR_HTTP_ADDITIONAL_RIGHTS_HEADER, Setting.Property.NodeScope));
@@ -504,6 +505,21 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
+
+        //Audit Kafka
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_BOOTSTRAP_SERVERS, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_ACKS_CONFIG, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_COMPRESSION_CODEC, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SECURITY_PROTOCOL, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SASL_USERNAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SASL_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_LOCATION, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_USE_IMPL, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+
 
         return settings;
     }

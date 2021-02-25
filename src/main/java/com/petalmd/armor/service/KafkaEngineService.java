@@ -14,7 +14,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -29,9 +28,9 @@ import java.util.stream.Collectors;
 /**
  * Created by jehuty0shift on 28/01/2020.
  */
-public class KafkaService extends AbstractLifecycleComponent {
+public class KafkaEngineService extends AbstractLifecycleComponent {
 
-    private static final Logger log = LogManager.getLogger(KafkaService.class);
+    private static final Logger log = LogManager.getLogger(KafkaEngineService.class);
     private static Producer kafkaProducer = null;
     private final List<String> topicList;
     private final SecretBox secretBox;
@@ -40,7 +39,7 @@ public class KafkaService extends AbstractLifecycleComponent {
     private boolean enabled;
     private String clientId;
 
-    public KafkaService(final Settings settings, final MongoDBService mongoDBService) {
+    public KafkaEngineService(final Settings settings, final MongoDBService mongoDBService) {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
         topicList = new ArrayList<>();
         if (enabled) {

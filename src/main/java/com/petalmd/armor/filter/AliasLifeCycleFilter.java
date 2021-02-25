@@ -9,11 +9,10 @@ import com.petalmd.armor.authorization.ForbiddenException;
 import com.petalmd.armor.filter.lifecycle.AliasOperation;
 import com.petalmd.armor.filter.lifecycle.EngineUser;
 import com.petalmd.armor.filter.lifecycle.LifeCycleMongoCodecProvider;
-import com.petalmd.armor.filter.lifecycle.kser.KSerMessage;
 import com.petalmd.armor.filter.lifecycle.kser.KSerSecuredMessage;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
-import com.petalmd.armor.service.KafkaService;
+import com.petalmd.armor.service.KafkaEngineService;
 import com.petalmd.armor.service.MongoDBService;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
@@ -60,10 +59,10 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
     private boolean enabled;
     private final MongoCollection<EngineUser> engineUsers;
     private final List<String> additionalRightsLightCheck;
-    private KafkaService kService;
+    private KafkaEngineService kService;
     private ObjectMapper mapper;
 
-    public AliasLifeCycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaService kafkaService) {
+    public AliasLifeCycleFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService, final ArmorConfigService armorConfigService, final ThreadPool threadPool, final MongoDBService mongoService, final KafkaEngineService kafkaEngineService) {
         super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ENABLED, false);
         this.additionalRightsLightCheck = settings.getAsList(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_ADDITIONAL_RIGHTS_LIGHT_CHECK, Collections.emptyList());
@@ -82,7 +81,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
                 });
                 log.info("connected to Users Database");
             }
-            kService = kafkaService;
+            kService = kafkaEngineService;
             mapper = new ObjectMapper();
         } else {
             kService = null;
@@ -95,7 +94,7 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE + 11;
+        return Integer.MIN_VALUE + 12;
     }
 
     @Override
@@ -203,14 +202,14 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
         private final Set<String> resolvedAliases;
         private final Set<String> existingAliases;
         private final EngineUser engineUser;
-        private final KafkaService kService;
+        private final KafkaEngineService kService;
         private final ActionListener origListener;
         private final ObjectMapper mapper;
         private final ClusterService clusterService;
 
-        public AliasLifeCycleListener(final List<IndicesAliasesRequest.AliasActions> aliasActions, final EngineUser engineUser, final KafkaService kafkaService, final ActionListener origListener, final ObjectMapper mapper, final ClusterService clusterService) {
+        public AliasLifeCycleListener(final List<IndicesAliasesRequest.AliasActions> aliasActions, final EngineUser engineUser, final KafkaEngineService kafkaEngineService, final ActionListener origListener, final ObjectMapper mapper, final ClusterService clusterService) {
             this.engineUser = engineUser;
-            this.kService = kafkaService;
+            this.kService = kafkaEngineService;
             this.origListener = origListener;
             this.mapper = mapper;
             this.clusterService = clusterService;

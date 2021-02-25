@@ -33,7 +33,7 @@ public class BypassFilter extends AbstractActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE+1;
+        return Integer.MIN_VALUE+2;
     }
 
     public void applySecure(Task task, String action, ActionRequest request, ActionListener listener, ActionFilterChain chain) {
