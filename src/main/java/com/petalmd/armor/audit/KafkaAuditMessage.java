@@ -1,8 +1,6 @@
 package com.petalmd.armor.audit;
 
 import com.petalmd.armor.common.LDPGelf;
-import jnr.ffi.annotations.In;
-import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
 import java.net.InetAddress;

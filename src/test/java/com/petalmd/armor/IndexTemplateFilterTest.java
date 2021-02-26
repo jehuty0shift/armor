@@ -212,13 +212,9 @@ public class IndexTemplateFilterTest extends AbstractArmorTest {
 
         ObjectMapper objectMapper = new ObjectMapper();
 
-<<<<<<< HEAD
-        KafkaProducer mockProducer = org.elasticsearch.mock.orig.Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
-=======
+
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
         KafkaEngineService.setKafkaProducer(mockProducer);
->>>>>>> 69b2abd... feat(Audit): add ArmorAuditFilter with KafkaOutput
 
         startES(settings);
         setupTestData("ac_rules_27.json");

@@ -326,7 +326,7 @@ public class IndexLifeCycleFilterTest extends AbstractArmorTest {
         ObjectMapper objectMapper = new ObjectMapper();
 
         KafkaProducer mockProducer = Mockito.mock(KafkaProducer.class);
-        KafkaService.setKafkaProducer(mockProducer);
+        KafkaEngineService.setKafkaProducer(mockProducer);
 
         startES(settings);
         setupTestData("ac_rules_25.json");
