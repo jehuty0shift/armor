@@ -34,10 +34,12 @@ public class ArmorAuditFilterTest extends AbstractUnitTest {
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll", "indices:data/read/scroll/clear")
                 .put(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, true)
                 .put(ConfigConstants.ARMOR_AUDIT_KAFKA_CLIENT_ID, "test-audit-filter")
+                .put(ConfigConstants.ARMOR_AUDIT_KAFKA_X_OVH_TOKEN, "token")
                 .put(ConfigConstants.ARMOR_AUDIT_KAFKA_USE_IMPL, false)
                 .put(authSettings).build();
 
-        KafkaOutputConsumer mockOutput = new KafkaOutputConsumer(ldpGelf -> {});
+        KafkaOutputConsumer mockOutput = new KafkaOutputConsumer(ldpGelf -> {
+        });
         KafkaAuditFactory kFactory = KafkaAuditFactory.makeInstance(settings);
         kFactory.setKafkaOutput(mockOutput);
 
@@ -59,6 +61,7 @@ public class ArmorAuditFilterTest extends AbstractUnitTest {
             Assert.assertEquals("indices:admin/create", fields.get("_action"));
             Assert.assertEquals(username, fields.get("_user"));
             Assert.assertTrue(fields.get("_items").toString().contains(indexName.get()));
+            Assert.assertEquals("token", fields.get("_X-OVH-TOKEN"));
             hasSent.set(true);
         });
 
@@ -70,7 +73,6 @@ public class ArmorAuditFilterTest extends AbstractUnitTest {
         Assert.assertTrue(result.v1().isSucceeded());
         Assert.assertTrue(result.v1().getJsonString().contains("acknowledged"));
         Assert.assertTrue(result.v1().getJsonString().contains("true"));
-
 
     }
 

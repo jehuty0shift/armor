@@ -36,8 +36,9 @@ public class KafkaAuditMessage {
     private List<String> items;
     private Instant start;
     private Instant end;
+    private String xOVHToken;
 
-    public KafkaAuditMessage(final Instant start, final String action, final String user, final String method, final String url, final InetAddress remoteAddress, final String clusterName, final String clientId) {
+    public KafkaAuditMessage(final Instant start, final String action, final String user, final String method, final String url, final InetAddress remoteAddress, final String clusterName, final String clientId, final String xOVHToken) {
         this.start = start;
         this.action = action;
         this.clientId = clientId;
@@ -46,6 +47,7 @@ public class KafkaAuditMessage {
         this.url = url;
         this.remoteAddress = remoteAddress;
         this.clusterName = clusterName;
+        this.xOVHToken = xOVHToken;
     }
 
     public Status getStatus() {
@@ -119,8 +121,9 @@ public class KafkaAuditMessage {
         ldpGelf.setHost(clientId);
         ldpGelf.addDate("end", org.joda.time.Instant.ofEpochMilli(end.toEpochMilli()).toDateTime(DateTimeZone.UTC));
         ldpGelf.addDate("start", org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
+        ldpGelf.addInt("duration", (int) (end.toEpochMilli() - start.toEpochMilli()));
         ldpGelf.setMessage(user + ": " + method + " " + url);
-        if(remoteAddress != null) {
+        if (remoteAddress != null) {
             ldpGelf.addIP("remote_address", remoteAddress);
         }
         ldpGelf.addString("status", status.label);
@@ -129,6 +132,7 @@ public class KafkaAuditMessage {
         ldpGelf.addString("url", url);
         ldpGelf.addString("method", method);
         ldpGelf.addString("user", user);
+        ldpGelf.addString("X-OVH-TOKEN",xOVHToken);
 
         if (exceptionType != null) {
             ldpGelf.addString("exception_type", exceptionType);
@@ -138,7 +142,7 @@ public class KafkaAuditMessage {
             ldpGelf.addString("exception_message", exceptionMessage);
         }
 
-        if(items != null && !items.isEmpty()) {
+        if (items != null && !items.isEmpty()) {
             items.sort(String::compareTo);
             ldpGelf.addString("_items", items.stream().collect(Collectors.joining(", ")));
         }

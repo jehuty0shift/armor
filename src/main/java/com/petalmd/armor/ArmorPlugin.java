@@ -519,6 +519,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_LOCATION, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_USE_IMPL, true, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_X_OVH_TOKEN, Setting.Property.NodeScope, Setting.Property.Filtered));
 
 
         return settings;

@@ -13,6 +13,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.AliasesRequest;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -26,6 +27,7 @@ import java.net.InetAddress;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -38,6 +40,7 @@ public class ArmorAuditFilter implements ActionFilter {
     private KafkaAuditFactory kafkaAuditFactory;
     private String clusterName;
     private String clientId;
+    private String xOVHToken;
 
     public ArmorAuditFilter(final Settings settings, final ClusterService clusterService,
                             final ThreadPool threadpool) {
@@ -47,6 +50,7 @@ public class ArmorAuditFilter implements ActionFilter {
         this.threadpool = threadpool;
         this.kafkaAuditFactory = KafkaAuditFactory.makeInstance(settings);
         this.clusterName = clusterService.getClusterName().value();
+        this.xOVHToken = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_X_OVH_TOKEN, "unknown");
 
         log.info("ArmorAuditFilter is {}", enabled ? "enabled" : "not enabled");
     }
@@ -92,7 +96,6 @@ public class ArmorAuditFilter implements ActionFilter {
         final InetAddress resolvedAddress = threadContext.getTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS);
 
 
-
         if (RestRequest.Method.OPTIONS.equals(method) ||
                 RestRequest.Method.GET.equals(method) ||
                 RestRequest.Method.HEAD.equals(method)) {
@@ -101,8 +104,8 @@ public class ArmorAuditFilter implements ActionFilter {
             return;
         }
 
-        log.debug("Auditing request from {} by user : {}, url : {}, method : {}", resolvedAddress!=null?resolvedAddress.toString():"unknown address", user.toString(),url, method.toString());
-        AuditListener auditListener = new AuditListener(listener, kafkaAuditFactory, action, request, user, method, url, resolvedAddress, clusterName, clientId);
+        log.debug("Auditing request from {} by user : {}, url : {}, method : {}", resolvedAddress != null ? resolvedAddress.toString() : "unknown address", user.toString(), url, method.toString());
+        AuditListener auditListener = new AuditListener(listener, kafkaAuditFactory, action, request, user, method, url, resolvedAddress, clusterName, clientId, xOVHToken);
         chain.proceed(task, action, request, auditListener);
 
     }
@@ -123,21 +126,32 @@ public class ArmorAuditFilter implements ActionFilter {
                              final String url,
                              final InetAddress remoteAddress,
                              final String clusterName,
-                             final String clientId) {
+                             final String clientId,
+                             final String xOVHToken) {
             this.delegate = delegate;
 
-            this.kafkaAuditMessage = new KafkaAuditMessage(Instant.now(), action, user.getName(), method.toString(), url, remoteAddress, clusterName, clientId);
+            this.kafkaAuditMessage = new KafkaAuditMessage(Instant.now(), action, user.getName(), method.toString(), url, remoteAddress, clusterName, clientId, xOVHToken);
             this.kafkaAuditFactory = kafkaAuditFactory;
             if (request instanceof IndicesRequest) {
                 IndicesRequest iReq = (IndicesRequest) request;
-                log.trace("indices request on {}",iReq.indices());
-                kafkaAuditMessage.setItems(Arrays.asList(iReq.indices()));
+                String[] indices = iReq.indices();
+                if (indices == null) {
+                    if (iReq instanceof PutMappingRequest) {
+                        PutMappingRequest pmr = (PutMappingRequest) iReq;
+                        String index = pmr.getConcreteIndex().toString();
+                        log.trace("Put Mapping Request with index: {}", index);
+                        kafkaAuditMessage.setItems(Collections.singletonList(index));
+                    }
+                } else {
+                    log.trace("indices request on {}", iReq.indices());
+                    kafkaAuditMessage.setItems(Arrays.asList(iReq.indices()));
+                }
             } else if (request instanceof AliasesRequest) {
                 AliasesRequest aReq = (AliasesRequest) request;
                 List<String> items = new ArrayList<>();
                 items.addAll(Arrays.asList(aReq.aliases()));
                 items.addAll(Arrays.asList(aReq.indices()));
-                log.trace("aliases request on aliases {}, indices {}",aReq.aliases(), aReq.indices());
+                log.trace("aliases request on aliases {}, indices {}", aReq.aliases(), aReq.indices());
                 kafkaAuditMessage.setItems(items);
             }
         }
@@ -155,6 +169,7 @@ public class ArmorAuditFilter implements ActionFilter {
             log.debug("Audited successful request {}", kafkaAuditMessage.toString());
 
             final LDPGelf ldpGelf = kafkaAuditMessage.toLDPGelf();
+            ldpGelf.validate();
             kafkaOutput.sendLDPGelf(ldpGelf);
             log.debug("audit message sent");
         }
@@ -175,6 +190,7 @@ public class ArmorAuditFilter implements ActionFilter {
             log.debug("Audited failed request  {}", kafkaAuditMessage.toString());
 
             final LDPGelf ldpGelf = kafkaAuditMessage.toLDPGelf();
+            ldpGelf.validate();
             kafkaOutput.sendLDPGelf(ldpGelf);
             log.debug("audit message sent");
 

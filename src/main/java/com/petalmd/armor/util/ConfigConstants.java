@@ -36,8 +36,8 @@ public final class ConfigConstants {
     public static final String ARMOR_AUDIT_KAFKA_SASL_PASSWORD = "armor.audit.kafka.sasl_password";
     public static final String ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_LOCATION = "armor.audit.kafka.ssl_truststore_location";
     public static final String ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD = "armor.audit.kafka.ssl_truststore_password";
-
     public static final String ARMOR_AUDIT_KAFKA_USE_IMPL = "armor.audit.kafka.use_impl";
+    public static final String ARMOR_AUDIT_KAFKA_X_OVH_TOKEN = "armor.audit.kafka.x_ovh_token";
     public static final String ARMOR_TRANSPORT_AUTH_ENABLED = "armor.transport_auth.enabled";
     public static final String ARMOR_AGGREGATION_FILTER_ENABLED = "armor.aggregation_filter.enabled";
     public static final String ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED = "armor.action.wildcard.expansion.enabled";
