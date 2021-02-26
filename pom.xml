@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>6.8.14-1</version>
+    <version>6.8.14-2</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
