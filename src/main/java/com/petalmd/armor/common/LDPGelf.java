@@ -88,7 +88,9 @@ public class LDPGelf {
         if (!finalField.endsWith("_ip")) {
             finalField += "_ip";
         }
-        return addValue(finalField, ip.toString());
+        //add Ip in string
+        addValue(finalField.substring(0,finalField.length()-3),ip.toString());
+        return addValue(finalField, ip.getHostAddress());
     }
 
     private LDPGelf addValue(final String field, final Object value) {

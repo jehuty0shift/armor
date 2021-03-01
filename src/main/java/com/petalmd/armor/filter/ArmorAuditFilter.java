@@ -65,13 +65,13 @@ public class ArmorAuditFilter implements ActionFilter {
     public void apply(Task task, final String action, final ActionRequest request, final ActionListener listener, final ActionFilterChain chain) {
 
         if (!enabled) {
-            log.debug("Armor audit filter is not enabled proceeding");
+            log.trace("Armor audit filter is not enabled proceeding");
             chain.proceed(task, action, request, listener);
             return;
         }
 
         if (action.startsWith("indices:data")) {
-            log.debug("we don't indices data related requests");
+            log.trace("we don't indices data related requests");
             chain.proceed(task, action, request, listener);
             return;
         }
@@ -99,7 +99,7 @@ public class ArmorAuditFilter implements ActionFilter {
         if (RestRequest.Method.OPTIONS.equals(method) ||
                 RestRequest.Method.GET.equals(method) ||
                 RestRequest.Method.HEAD.equals(method)) {
-            log.debug("we don't audit OPTIONS, GET, HEAD methods");
+            log.trace("we don't audit OPTIONS, GET, HEAD methods");
             chain.proceed(task, action, request, listener);
             return;
         }
