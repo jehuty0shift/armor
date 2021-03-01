@@ -100,6 +100,7 @@ public class ArmorRestShield {
 
         //allow all if request is coming from loopback
         if (isLoopback) {
+            threadContext.putTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS, request.getHttpChannel().getRemoteAddress().getAddress());
             threadContext.putTransient(ArmorConstants.ARMOR_IS_LOOPBACK, Boolean.TRUE);
             log.debug("This is a connection from localhost/loopback, will allow all");
             return true;
