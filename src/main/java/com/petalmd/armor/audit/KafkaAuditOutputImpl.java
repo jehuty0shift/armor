@@ -125,7 +125,7 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
 
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String document = objMapper.writeValueAsString(ldpGelf.getDocumentMap());
-                kProducer.send(new ProducerRecord(topic,  null, ldpGelf.getTimestamp().toInstant().getMillis(), document));
+                kProducer.send(new ProducerRecord(topic,  null, ldpGelf.getTimestamp().toInstant().getMillis(), null, document));
                 return null;
             });
 

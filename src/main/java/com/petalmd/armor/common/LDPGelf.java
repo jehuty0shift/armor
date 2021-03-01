@@ -3,10 +3,12 @@ package com.petalmd.armor.common;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.LongAccumulator;
 
 public class LDPGelf {
     private final Map<String, Object> document;
@@ -80,7 +82,7 @@ public class LDPGelf {
         if (!finalField.endsWith("_date")) {
             finalField += "_date";
         }
-        return addValue(finalField, value);
+        return addValue(finalField, ISODateTimeFormat.dateTime().print(value));
     }
 
     public LDPGelf addIP(final String field, final InetAddress ip) {
@@ -101,12 +103,12 @@ public class LDPGelf {
     }
 
     public LDPGelf setTimestamp(final DateTime timestamp) {
-        document.put("timestamp", timestamp.toInstant().getMillis() / 1000.0);
+        document.put("timestamp", Long.valueOf(timestamp.toInstant().getMillis()).doubleValue() / 1000.0);
         return this;
     }
 
     public DateTime getTimestamp(){
-        return Instant.ofEpochMilli((long)document.get("timestamp")*1000l).toDateTime(DateTimeZone.UTC);
+        return Instant.ofEpochMilli(Double.valueOf((double)document.get("timestamp")).longValue() *1000l).toDateTime(DateTimeZone.UTC);
     }
 
     public LDPGelf setHost(final String host) {
