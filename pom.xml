@@ -17,7 +17,7 @@
 
     <groupId>com.petalmd</groupId>
     <artifactId>armor</artifactId>
-    <version>6.8.14-2</version>
+    <version>6.8.15-1</version>
     <packaging>jar</packaging>
 
     <name>A.R.M.O.R</name>
@@ -45,13 +45,16 @@
     </licenses>
 
     <properties>
-        <elasticsearch.version>6.8.14</elasticsearch.version>
+        <elasticsearch.version>6.8.15</elasticsearch.version>
         <apache.ds.version>2.0.0-M24</apache.ds.version>
         <apache.ds.api.version>1.0.3</apache.ds.api.version>
         <slf4j.api.bundleversion>1.7.25</slf4j.api.bundleversion>
         <path.delim>\\</path.delim>
         <dependency.locations.enabled>false</dependency.locations.enabled>
-        <lucene.maven.version>7.7.2</lucene.maven.version>
+	<lucene.maven.version>7.7.2</lucene.maven.version>
+	<java.version>11</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
 
     <scm>
