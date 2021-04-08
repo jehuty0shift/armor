@@ -120,6 +120,11 @@ public final class ConfigConstants {
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_ACKS_CONFIG = "armor.ldp_processor.kafka.acks_config";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_BOOTSTRAP_SERVERS = "armor.ldp_processor.kafka.bootstrap_servers";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_CLIENT_ID = "armor.ldp_processor.kafka.client_id";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_SECURITY_PROTOCOL = "armor.ldp_processor.kafka.security_protocol";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_SASL_USERNAME = "armor.ldp_processor.kafka.sasl_username";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_SASL_PASSWORD = "armor.ldp_processor.kafka.sasl_password";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_LOCATION = "armor.ldp_processor.kafka.ssl_truststore_location";
+    public static final String ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_PASSWORD = "armor.ldp_processor.kafka.ssl_truststore_password";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC = "armor.ldp_processor.kafka.compression_codec";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE = "armor.ldp_processor.kafka.batch_size";
     public static final String ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS = "armor.ldp_processor.kafka.linger_ms";

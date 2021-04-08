@@ -39,6 +39,11 @@ public class KafkaOutputImpl implements KafkaOutput {
             final String batchSize = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_BATCH_SIZE,"16384");
             final String lingerMs = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS,"5");
             final String compressionCodec = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_COMPRESSION_CODEC,"none");
+            final String securityProtocol = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SECURITY_PROTOCOL);
+            final String SSLTruststoreLocation = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_LOCATION, "");
+            final String SSLTruststorePassword = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_PASSWORD,"");
+            final String SASLUsername = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SASL_USERNAME);
+            final String SASLPassword = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SASL_PASSWORD);
             topic = settings.get(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC);
             props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
             props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
@@ -48,6 +53,21 @@ public class KafkaOutputImpl implements KafkaOutput {
             props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,compressionCodec);
             props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
             props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+
+            if ("SASL_SSL".equals(securityProtocol) || "SASL_PLAINTEXT".equals(securityProtocol)) {
+                props.put("security.protocol", securityProtocol);
+                props.put("sasl.mechanism", "PLAIN");
+                if (!"".equals(SSLTruststoreLocation) && !"".equals(SSLTruststorePassword)) {
+                    props.put("ssl.truststore.location", SSLTruststoreLocation);
+                    props.put("ssl.truststore.password", SSLTruststorePassword);
+                }
+
+                final String jaasConfig = "org.apache.kafka.common.security.plain.PlainLoginModule required \n" +
+                        "  username=\"" + SASLUsername + "\" \n" +
+                        "  password=\"" + SASLPassword + "\";";
+                props.put("sasl.jaas.config", jaasConfig);
+            }
+
             objMapper = new ObjectMapper();
         } else {
             topic = null;

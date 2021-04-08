@@ -514,6 +514,11 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_LINGER_MS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_OUTPUT_USE_KAFKA_IMPL, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SECURITY_PROTOCOL, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SASL_USERNAME, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SASL_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_LOCATION, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_LDP_PROCESSOR_KAFKA_SSL_TRUSTSTORE_PASSWORD, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //Audit Kafka
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
