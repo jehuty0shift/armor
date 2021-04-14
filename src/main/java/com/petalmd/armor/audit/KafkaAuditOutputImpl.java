@@ -86,7 +86,9 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
         }
         kProducer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
             //This is necessary to force the Kafka Serializer loader to use the classloader used to load kafkaProducer classes
-            Thread.currentThread().setContextClassLoader(null);
+            kProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+            kProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+            Thread.currentThread().setContextClassLoader(KafkaProducer.class.getClassLoader());
             return new KafkaProducer<String, String>(kProps); });
     }
 
