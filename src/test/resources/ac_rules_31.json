@@ -1,0 +1,62 @@
+{
+   "acl":[
+      {
+         "__Comment__":"Default is no token at all, so when no rule below match the requestor will get no token",
+         "filters_bypass": [],
+         "filters_execute": ["actionrequestfilter.forbidden"]
+      },
+      {
+         "hosts":[
+            "*"
+         ],
+         "users":[
+            "toto*"
+         ],
+         "roles":[
+            "role1"
+         ],
+         "indices":[
+            "public"
+         ],
+         "filters_bypass": ["*"],
+         "filters_execute": []
+      },
+      {
+         "roles":[
+            "admin",
+            "root"
+         ],
+         "indices" : ["*"],
+         "aliases" : ["*"],
+         "filters_bypass": ["*"],
+         "filters_execute": []
+      },
+      {
+         "users":[
+            "hnelson","logs-xv-12345", "localhost"
+         ],
+         "roles":[
+            "ceo"
+         ],
+         "indices":[
+            "logs-xv-12345-i-*", "dev"
+         ],
+         "filters_bypass": ["actionrequestfilter.forbidden"],
+         "filters_execute": ["actionrequestfilter.readonly"]
+      },
+      {
+         "users":[
+            "logs-xv-12345"
+         ],
+         "roles":[
+            "ceo"
+         ],
+         "indices":[
+            "logs-gt-6789-i-databankzeta"
+         ],
+         "filters_bypass": ["actionrequestfilter.forbidden"],
+         "filters_execute": ["actionrequestfilter.readonly"]
+      }
+
+   ]
+}

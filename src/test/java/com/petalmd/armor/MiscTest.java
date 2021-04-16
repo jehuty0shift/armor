@@ -25,12 +25,17 @@ import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.*;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.PutMappingRequest;
+import org.elasticsearch.cluster.metadata.AliasAction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -280,7 +285,7 @@ public class MiscTest extends AbstractArmorTest {
                         "kibana:indices:data/write*", //this right is needed to write
                         "kibana:indices:admin/mapping/put",
                         "kibana:indices:admin/mapping/auto_put"
-                        ) //mapping is needed to update mapping to ES 5.6 new mapping
+                ) //mapping is needed to update mapping to ES 5.6 new mapping
                 .putList("armor.actionrequestfilter.forbidden.allowed_actions", "indices:data/read/scroll*")
                 .put(ConfigConstants.ARMOR_ACTION_WILDCARD_EXPANSION_ENABLED, true)
                 .put(authSettings).build();
@@ -291,19 +296,19 @@ public class MiscTest extends AbstractArmorTest {
         //without the magic header the call must failed
         final RestHighLevelClient client = getRestClient(false, username, password);
 
-        ElasticsearchStatusException iFail1 = expectThrows(ElasticsearchStatusException.class, () -> client.index( new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}",XContentType.JSON),RequestOptions.DEFAULT));
+        ElasticsearchStatusException iFail1 = expectThrows(ElasticsearchStatusException.class, () -> client.index(new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}", XContentType.JSON), RequestOptions.DEFAULT));
 
         Assert.assertTrue(iFail1.status().equals(RestStatus.FORBIDDEN));
 
         //with the magic header now it should be allowed
         List<Header> headerList = new ArrayList<>(Arrays.asList(headers));
 
-        headerList.add(new BasicHeader("kibana","myreallyawesomekibanaheadervalue"));
+        headerList.add(new BasicHeader("kibana", "myreallyawesomekibanaheadervalue"));
 
         headers = headerList.toArray(new Header[headerList.size()]);
 
         final RestHighLevelClient client2 = getRestClient(false, username, password);
-        IndexResponse iresp = client2.index( new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}",XContentType.JSON),RequestOptions.DEFAULT);
+        IndexResponse iresp = client2.index(new IndexRequest().index("marketing").id("tp_id6").source("{\"test_user\":\"toto\"}", XContentType.JSON), RequestOptions.DEFAULT);
         Assert.assertTrue(iresp.status().equals(RestStatus.CREATED));
 
     }
@@ -317,7 +322,7 @@ public class MiscTest extends AbstractArmorTest {
 
         final Settings settings = Settings
                 .builder()
-               .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.names", "readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:admin/aliases/get")
                 .put("armor.allow_kibana_actions", false)
                 .put("armor.obfuscation.filter.enabled", true)
@@ -334,21 +339,136 @@ public class MiscTest extends AbstractArmorTest {
 
         GetAliasesResponse gar = client.indices().getAlias(new GetAliasesRequest("internal"), RequestOptions.DEFAULT);
 
-        Assert.assertEquals(3,gar.getAliases().size());
+        Assert.assertEquals(3, gar.getAliases().size());
         Assert.assertTrue(gar.getAliases().containsKey("marketing"));
-        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch( a -> a.alias().equals("internal"))));
+        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch(a -> a.alias().equals("internal"))));
 
         GetAliasesResponse gar2 = client.indices().getAlias(new GetAliasesRequest(), RequestOptions.DEFAULT);
         Assert.assertEquals(3, gar2.getAliases().size());
         Assert.assertTrue(gar2.getAliases().containsKey("marketing"));
-        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch( a -> a.alias().equals("internal"))));
+        Assert.assertTrue(gar.getAliases().values().stream().allMatch(v -> v.stream().anyMatch(a -> a.alias().equals("internal"))));
 
 
-        ElasticsearchStatusException gaFail = expectThrows(ElasticsearchStatusException.class, () -> client.indices().getAlias(new GetAliasesRequest("crucial"),RequestOptions.DEFAULT));
+        ElasticsearchStatusException gaFail = expectThrows(ElasticsearchStatusException.class, () -> client.indices().getAlias(new GetAliasesRequest("crucial"), RequestOptions.DEFAULT));
 
         Assert.assertEquals(RestStatus.FORBIDDEN, gaFail.status());
 
     }
 
+    @Test
+    public void catIndices() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings
+                .builder()
+                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions",
+                        "indices:admin/get*",
+                        "cluster:monitor/state",
+                        "cluster:monitor/main",
+                        "indices:admin/exists*",
+                        "indices:data/read*",
+                        "cluster:monitor/health",
+                        "indices:monitor/stats",
+                        "indices:monitor/settings/get",
+                        "indices:admin/aliases/get")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put(authSettings)
+                .build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_31.json");
+
+        final String indexOwned = "logs-xv-12345-i-databanksuper";
+
+        final String indexShared = "logs-gt-6789-i-databankzeta";
+
+        final RestHighLevelClient localHostClient = getRestClient(true, username, password);
+
+        CreateIndexResponse cRespLoc1 = localHostClient.indices().create(new CreateIndexRequest(indexOwned), RequestOptions.DEFAULT);
+        Assert.assertTrue(cRespLoc1.isAcknowledged());
+
+        CreateIndexResponse cRespLoc2 = localHostClient.indices().create(new CreateIndexRequest(indexShared), RequestOptions.DEFAULT);
+        Assert.assertTrue(cRespLoc2.isAcknowledged());
+
+        final RestHighLevelClient client = getRestClient(false, username, password);
+
+
+        Response resp1 = client.getLowLevelClient().performRequest(new Request("GET", "_cat/indices"));
+
+        String respString = new String(resp1.getEntity().getContent().readAllBytes());
+        Assert.assertTrue(respString.contains(indexOwned));
+        Assert.assertTrue(respString.contains(indexShared));
+        Assert.assertFalse(respString.contains("ceo")); //setup index
+    }
+
+    @Test
+    public void catAliases() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings
+                .builder()
+                .putList("armor.actionrequestfilter.names", "readonly", "forbidden")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions",
+                        "indices:admin/get*",
+                        "cluster:monitor/state",
+                        "cluster:monitor/main",
+                        "indices:admin/exists*",
+                        "indices:data/read*",
+                        "cluster:monitor/health",
+                        "indices:monitor/stats",
+                        "indices:monitor/settings/get",
+                        "indices:admin/aliases/get")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "indices:admin/aliases",
+                        "indices:admin/aliases/get")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put(authSettings)
+                .build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_31.json");
+
+        final String indexOwned = "logs-xv-12345-i-databanksuper";
+
+        final String indexShared = "logs-gt-6789-i-databankzeta";
+
+        final String aliasName = "logs-xv-12345-a-all";
+
+        final RestHighLevelClient localHostClient = getRestClient(true, username, password);
+
+        CreateIndexResponse cRespLoc1 = localHostClient.indices().create(new CreateIndexRequest(indexOwned), RequestOptions.DEFAULT);
+        Assert.assertTrue(cRespLoc1.isAcknowledged());
+
+        CreateIndexResponse cRespLoc2 = localHostClient.indices().create(new CreateIndexRequest(indexShared), RequestOptions.DEFAULT);
+        Assert.assertTrue(cRespLoc2.isAcknowledged());
+
+        AcknowledgedResponse ackRespLoc3 = localHostClient.indices()
+                .updateAliases(new IndicesAliasesRequest().addAliasAction(IndicesAliasesRequest.AliasActions.add().indices(indexOwned, indexShared).aliases(aliasName)), RequestOptions.DEFAULT);
+        Assert.assertTrue(ackRespLoc3.isAcknowledged());
+
+        final RestHighLevelClient client = getRestClient(false, username, password);
+
+
+        Response resp1 = client.getLowLevelClient().performRequest(new Request("GET", "_cat/aliases"));
+
+        String respString = new String(resp1.getEntity().getContent().readAllBytes());
+
+        Assert.assertTrue(respString.contains(aliasName));
+        Assert.assertFalse(respString.contains("internal"));
+
+    }
 
 }

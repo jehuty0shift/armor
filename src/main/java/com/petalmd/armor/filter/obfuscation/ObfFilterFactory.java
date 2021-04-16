@@ -39,14 +39,12 @@ public class ObfFilterFactory {
     protected static final Logger log = LogManager.getLogger(ObfFilterFactory.class);
     private final Map<String, Class> hubMap;
     private final Settings settings;
-    private final ThreadContext threadContext;
 
     //private static ObfFilterFactory factory;
 
 
-    public ObfFilterFactory(final Settings settings, final ThreadContext threadContext) {
+    public ObfFilterFactory(final Settings settings) {
         this.settings = settings;
-        this.threadContext = threadContext;
         hubMap = new HashMap<>();
         hubMap.put(NodesInfoAction.NAME, ObfNodesInfoResponse.class);
         hubMap.put(GetIndexAction.NAME, ObfGetIndexResponse.class);
@@ -59,7 +57,7 @@ public class ObfFilterFactory {
     }
 
 
-    public ActionResponse getObfResponse(String actionResponseName, ActionResponse orig) {
+    public ActionResponse getObfResponse(String actionResponseName, ActionResponse orig, ThreadContext threadContext) {
         Class resp = hubMap.get(actionResponseName);
         try {
 
