@@ -19,8 +19,8 @@ import com.petalmd.armor.filter.obfuscation.ObfFilterFactory;
 import com.petalmd.armor.service.ArmorConfigService;
 import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ConfigConstants;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -28,6 +28,7 @@ import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -41,13 +42,15 @@ public class ObfuscationFilter extends AbstractActionFilter {
     protected final Logger log = LogManager.getLogger(ObfuscationFilter.class);
     private final boolean enabled;
     ObfFilterFactory factory;
+    final ThreadPool threadPool;
 
     @Inject
     public ObfuscationFilter(final Settings settings, final ClusterService clusterService, final ThreadPool threadPool, final ArmorService armorService, final ArmorConfigService armorConfigService) {
-        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService,armorService, armorConfigService, armorService.getAuditListener(), threadPool);
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, false);
+        super(settings, armorService.getAuthenticationBackend(), armorService.getAuthorizator(), clusterService, armorService, armorConfigService, armorService.getAuditListener(), threadPool);
+        this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_OBFUSCATION_FILTER_ENABLED, false);
+        this.threadPool = threadPool;
         if (enabled) {
-            factory = new ObfFilterFactory(settings, threadPool.getThreadContext());
+            this.factory = new ObfFilterFactory(settings);
         }
         log.info("ObfuscationFilter is " + (enabled ? "enabled" : "disabled"));
     }
@@ -65,7 +68,7 @@ public class ObfuscationFilter extends AbstractActionFilter {
 
 
         if (factory.canObfuscate(action)) {
-            chain.proceed(task, action, request, new ObfuscatedActionListener<ActionResponse>(listener, action));
+            chain.proceed(task, action, request, new ObfuscatedActionListener<ActionResponse>(listener, action, threadPool.getThreadContext()));
         } else {
             chain.proceed(task, action, request, listener);
         }
@@ -75,15 +78,17 @@ public class ObfuscationFilter extends AbstractActionFilter {
 
         private final ActionListener<Response> privListener;
         private final String action;
+        private final ThreadContext threadContext;
 
-        public ObfuscatedActionListener(final ActionListener<Response> privListener, final String action) {
+        public ObfuscatedActionListener(final ActionListener<Response> privListener, final String action, final ThreadContext threadContext) {
             this.privListener = privListener;
             this.action = action;
+            this.threadContext = threadContext;
         }
 
         @Override
         public void onResponse(Response response) {
-            Response obfResp = (Response) factory.getObfResponse(action, response);
+            Response obfResp = (Response) factory.getObfResponse(action, response, threadContext);
             if (obfResp == null) {
                 privListener.onFailure(new IllegalStateException("Obfuscated Response is null"));
                 return;

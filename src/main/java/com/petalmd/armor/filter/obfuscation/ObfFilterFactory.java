@@ -15,13 +15,14 @@
  */
 package com.petalmd.armor.filter.obfuscation;
 
-import com.petalmd.armor.service.ArmorConfigService;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
+import org.elasticsearch.action.admin.indices.stats.IndicesStatsAction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -32,25 +33,25 @@ import java.util.Map;
 
 /**
  * @author jehuty0shift
- *         Created by jehuty0shift on 13/03/17.
+ * Created by jehuty0shift on 13/03/17.
  */
 public class ObfFilterFactory {
 
     protected static final Logger log = LogManager.getLogger(ObfFilterFactory.class);
     private final Map<String, Class> hubMap;
     private final Settings settings;
-    private final ThreadContext threadContext;
 
     //private static ObfFilterFactory factory;
 
 
-    public ObfFilterFactory(final Settings settings, final ThreadContext threadContext) {
+    public ObfFilterFactory(final Settings settings) {
         this.settings = settings;
-        this.threadContext = threadContext;
         hubMap = new HashMap<>();
         hubMap.put(NodesInfoAction.NAME, ObfNodesInfoResponse.class);
         hubMap.put(GetIndexAction.NAME, ObfGetIndexResponse.class);
-        hubMap.put(ClusterStateAction.NAME,ObfClusterStateResponse.class);
+        hubMap.put(ClusterStateAction.NAME, ObfClusterStateResponse.class);
+        hubMap.put(GetAliasesAction.NAME, ObfGetAliasResponse.class);
+        hubMap.put(IndicesStatsAction.NAME,ObfIndicesStatsResponse.class);
         if (log.isDebugEnabled()) {
             for (Map.Entry<String, Class> entry : hubMap.entrySet()) {
                 log.debug("ObfuscationFilter will obfuscate " + entry.getKey() + " with" + entry.getValue().getName());
@@ -59,7 +60,7 @@ public class ObfFilterFactory {
     }
 
 
-    public ActionResponse getObfResponse(String actionResponseName, ActionResponse orig) {
+    public ActionResponse getObfResponse(String actionResponseName, ActionResponse orig, ThreadContext threadContext) {
         Class resp = hubMap.get(actionResponseName);
         try {
 

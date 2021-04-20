@@ -22,22 +22,31 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.petalmd.armor.tests.IndexAliasAction;
 import com.petalmd.armor.util.ConfigConstants;
 import io.searchbox.client.JestClient;
 import io.searchbox.client.JestResult;
 import io.searchbox.cluster.Health;
 import io.searchbox.cluster.NodesStats;
+import io.searchbox.core.Cat;
 import io.searchbox.core.Index;
+import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.mapping.PutMapping;
 import io.searchbox.indices.reindex.Reindex;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.Response;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.Arrays;
 import java.util.Map;
 
 @RunWith(RandomizedRunner.class)
@@ -306,5 +315,125 @@ public class MiscTest extends AbstractUnitTest {
 
     }
 
+
+    @Test
+    public void catAliases() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings
+                .builder()
+                .putList("armor.actionrequestfilter.names", "readonly", "forbidden")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions",
+                        "indices:admin/get*",
+                        "cluster:monitor/state",
+                        "cluster:monitor/main",
+                        "indices:admin/exists*",
+                        "indices:data/read*",
+                        "cluster:monitor/health",
+                        "indices:monitor/stats",
+                        "indices:monitor/settings/get",
+                        "indices:admin/aliases/get")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "indices:admin/aliases",
+                        "indices:admin/aliases/get")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put(authSettings)
+                .build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_31.json");
+
+        final String indexOwned = "logs-xv-12345-i-databanksuper";
+
+        final String indexShared = "logs-gt-6789-i-databankzeta";
+
+        final String aliasName = "logs-xv-12345-a-all";
+
+        final JestClient localClient = getJestClient(getServerUri(true), username, password);
+
+        JestResult cRespLoc1 = localClient.execute(new CreateIndex.Builder(indexOwned).build());
+        Assert.assertTrue(cRespLoc1.isSucceeded());
+
+        JestResult cRespLoc2 = localClient.execute(new CreateIndex.Builder(indexShared).build());
+        Assert.assertTrue(cRespLoc2.isSucceeded());
+
+        JestResult ackRespLoc3 = localClient.execute(new IndexAliasAction.Builder(aliasName).setRestMethod("PUT").addIndices(Arrays.asList(indexOwned, indexShared)).build());
+        Assert.assertTrue(ackRespLoc3.isSucceeded());
+
+        final JestClient client = getJestClient(getServerUri(false),username, password);
+
+        JestResult resp1 = client.execute(new Cat.AliasesBuilder().build());
+
+        String respString = resp1.getJsonString();
+
+        Assert.assertTrue(respString.contains(aliasName));
+        Assert.assertFalse(respString.contains("crucial"));
+
+    }
+
+    @Test
+    public void catIndices() throws Exception {
+
+        username = "logs-xv-12345";
+        password = "secret";
+        Settings authSettings = getAuthSettings(false, "ceo");
+
+        final Settings settings = Settings
+                .builder()
+                .putList("armor.actionrequestfilter.names", "readonly", "forbidden")
+                .putList("armor.actionrequestfilter.readonly.allowed_actions",
+                        "indices:admin/get*",
+                        "cluster:monitor/state",
+                        "cluster:monitor/main",
+                        "indices:admin/exists*",
+                        "indices:data/read*",
+                        "cluster:monitor/health",
+                        "indices:monitor/stats",
+                        "indices:monitor/settings/get",
+                        "indices:admin/aliases/get")
+                .putList("armor.actionrequestfilter.forbidden.allowed_actions",
+                        "indices:admin/aliases",
+                        "indices:monitor/stats")
+                .put("armor.allow_kibana_actions", false)
+                .put("armor.obfuscation.filter.enabled", true)
+                .put("armor.action.wildcard.expansion.enabled", true)
+                .put(authSettings)
+                .build();
+
+        startES(settings);
+
+        setupTestData("ac_rules_31.json");
+
+        final String indexOwned = "logs-xv-12345-i-databanksuper";
+
+        final String indexShared = "logs-gt-6789-i-databankzeta";
+
+
+        final JestClient localClient = getJestClient(getServerUri(true), username, password);
+
+        JestResult cRespLoc1 = localClient.execute(new CreateIndex.Builder(indexOwned).build());
+        Assert.assertTrue(cRespLoc1.isSucceeded());
+
+        JestResult cRespLoc2 = localClient.execute(new CreateIndex.Builder(indexShared).build());
+        Assert.assertTrue(cRespLoc2.isSucceeded());
+
+        final JestClient client = getJestClient(getServerUri(false),username, password);
+
+        JestResult resp1 = client.execute(new Cat.IndicesBuilder().build());
+
+        String respString = resp1.getJsonString();
+
+        Assert.assertTrue(respString.contains(indexOwned));
+        Assert.assertTrue(respString.contains(indexShared));
+        Assert.assertFalse(respString.contains("financial"));
+        Assert.assertFalse(respString.contains("marketing"));
+
+    }
 
 }
