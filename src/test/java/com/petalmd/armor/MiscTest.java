@@ -406,6 +406,8 @@ public class MiscTest extends AbstractArmorTest {
         Assert.assertTrue(respString.contains(indexOwned));
         Assert.assertTrue(respString.contains(indexShared));
         Assert.assertFalse(respString.contains("ceo")); //setup index
+        Assert.assertFalse(respString.contains("marketing")); //setup index
+
     }
 
     @Test
@@ -439,7 +441,7 @@ public class MiscTest extends AbstractArmorTest {
 
         startES(settings);
 
-        setupTestData("ac_rules_31.json");
+        setupTestData("ac_rules_32.json");
 
         final String indexOwned = "logs-xv-12345-i-databanksuper";
 

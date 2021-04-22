@@ -222,7 +222,9 @@ public class AggregationFilter extends AbstractActionFilter {
             rewrittenBuilder.searchAfter(sBuilder.searchAfter());
         }
         rewrittenBuilder.slice(sBuilder.slice());
-        rewrittenBuilder.size(sBuilder.size());
+        if (sBuilder.size() >= 0) {
+            rewrittenBuilder.size(sBuilder.size());
+        }
         if (sBuilder.sorts() != null) {
             for (SortBuilder sb : sBuilder.sorts()) {
                 rewrittenBuilder.sort(sb);
