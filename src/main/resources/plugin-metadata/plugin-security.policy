@@ -29,6 +29,13 @@ grant {
   permission org.elasticsearch.secure_sm.ThreadPermission "modifyArbitraryThread";
   permission org.elasticsearch.secure_sm.ThreadPermission "modifyArbitraryThreadGroup";
   permission java.lang.RuntimePermission "accessUserInformation";
+  permission java.util.PropertyPermission "*", "read";
+
+  //LDAP
+  permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+  permission java.lang.RuntimePermission "modifyThreadGroup";
 
   //Kerberos
   permission javax.security.auth.AuthPermission "doAs";

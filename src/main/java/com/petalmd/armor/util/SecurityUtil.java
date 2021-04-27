@@ -20,6 +20,7 @@ package com.petalmd.armor.util;
 
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import org.apache.directory.api.ldap.codec.standalone.StandaloneLdapApiService;
 import org.apache.directory.api.ldap.model.exception.LdapException;
 import org.apache.directory.ldap.client.api.LdapConnection;
 import org.apache.directory.ldap.client.api.LdapConnectionConfig;
@@ -268,7 +269,7 @@ public class SecurityUtil {
                     config.setLdapPort(useSSL ? 636 : 389);
                 }
 
-                ldapConnection = new LdapNetworkConnection(config);
+                ldapConnection = new LdapNetworkConnection(config, new StandaloneLdapApiService());
                 ldapConnection.connect();
                 if (!ldapConnection.isConnected()) {
                     continue;
@@ -279,6 +280,8 @@ public class SecurityUtil {
 
             } catch (final NumberFormatException e) {
                 continue;
+            } catch (Exception ex) {
+                throw new LdapException("Error during StandaloneLdapApiService instanciation", ex);
             }
         }
 
@@ -298,7 +301,7 @@ public class SecurityUtil {
         } catch (final LdapException ex) {
             log.warn("LdapException during unbind", ex);
         } catch (final Exception ex) {
-            log.warn("Unknown Exception during unbind",ex);
+            log.warn("Unknown Exception during unbind", ex);
         }
 
     }

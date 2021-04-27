@@ -43,10 +43,6 @@ grant {
   permission java.net.NetPermission "getNetworkInformation";
 
   //LDAP
-  permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
-  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
-  permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
-  permission java.lang.RuntimePermission "modifyThreadGroup";
   permission java.security.SecurityPermission "getProperty.ssl.KeyManagerFactory.algorithm";
   permission java.io.FilePermission "target/tmp/ldif1.ldif", "read,readlink,write,delete";
 
@@ -71,6 +67,14 @@ grant {
   permission org.elasticsearch.secure_sm.ThreadPermission "modifyArbitraryThread";
   permission org.elasticsearch.secure_sm.ThreadPermission "modifyArbitraryThreadGroup";
   permission java.lang.RuntimePermission "accessUserInformation";
+  permission java.util.PropertyPermission "*", "read";
+
+
+  //LDAP
+  permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.reflect";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+  permission java.lang.RuntimePermission "accessClassInPackage.sun.security.x509";
+  permission java.lang.RuntimePermission "modifyThreadGroup";
 
   //Kerberos
   permission javax.security.auth.AuthPermission "doAs";
