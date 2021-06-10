@@ -117,7 +117,7 @@ public class MultiAuthenticationBackend
             log.error("error with the authentication system due to {}",authEx.get());
             throw new ElasticsearchException("error with the authentication system, please retry or report the error");
         } else {
-            throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions));
+            throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions), AuthException.ExceptionType.NOT_FOUND);
         }
     }
 }
