@@ -38,4 +38,6 @@ public interface AuditListener {
     default void onFailedLogin(String username, TransportRequest request, ThreadContext threadContext){}
 
     default void onMissingPrivileges(String username, TransportRequest request, ThreadContext threadContext){}
+
+    default void setAuditForwarder(AuditForwarder forwarder) {}
 }

@@ -44,6 +44,7 @@ import org.elasticsearch.transport.TransportRequest;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -56,6 +57,8 @@ public class ESStoreAuditListener implements AuditListener {
     private final Client client;
     private final Settings settings;
     private final String securityConfigurationIndex;
+    private AuditForwarder auditForwarder;
+
     protected final Logger log = LogManager.getLogger(this.getClass());
 
     private static final String AUDIT_USER = "audit_user";
@@ -71,6 +74,7 @@ public class ESStoreAuditListener implements AuditListener {
         super();
         this.client = client;
         this.settings = settings;
+        this.auditForwarder = null;
 
         securityConfigurationIndex = settings.get(ConfigConstants.ARMOR_CONFIG_INDEX_NAME + "_audit",
                 ConfigConstants.DEFAULT_SECURITY_CONFIG_INDEX + "_audit");
@@ -78,9 +82,15 @@ public class ESStoreAuditListener implements AuditListener {
     }
 
     @Override
+    public void setAuditForwarder(AuditForwarder forwarder) {
+        auditForwarder = forwarder;
+    }
+
+    @Override
     public void onFailedLogin(final String username, final RestRequest request, final ThreadContext threadContext) {
 
         final AuditMessage msg = new AuditMessage(username, "failed_login", request, settings);
+        auditForwarder.forwardFailedLogin(username, request, threadContext);
         index(msg, threadContext);
 
     }
@@ -242,7 +252,7 @@ public class ESStoreAuditListener implements AuditListener {
         return auditIndexCreated.get();
     }
 
-    private static class AuditMessage {
+    public static class AuditMessage {
         final Map<String, Object> auditInfo = new HashMap<String, Object>();
 
         private AuditMessage(final String username, final String message, final TransportRequest request, final ThreadContext threadContext) {
@@ -284,7 +294,7 @@ public class ESStoreAuditListener implements AuditListener {
         private AuditMessage(final String username, final String message, final RestRequest request, final Settings settings) {
             auditInfo.put("audit_user", username);
             auditInfo.put("audit_message", message);
-            auditInfo.put("audit_date", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            auditInfo.put("audit_date", Instant.now().toString());
             //TODO
             //auditInfo.put("audit_details_context", String.valueOf(request.getContext()));
             //auditInfo.put("audit_details_headers", Iterables.toString(request.headers()));
@@ -304,6 +314,10 @@ public class ESStoreAuditListener implements AuditListener {
         @Override
         public String toString() {
             return "AuditMessage [auditInfo=" + auditInfo + "]";
+        }
+
+        public Map<String, Object> getAuditInfo() {
+            return auditInfo;
         }
 
     }

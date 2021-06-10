@@ -26,6 +26,7 @@ public final class ConfigConstants {
     public static final String ARMOR_ALLOW_KIBANA_ACTIONS = "armor.allow_kibana_actions";
     public static final String ARMOR_AUDITLOG_ENABLED = "armor.auditlog.enabled";
     public static final String ARMOR_AUDIT_KAFKA_ENABLED = "armor.audit.kafka.enabled";
+    public static final String ARMOR_AUDIT_KAFKA_PRINT_MESSAGES_ENABLED = "armor.audit.kafka.print_messages.enabled";
     public static final String ARMOR_AUDIT_KAFKA_BOOTSTRAP_SERVERS = "armor.audit.kafka.bootstrap_servers";
     public static final String ARMOR_AUDIT_KAFKA_CLIENT_ID = "armor.audit.kafka.client_id";
     public static final String ARMOR_AUDIT_KAFKA_COMPRESSION_CODEC = "armor.audit.kafka.compression_codec";

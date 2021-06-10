@@ -1,12 +1,13 @@
 package com.petalmd.armor.filter;
 
-import com.petalmd.armor.audit.KafkaAuditFactory;
-import com.petalmd.armor.audit.KafkaAuditMessage;
+import com.petalmd.armor.audit.*;
 import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.common.KafkaOutput;
 import com.petalmd.armor.common.LDPGelf;
+import com.petalmd.armor.service.ArmorService;
 import com.petalmd.armor.util.ArmorConstants;
 import com.petalmd.armor.util.ConfigConstants;
+import com.petalmd.armor.util.SecurityUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -24,33 +25,36 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ArmorAuditFilter implements ActionFilter {
+public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
 
     private static final Logger log = LogManager.getLogger(ArmorAuditFilter.class);
 
-    private boolean enabled;
-    private ThreadPool threadpool;
-    private KafkaAuditFactory kafkaAuditFactory;
-    private String clusterName;
-    private String clientId;
-    private String xOVHToken;
+    private final boolean enabled;
+    private final ThreadPool threadpool;
+    private final KafkaAuditFactory kafkaAuditFactory;
+    private final String clusterName;
+    private final String clientId;
+    private final String xOVHToken;
+    private final Settings settings;
 
-    public ArmorAuditFilter(final Settings settings, final ClusterService clusterService,
+    public ArmorAuditFilter(final Settings settings, final ClusterService clusterService, final ArmorService armorService,
                             final ThreadPool threadpool) {
 
         this.enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false);
         this.clientId = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_CLIENT_ID, "es-armor");
+        this.settings = settings;
         this.threadpool = threadpool;
         this.kafkaAuditFactory = KafkaAuditFactory.makeInstance(settings);
         this.clusterName = clusterService.getClusterName().value();
         this.xOVHToken = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_X_OVH_TOKEN, "unknown");
+        if(enabled) {
+            armorService.getAuditListener().setAuditForwarder(this);
+        }
 
         log.info("ArmorAuditFilter is {}", enabled ? "enabled" : "not enabled");
     }
@@ -109,6 +113,27 @@ public class ArmorAuditFilter implements ActionFilter {
         AuditListener auditListener = new AuditListener(listener, kafkaAuditFactory, action, request, user, method, url, resolvedAddress, clusterName, clientId, xOVHToken);
         chain.proceed(task, action, request, auditListener);
 
+    }
+
+    @Override
+    public void forwardFailedLogin(final String username, final RestRequest request, final ThreadContext threadContext) {
+        if (!enabled || kafkaAuditFactory.getKafkaOutput() == null) {
+            return;
+        }
+
+        KafkaOutput kafkaAuditOutput = kafkaAuditFactory.getKafkaOutput();
+
+        final Instant date = Instant.now();
+        InetAddress address = null;
+        try {
+            address = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
+        } catch (UnknownHostException uhEx) {
+            log.warn("couldn't retrieve failed login origin");
+        }
+        KafkaAuditMessage failedAudit = new KafkaAuditMessage(date, "unknown", username, request.method().toString(), request.path(), address, clusterName, clientId, xOVHToken);
+
+        kafkaAuditOutput.sendLDPGelf(failedAudit.toLDPGelf());
+        log.debug("failed login : {}",failedAudit.toString());
     }
 
     private static class AuditListener implements ActionListener {

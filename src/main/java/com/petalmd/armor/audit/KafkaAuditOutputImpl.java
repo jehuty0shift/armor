@@ -24,8 +24,9 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
 
 
     private Properties kProps;
-    private boolean enabled;
-    private KafkaProducer kProducer;
+    private final boolean enabled;
+    private final boolean printEnabled;
+    private KafkaProducer<String, String> kProducer;
     private String topic;
     private ObjectMapper objMapper;
 
@@ -34,8 +35,8 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
 
     public KafkaAuditOutputImpl(final Settings settings) {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false);
-
-        log.info("Kafka Audit Output Impl is {}.",enabled?"enabled":"not enabled");
+        printEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_PRINT_MESSAGES_ENABLED, false);
+        log.info("Kafka Audit Output Impl is {}.", enabled ? "enabled" : "not enabled");
         if (!enabled) {
             return;
         }
@@ -46,13 +47,13 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
         final String bootstrapServers = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_BOOTSTRAP_SERVERS);
         final String securityProtocol = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SECURITY_PROTOCOL);
         final String SSLTruststoreLocation = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_LOCATION, "");
-        final String SSLTruststorePassword = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD,"");
+        final String SSLTruststorePassword = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SSL_TRUSTSTORE_PASSWORD, "");
         final String SASLUsername = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SASL_USERNAME);
         final String SASLPassword = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_SASL_PASSWORD);
-        final String ackConfig = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_ACKS_CONFIG,"1");
+        final String ackConfig = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_ACKS_CONFIG, "1");
         final String compressionCodec = settings.get(ConfigConstants.ARMOR_AUDIT_KAFKA_COMPRESSION_CODEC, "gzip");
 
-        log.info("audit topic: {};  bootstrap.servers :'{}', security.protocol : {}, sasl.username : {}",topic, bootstrapServers, securityProtocol, SASLUsername);
+        log.info("audit topic: {};  bootstrap.servers :'{}', security.protocol : {}, sasl.username : {}", topic, bootstrapServers, securityProtocol, SASLUsername);
 
         kProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         kProps.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
@@ -82,18 +83,19 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
         if (!enabled || kProducer != null) {
             return;
         }
-        kProducer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer>) () -> {
+        kProducer = AccessController.doPrivileged((PrivilegedAction<KafkaProducer<String, String>>) () -> {
             //This is necessary to force the Kafka Serializer loader to use the classloader used to load kafkaProducer classes
             kProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
             kProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
             Thread.currentThread().setContextClassLoader(KafkaProducer.class.getClassLoader());
-            return new KafkaProducer<String, String>(kProps); });
+            return new KafkaProducer<>(kProps);
+        });
     }
 
 
     @Override
     public void flush() {
-        if(enabled && kProducer != null) {
+        if (enabled && kProducer != null) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 kProducer.flush();
                 return null;
@@ -103,7 +105,7 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
 
     @Override
     public void close() {
-        if(enabled && kProducer != null) {
+        if (enabled && kProducer != null) {
             AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 kProducer.close();
                 return null;
@@ -121,17 +123,21 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
             throw new ElasticsearchException("Kafka Producer is not ready");
         }
 
+
         try {
 
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String document = objMapper.writeValueAsString(ldpGelf.getDocumentMap());
-                kProducer.send(new ProducerRecord(topic,  null, ldpGelf.getTimestamp().toInstant().getMillis(), null, document));
+                if (printEnabled) {
+                    log.info("{}", document);
+                }
+                kProducer.send(new ProducerRecord<>(topic, null, ldpGelf.getTimestamp().toInstant().getMillis(), null, document));
                 return null;
             });
 
         } catch (PrivilegedActionException e) {
-            if(e.getException() instanceof IOException) {
-                throw new ElasticsearchException("Couldn't serialize LDPGelf message",e.getException());
+            if (e.getException() instanceof IOException) {
+                throw new ElasticsearchException("Couldn't serialize LDPGelf message", e.getException());
             } else {
                 throw new ElasticsearchException("Couldn't use Kafka Audit Output due to exception", e.getException());
             }

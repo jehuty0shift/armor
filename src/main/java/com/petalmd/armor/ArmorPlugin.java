@@ -271,7 +271,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> actionFilters = new ArrayList<>();
         if (enabled && !isPureClient) {
-            actionFilters.add(new ArmorAuditFilter(settings, clusterService, threadPool));
+            actionFilters.add(new ArmorAuditFilter(settings, clusterService, armorService, threadPool));
             actionFilters.add(new KibanaHelperFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new BypassFilter(settings, clusterService, threadPool, armorService, armorConfigService));
             actionFilters.add(new RequestActionFilter(settings, clusterService, threadPool, armorService, armorConfigService));
@@ -522,6 +522,7 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
 
         //Audit Kafka
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_AUDIT_KAFKA_PRINT_MESSAGES_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_BOOTSTRAP_SERVERS, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_AUDIT_KAFKA_TOPIC, Setting.Property.NodeScope, Setting.Property.Filtered));
