@@ -117,9 +117,16 @@ public class KafkaAuditMessage {
         LDPGelf ldpGelf = new LDPGelf();
         ldpGelf.setTimestamp(org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
         ldpGelf.setHost(clientId);
-        ldpGelf.addDate("end", org.joda.time.Instant.ofEpochMilli(end.toEpochMilli()).toDateTime(DateTimeZone.UTC));
+        if (end != null) {
+            ldpGelf.addDate("end", org.joda.time.Instant.ofEpochMilli(end.toEpochMilli()).toDateTime(DateTimeZone.UTC));
+        } else {
+            //we put start at the end (instant Event)
+            ldpGelf.addDate("end", org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
+        }
         ldpGelf.addDate("start", org.joda.time.Instant.ofEpochMilli(start.toEpochMilli()).toDateTime(DateTimeZone.UTC));
-        ldpGelf.addInt("duration", (int) (end.toEpochMilli() - start.toEpochMilli()));
+        if (end != null) {
+            ldpGelf.addInt("duration", (int) (end.toEpochMilli() - start.toEpochMilli()));
+        }
         ldpGelf.setMessage(user + ": " + method + " " + url);
         if (remoteAddress != null) {
             ldpGelf.addIP("remote_address", remoteAddress);
@@ -142,7 +149,7 @@ public class KafkaAuditMessage {
 
         if (items != null && !items.isEmpty()) {
             items.sort(String::compareTo);
-            ldpGelf.addString("_items", items.stream().collect(Collectors.joining(", ")));
+            ldpGelf.addString("_items", String.join(", ", items));
         }
 
         return ldpGelf;

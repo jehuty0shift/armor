@@ -134,7 +134,7 @@ public class ArmorRestShield {
 
             if (log.isTraceEnabled()) {
                 log.trace("Headers: {}", "{ \n" + request.getHeaders().entrySet().stream()
-                        .map(e ->  "[" + e.getKey() + ": " + e.getValue().stream().collect(Collectors.joining(",")) + "],")
+                        .map(e -> "[" + e.getKey() + ": " + e.getValue().stream().collect(Collectors.joining(",")) + "],")
                         .collect(Collectors.joining(", ")) + "\n}");
             }
 
@@ -145,7 +145,6 @@ public class ArmorRestShield {
                 throw e;
             }
         }
-
 
 
         User sessionUser = null;
@@ -202,13 +201,12 @@ public class ArmorRestShield {
             }
 
             threadContext.putTransient(ArmorConstants.ARMOR_ADDITIONAL_RIGHTS, additionalRightsList);
-
             threadContext.putTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER, authenticatedUser);
             return true;
 
         } catch (final AuthException e1) {
             channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e1));
-            auditListener.onFailedLogin("unknown", request, threadContext);
+            auditListener.onFailedLogin(e1.getUsername() != null ? e1.getUsername() : "unknown", request, threadContext);
             log.error(e1.toString(), e1);
             return false;
         } catch (final Exception e1) {

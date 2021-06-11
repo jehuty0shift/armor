@@ -125,12 +125,15 @@ public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
 
         final Instant date = Instant.now();
         InetAddress address = null;
+
         try {
             address = SecurityUtil.getProxyResolvedHostAddressFromRequest(request, settings);
         } catch (UnknownHostException uhEx) {
             log.warn("couldn't retrieve failed login origin");
         }
-        KafkaAuditMessage failedAudit = new KafkaAuditMessage(date, "unknown", username, request.method().toString(), request.path(), address, clusterName, clientId, xOVHToken);
+
+        KafkaAuditMessage failedAudit = new KafkaAuditMessage(date,"login:failure" , username, request.method().toString(), request.path(), address, clusterName, clientId, xOVHToken);
+        failedAudit.setStatus(KafkaAuditMessage.Status.FAILURE);
 
         kafkaAuditOutput.sendLDPGelf(failedAudit.toLDPGelf());
         log.debug("failed login : {}",failedAudit.toString());

@@ -119,10 +119,7 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
             return;
         }
 
-        if (kProducer == null) {
-            throw new ElasticsearchException("Kafka Producer is not ready");
-        }
-
+        initialize();
 
         try {
 

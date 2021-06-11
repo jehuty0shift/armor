@@ -25,7 +25,8 @@ public class AuthException extends Exception {
         ERROR
     }
 
-    public ExceptionType type;
+    private ExceptionType type;
+    private String username;
 
     public AuthException(ExceptionType type) {
             this.type = type;
@@ -51,9 +52,22 @@ public class AuthException extends Exception {
         this.type = type;
     }
 
+    public AuthException(final String message, final ExceptionType type, final String username) {
+        super(message);
+        this.type = type;
+        this.username = username;
+    }
+
+
     public AuthException(final Throwable cause, final ExceptionType type) {
         super(cause);
         this.type = type;
+    }
+
+    public AuthException(final Throwable cause, final ExceptionType type, final String username) {
+        super(cause);
+        this.type = type;
+        this.username = username;
     }
 
     public AuthException(final String message, final Throwable cause, final ExceptionType type) {
@@ -61,7 +75,16 @@ public class AuthException extends Exception {
         this.type = type;
     }
 
+    public AuthException(final String message, final Throwable cause, final ExceptionType type, final String username) {
+        super(message, cause);
+        this.type = type;
+        this.username = username;
+    }
+
     public ExceptionType getType() {
         return type;
     }
+
+    public String getUsername() { return username; }
+
 }

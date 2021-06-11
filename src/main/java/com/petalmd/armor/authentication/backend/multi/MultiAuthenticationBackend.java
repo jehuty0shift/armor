@@ -114,9 +114,10 @@ public class MultiAuthenticationBackend
         }
         Optional<AuthException> authEx = exceptions.stream().filter(ex-> ex.getType().equals(AuthException.ExceptionType.ERROR)).findAny();
         if(authEx.isPresent()) {
+            log.error("error with the authentication system due to {}",authEx.get());
             throw new ElasticsearchException("error with the authentication system, please retry or report the error");
         } else {
-            throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions), AuthException.ExceptionType.NOT_FOUND);
+            throw new AuthException("Couldn't authenticate user " + credentials.getUsername() + " against any of the backends.", new MultiAuthException(exceptions), AuthException.ExceptionType.NOT_FOUND, credentials.getUsername());
         }
     }
 }
