@@ -124,8 +124,15 @@ public class IndexLifecycleFilter extends AbstractActionFilter {
         log.debug("action is {}", action);
         ThreadContext threadContext = threadpool.getThreadContext();
 
-        //Check rights In Mongo
         User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        //Check if user is in whitelist
+        List<String> usersWhitelist = settings.getAsList(ConfigConstants.ARMOR_INDEX_LIFECYCLE_USER_WHITELIST,Collections.emptyList());
+        if(usersWhitelist.contains(restUser.getName())) {
+            chain.proceed(task,action,request,listener);
+            return;
+        }
+
+        //Check rights In Mongo
         EngineUser engineUser = AccessController.doPrivileged((PrivilegedAction<EngineUser>) () ->
                 engineUsers.find(Filters.eq("username", restUser.getName())).first());
         if (engineUser == null) {

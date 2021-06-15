@@ -103,11 +103,13 @@ public final class ConfigConstants {
     public static final String ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_ALIAS_BY_USER = "armor.alias_lifecycle.filter.max_num_of_alias_by_user";
     public static final String ARMOR_ALIAS_LIFECYCLE_MAX_NUM_OF_INDICES_BY_ALIAS = "armor.alias_lifecycle.filter.max_num_of_indices_by_alias";
     public static final String ARMOR_ALIAS_LIFECYCLE_ADDITIONAL_RIGHTS_LIGHT_CHECK = "armor.alias_lifecycle.filter.additionalrights.light_check";
+    public static final String ARMOR_ALIAS_LIFECYCLE_USER_WHITELIST = "armor.alias_lifecycle.filter.user_whitelist";
     public static final String ARMOR_INDEX_LIFECYCLE_ENABLED = "armor.index_lifecycle.filter.enabled";
     public static final String ARMOR_INDEX_LIFECYCLE_ALLOWED_SETTINGS = "armor.index_lifecycle.filter.allowed_settings";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_USER = "armor.index_lifecycle.filter.max_num_of_shards_by_user";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_SHARDS_BY_INDEX = "armor.index_lifecycle.filter.max_num_of_shards_by_index";
     public static final String ARMOR_INDEX_LIFECYCLE_MAX_NUM_OF_REPLICAS_BY_INDEX = "armor.index_lifecycle.filter.max_num_of_replicas_by_index";
+    public static final String ARMOR_INDEX_LIFECYCLE_USER_WHITELIST = "armor.index_lifecycle.filter.user_whitelist";
     public static final String ARMOR_INGEST_PIPELINE_FILTER_ENABLED = "armor.ingest.pipeline.filter_enabled";
     public static final String ARMOR_KIBANA_HELPER_ENABLED = "armor.kibana.filter.enabled";
     public static final String ARMOR_KEFLA_FILTER_ENABLED = "armor.kefla.filter.enabled";

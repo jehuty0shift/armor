@@ -111,6 +111,12 @@ public class AliasLifeCycleFilter extends AbstractActionFilter {
 
         ThreadContext threadContext = threadpool.getThreadContext();
         User restUser = threadContext.getTransient(ArmorConstants.ARMOR_AUTHENTICATED_USER);
+        //Check if user is in whitelist
+        List<String> usersWhitelist = settings.getAsList(ConfigConstants.ARMOR_ALIAS_LIFECYCLE_USER_WHITELIST, Collections.emptyList());
+        if (usersWhitelist.contains(restUser.getName())) {
+            chain.proceed(task, action, request, listener);
+            return;
+        }
 
         log.info("user {} is requesting {} alias actions", restUser.getName(), aliasActions.size());
         List<String> additionalRights = new ArrayList<>();
