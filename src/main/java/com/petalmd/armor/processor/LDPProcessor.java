@@ -112,6 +112,7 @@ public class LDPProcessor extends AbstractProcessor {
 
 
     private void addEntryToLDPGelf(final String key, final Object value, final LDPGelf ldpGelf) {
+
         if (value instanceof ZonedDateTime) {
             final ZonedDateTime zdtValue = (ZonedDateTime) value;
             if (log.isDebugEnabled()) {
@@ -196,6 +197,11 @@ public class LDPProcessor extends AbstractProcessor {
             ldpGelf.addString(key, strValue);
             return;
         }
+
+        if (value == null) {
+            return;
+        }
+
         log.warn("couldn't find the type of the value added {} and type {}", value.toString(), value.getClass().getName());
     }
 
