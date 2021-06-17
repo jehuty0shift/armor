@@ -235,6 +235,7 @@ public class TokenEvaluator {
             }
         } else {
             log.debug("    --> Alias wildcard match");
+            log.debug("    ----> APPLY RULE for {} aliases <---- which means the following executeFilters: {}/bypassFilters: {}", requestedAliases.size(), acRule.getFilters_execute(), acRule.getFilters_bypass());
             requestedAliases.stream().forEach(alias -> evaluator.addAliasFilters(alias, new EntityFilters(acRule)));
         }
 
@@ -302,10 +303,11 @@ public class TokenEvaluator {
 
         log.debug("Checking " + (acRules.getAcl().size() - 1) + " rules");
 
-        final List<String> requestedIndicesExp = new ArrayList();
+        final List<String> requestedIndicesExp = new ArrayList<>();
         final List<String> requestedAliasesExp = new ArrayList<>();
 
         if ((requestedIndices == null || requestedIndices.isEmpty()) && (requestedAliases == null || requestedAliases.isEmpty())) {
+            log.debug("requestedAliases and requestedIndices are empty, adding '*' for both");
             requestedIndicesExp.add("*");
             requestedAliasesExp.add("*");
         } else {
@@ -320,7 +322,7 @@ public class TokenEvaluator {
                 .filter(acRule -> acRuleFindDefault(acRule, evaluator))
                 .filter(acRule -> acRuleCheckUserOrRole(acRule, user))
                 .filter(acRule -> acRuleCheckNetworkOrigin(acRule, requestedClientHostName, requestedClientHostIp))
-                .map(acRule -> acRuleMatchAliases(acRule, evaluator, requestedAliases, indicesLikeAliases))
+                .map(acRule -> acRuleMatchAliases(acRule, evaluator, requestedAliasesExp, indicesLikeAliases))
                 .map(acRule -> acRuleMatchIndices(acRule, evaluator, requestedIndicesExp)).count();
 
         if (evaluator.getDefaultFilters() == null) {
