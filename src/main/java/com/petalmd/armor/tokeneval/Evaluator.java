@@ -149,7 +149,7 @@ public class Evaluator implements Serializable {
         for (Map.Entry<String, EntityFilters> indexFilter : indicesFilters.entrySet()) {
             String index = indexFilter.getKey();
             EntityFilters eFilters = indexFilter.getValue();
-            log.debug("evaluating filters for index {}", index);
+            log.debug("evaluating filters for index {}, with filters ex/bypass {}/{}", index, eFilters.getExecuteFilters(), eFilters.getBypassFilters());
             Optional<EvalResult> filtersResult = allowedActionForItem(index, eFilters, action, filters, additionalRights, threadContext);
             if (filtersResult.isPresent()) {
                 return filtersResult.get();
@@ -160,7 +160,7 @@ public class Evaluator implements Serializable {
         for (Map.Entry<String, EntityFilters> aliasFilter : aliasFilters.entrySet()) {
             String alias = aliasFilter.getKey();
             EntityFilters eFilters = aliasFilter.getValue();
-            log.debug("evaluating filters for alias {}", alias);
+            log.debug("evaluating filters for alias {}, with filters ex/bypass: {}/{}", alias, eFilters.getExecuteFilters(), eFilters.getBypassFilters());
             Optional<EvalResult> filtersResult = allowedActionForItem(alias, eFilters, action, filters, additionalRights, threadContext);
             if (filtersResult.isPresent()) {
                 return filtersResult.get();
@@ -184,7 +184,7 @@ public class Evaluator implements Serializable {
             }
         }
 
-        log.debug("merged action filters for item {} and action {} : {}",item, action, mergedFilters);
+        log.debug("merged action filters for item {} and action {} : {}", item, action, mergedFilters);
 
         boolean allowed = false;
         for (String filter : filters) {
