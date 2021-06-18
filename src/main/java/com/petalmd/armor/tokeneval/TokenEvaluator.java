@@ -77,6 +77,7 @@ public class TokenEvaluator {
         for (ACRule acl : acRules.getAcl()) {
             log.trace("checking rule {}", acl.get__Comment__() != null ? acl.get__Comment__() : "unknown");
             log.trace("acl Users {}, acl Roles {}", acl.getUsers(), acl.getRoles());
+            log.trace("acl indices {}, acl aliases {}", acl.getIndices(), acl.getAliases());
             boolean shouldAddEntities = false;
             //check User names
             if (acl.getUsers() != null &&

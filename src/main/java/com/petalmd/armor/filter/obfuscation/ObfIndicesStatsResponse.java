@@ -48,18 +48,19 @@ public class ObfIndicesStatsResponse implements ObfResponse {
             if (tokenEval != null) {
                 final RulesEntities rulesEntities = tokenEval.findEntitiesForUser(user);
                 Set<String> indicesAllowed = rulesEntities.getIndices();
-                Set<String> aliasAllowed = rulesEntities.getAliases();
+                Set<String> aliasesAllowed = rulesEntities.getAliases();
+                log.debug("indices allowed {}; aliases allowed {}",indicesAllowed, aliasesAllowed);
                 for (ShardStats shardStats : isr.getShards()) {
                     final String indexName = shardStats.getShardRouting().getIndexName();
                     if (indicesAllowed.stream().anyMatch(i -> SecurityUtil.isWildcardMatch(indexName, i, false))
-                            || aliasAllowed.stream().anyMatch(a -> SecurityUtil.isWildcardMatch(indexName, a, false))) {
+                            || aliasesAllowed.stream().anyMatch(a -> SecurityUtil.isWildcardMatch(indexName, a, false))) {
                         newShardStats.add(shardStats);
                     }
                 }
                 for (DefaultShardOperationFailedException dsofEx : isr.getShardFailures()) {
                     final String indexName = dsofEx.toString().split("\\[")[1].split("\\]")[0]; //toString format: [ + index + ]+[+shardId+]+....
                     if (indicesAllowed.stream().anyMatch(i -> SecurityUtil.isWildcardMatch(indexName, i, false))
-                            || aliasAllowed.stream().anyMatch(a -> SecurityUtil.isWildcardMatch(indexName, a, false))) {
+                            || aliasesAllowed.stream().anyMatch(a -> SecurityUtil.isWildcardMatch(indexName, a, false))) {
                         newFailedException.add(dsofEx);
                     }
                 }

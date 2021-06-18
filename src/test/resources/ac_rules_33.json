@@ -3,7 +3,7 @@
       {
          "__Comment__":"Default is no token at all, so when no rule below match the requestor will get no token",
          "filters_bypass": [],
-         "filters_execute": ["*"]
+         "filters_execute": ["actionrequestfilter.default"]
       },
       {
          "hosts":[

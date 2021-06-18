@@ -20,12 +20,16 @@ public class RulesEntities {
 
     public void addIndices(Collection<String> newIndices) {
         indices.addAll(newIndices);
-        indices.remove("*");
+        if (indices.size() > 1) {
+            indices.remove("*");
+        }
     }
 
     public void addAliases(Collection<String> newAliases) {
         aliases.addAll(newAliases);
-        aliases.remove("*");
+        if (aliases.size() > 1) {
+            aliases.remove("*");
+        }
     }
 
     public Set<String> getAliases() {

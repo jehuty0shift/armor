@@ -322,8 +322,9 @@ public class MiscTest extends AbstractArmorTest {
 
         final Settings settings = Settings
                 .builder()
-                .putList("armor.actionrequestfilter.names", "readonly")
+                .putList("armor.actionrequestfilter.names", "default","readonly")
                 .putList("armor.actionrequestfilter.readonly.allowed_actions", "indices:admin/aliases/get")
+                .putList("armor.actionrequestfilter.default.allowed_actions", "cluster:monitor/health")
                 .put("armor.allow_kibana_actions", false)
                 .put("armor.obfuscation.filter.enabled", true)
                 .put("armor.action.wildcard.expansion.enabled", true)
@@ -333,7 +334,7 @@ public class MiscTest extends AbstractArmorTest {
         startES(settings);
         username = "jacksonm";
         password = "secret";
-        setupTestData("ac_rules_19.json");
+        setupTestData("ac_rules_33.json");
 
         final RestHighLevelClient client = getRestClient(false, username, password);
 
