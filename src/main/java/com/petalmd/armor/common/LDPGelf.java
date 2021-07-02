@@ -8,7 +8,6 @@ import org.joda.time.format.ISODateTimeFormat;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.LongAccumulator;
 
 public class LDPGelf {
     private final Map<String, Object> document;
@@ -68,7 +67,7 @@ public class LDPGelf {
         if (!finalField.endsWith("_bool")) {
             finalField += "_bool";
         }
-        String strValue = value?"true":"false";
+        String strValue = value ? "true" : "false";
         return addValue(finalField, strValue);
     }
 
@@ -91,7 +90,7 @@ public class LDPGelf {
             finalField += "_ip";
         }
         //add Ip in string
-        addValue(finalField.substring(0,finalField.length()-3),ip.toString());
+        addValue(finalField.substring(0, finalField.length() - 3), ip.toString());
         return addValue(finalField, ip.getHostAddress());
     }
 
@@ -109,12 +108,17 @@ public class LDPGelf {
         return this;
     }
 
-    public DateTime getTimestamp(){
-        return Instant.ofEpochMilli(Double.valueOf((double)document.get("timestamp")).longValue() *1000l).toDateTime(DateTimeZone.UTC);
+    public DateTime getTimestamp() {
+        return Instant.ofEpochMilli(Double.valueOf((double) document.get("timestamp")).longValue() * 1000l).toDateTime(DateTimeZone.UTC);
     }
 
     public LDPGelf setHost(final String host) {
         document.put("host", host);
+        return this;
+    }
+
+    public LDPGelf setLevel(final int level) {
+        document.put("level", level);
         return this;
     }
 

@@ -98,6 +98,14 @@ public class LDPProcessor extends AbstractProcessor {
                 continue;
             }
 
+            if (fieldKey.equals("level")) {
+                if (ingestField.getValue() instanceof Number) {
+                    ldpGelf.setLevel(((Number) ingestField.getValue()).intValue());
+                } else {
+                    ldpGelf.addString("level_fixit",ingestField.getValue().toString());
+                }
+            }
+
             addEntryToLDPGelf(fieldKey, ingestField.getValue(), ldpGelf);
         }
 
