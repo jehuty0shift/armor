@@ -12,6 +12,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.Settings;
+import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.security.AccessController;
@@ -30,13 +31,33 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
     private String topic;
     private ObjectMapper objMapper;
 
-    protected final Logger log = LogManager.getLogger(KafkaAuditOutputImpl.class);
+    private static final String AUDIT_KAFKA_LOGGER_NAME = "audit.kafka.log";
 
+    protected final Logger log = LogManager.getLogger(KafkaAuditOutputImpl.class);
+    protected final Logger auditLog = LogManager.getLogger(AUDIT_KAFKA_LOGGER_NAME);
 
     public KafkaAuditOutputImpl(final Settings settings) {
         enabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_ENABLED, false);
-        printEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_PRINT_MESSAGES_ENABLED, false);
+        printEnabled = settings.getAsBoolean(ConfigConstants.ARMOR_AUDIT_KAFKA_PRINT_MESSAGES_ENABLED, true);
         log.info("Kafka Audit Output Impl is {}.", enabled ? "enabled" : "not enabled");
+        LDPGelf ldpGelf = new LDPGelf();
+        ldpGelf.addBoolean("audit_enabled", enabled);
+        ldpGelf.addBoolean("print_enabled", printEnabled);
+        ldpGelf.setTimestamp(DateTime.now());
+        ldpGelf.setMessage("Kafka Audit Output Impl is " + enabled);
+        ldpGelf.setHost("audit.kafka.log");
+        this.objMapper = new ObjectMapper();
+
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+
+            try {
+                auditLog.info(objMapper.writeValueAsString(ldpGelf.validate().getDocumentMap()));
+            } catch (IOException ex) {
+                log.error("Error on audit status writing", ex);
+            }
+            return null;
+        });
+
         if (!enabled) {
             return;
         }
@@ -74,7 +95,6 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
             kProps.put("sasl.jaas.config", jaasConfig);
         }
 
-        this.objMapper = new ObjectMapper();
 
     }
 
@@ -126,7 +146,7 @@ public class KafkaAuditOutputImpl implements KafkaOutput {
             AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
                 String document = objMapper.writeValueAsString(ldpGelf.getDocumentMap());
                 if (printEnabled) {
-                    log.info("{}", document);
+                    auditLog.info("{}", document);
                 }
                 kProducer.send(new ProducerRecord<>(topic, null, ldpGelf.getTimestamp().toInstant().getMillis(), null, document));
                 return null;
