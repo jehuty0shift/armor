@@ -100,14 +100,6 @@ public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
         final InetAddress resolvedAddress = threadContext.getTransient(ArmorConstants.ARMOR_RESOLVED_REST_ADDRESS);
 
 
-        if (RestRequest.Method.OPTIONS.equals(method) ||
-                RestRequest.Method.GET.equals(method) ||
-                RestRequest.Method.HEAD.equals(method)) {
-            log.trace("we don't audit OPTIONS, GET, HEAD methods");
-            chain.proceed(task, action, request, listener);
-            return;
-        }
-
         log.debug("Auditing request from {} by user : {}, url : {}, method : {}", resolvedAddress != null ? resolvedAddress.toString() : "unknown address", user.toString(), url, method.toString());
 
         AuditListener auditListener = new AuditListener(listener, kafkaAuditFactory, action, request, user, method, url, resolvedAddress, clusterName, clientId, xOVHToken);
@@ -144,6 +136,7 @@ public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
         private final ActionListener delegate;
         private final KafkaAuditMessage kafkaAuditMessage;
         private final KafkaAuditFactory kafkaAuditFactory;
+        private final RestRequest.Method method;
 
 
         public AuditListener(final ActionListener delegate,
@@ -158,7 +151,7 @@ public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
                              final String clientId,
                              final String xOVHToken) {
             this.delegate = delegate;
-
+            this.method = method;
             this.kafkaAuditMessage = new KafkaAuditMessage(Instant.now(), action, user.getName(), method.toString(), url, remoteAddress, clusterName, clientId, xOVHToken);
             this.kafkaAuditFactory = kafkaAuditFactory;
             if (request instanceof IndicesRequest) {
@@ -187,6 +180,14 @@ public class ArmorAuditFilter implements ActionFilter, AuditForwarder {
 
         @Override
         public void onResponse(Object o) {
+            if (RestRequest.Method.OPTIONS.equals(method) ||
+                    RestRequest.Method.GET.equals(method) ||
+                    RestRequest.Method.HEAD.equals(method)) {
+                log.trace("we don't audit successfull OPTIONS, GET, HEAD methods");
+                delegate.onResponse(o);
+                return;
+            }
+
             kafkaAuditMessage.setEnd(Instant.now());
             kafkaAuditMessage.setStatus(KafkaAuditMessage.Status.SUCCESS);
 

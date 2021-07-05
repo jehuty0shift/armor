@@ -43,7 +43,7 @@ public class KafkaEngineService extends AbstractLifecycleComponent {
 
 
     public KafkaEngineService(final Settings settings, final MongoDBService mongoDBService) {
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) | mongoDBService.getEngineDatabase().isPresent();
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) && mongoDBService.getEngineDatabase().isPresent();
         topicList = new ArrayList<>();
         if (enabled) {
             CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
