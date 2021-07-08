@@ -139,6 +139,9 @@ public final class ConfigConstants {
     public static final String ARMOR_MONGODB_GRAYLOG_DATABASE = "armor.mongo.graylog_database";
     public static final String ARMOR_MONGODB_ENCRYPTED_TOKEN_PRIVATE_KEY = "armor.mongodb.encrypted.token.private_key";
     public static final String ARMOR_KAFKA_ENGINE_SERVICE_ENABLED = "armor.kafka_engine.enabled";
+    public static final String ARMOR_KAFKA_ENGINE_SERVICE_VAULT_CLUSTER_PREFIX = "armor.kafka_engine.vault.cluster_prefix";
+    public static final String ARMOR_KAFKA_ENGINE_SERVICE_VAULT_ENABLED = "armor.kafka_engine.vault.enabled";
+    public static final String ARMOR_KAFKA_ENGINE_SERVICE_VAULT_AUTH = "armor.kafka_engine.vault.auth";
     public static final String ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID = "armor.kafka_engine.client_id";
     public static final String ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY = "armor.kafka_engine.private_key";
     public static final String ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX = "armor.kafka_engine.topic_suffix";

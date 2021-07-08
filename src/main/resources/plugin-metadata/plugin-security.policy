@@ -58,6 +58,9 @@ grant {
   permission javax.security.auth.AuthPermission "getSubject";
   permission javax.security.auth.PrivateCredentialPermission "* java.lang.String \"*\"", "read";
 
+  //for Vault
+  permission java.lang.RuntimePermission "setFactory";
+
  //zstd linux
   permission java.lang.RuntimePermission "getClassLoader";
   permission java.lang.RuntimePermission "createClassLoader";

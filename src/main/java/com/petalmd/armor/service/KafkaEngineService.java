@@ -1,5 +1,12 @@
 package com.petalmd.armor.service;
 
+import com.bettercloud.vault.SslConfig;
+import com.bettercloud.vault.Vault;
+import com.bettercloud.vault.VaultConfig;
+import com.bettercloud.vault.VaultException;
+import com.bettercloud.vault.json.Json;
+import com.bettercloud.vault.json.JsonObject;
+import com.bettercloud.vault.response.AuthResponse;
 import com.goterl.lazycode.lazysodium.LazySodiumJava;
 import com.goterl.lazycode.lazysodium.SodiumJava;
 import com.goterl.lazycode.lazysodium.exceptions.SodiumException;
@@ -24,6 +31,8 @@ import org.elasticsearch.common.settings.Settings;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -43,26 +52,63 @@ public class KafkaEngineService extends AbstractLifecycleComponent {
 
 
     public KafkaEngineService(final Settings settings, final MongoDBService mongoDBService) {
-        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false) && mongoDBService.getEngineDatabase().isPresent();
+        enabled = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false);
+        final boolean useVault = settings.getAsBoolean(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_ENABLED, false);
         topicList = new ArrayList<>();
+        log.info("Kafka Engine Service is {}", enabled ? "enabled" : "disabled");
+
         if (enabled) {
-            CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
-            MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
-                    mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class)
-            );
-            clientId = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID);
-            if (clientId == null) {
-                clientId = "client-" + Double.valueOf(Math.random()).intValue();
+            if (useVault) {
+                final String auth = new String(Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_AUTH)));
+                final JsonObject authObject = AccessController.doPrivileged((PrivilegedAction<JsonObject>) () -> Json.parse(auth).asObject());
+                final String vaultURL = authObject.getString("url");
+                final String roleID = authObject.getString("role_id");
+                final String secretId = authObject.getString("secret_id");
+                final String clusterPrefix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_CLUSTER_PREFIX);
+
+                try {
+                    log.info("connecting to Vault {} for cluster {}", vaultURL, clusterPrefix);
+                    final JsonObject kafkaConfigMap = AccessController.doPrivileged((PrivilegedExceptionAction<? extends JsonObject>) () -> {
+                        VaultConfig config = new VaultConfig().address(vaultURL).build();
+                        Vault vault = new Vault(config);
+                        final AuthResponse response = vault.auth().loginByAppRole("approle", roleID, secretId);
+                        final String token = response.getAuthClientToken();
+                        config = new VaultConfig().address(vaultURL).token(token).sslConfig(new SslConfig().verify(false).build());
+                        vault = new Vault(config);
+                        log.info("Authenticated into Vault in app: {}", response.getAuthPolicies());
+                        return vault.logical().read("/" + clusterPrefix + "/config").getDataObject();
+                    });
+                    log.debug("response was : {}", kafkaConfigMap.toString());
+
+                    kafkaConfig = new KafkaConfig(kafkaConfigMap);
+
+                } catch (PrivilegedActionException ex) {
+                    log.error("couldn't use vault for Kafka Engine, deactivating it", ex.getException());
+                    enabled = false;
+                    lsj = null;
+                    enginePrivateKey = null;
+                    return;
+                }
+            } else if (mongoDBService.getEngineDatabase().isPresent()) {
+                CodecRegistry cR = CodecRegistries.fromRegistries(CodecRegistries.fromProviders(new LifeCycleMongoCodecProvider()), MongoClient.getDefaultCodecRegistry());
+                MongoCollection<KafkaConfig> collection = AccessController.doPrivileged((PrivilegedAction<MongoCollection>) () ->
+                        mongoDBService.getEngineDatabase().get().withCodecRegistry(cR).getCollection("config").withDocumentClass(KafkaConfig.class)
+                );
+                kafkaConfig = AccessController.doPrivileged((PrivilegedAction<KafkaConfig>) () -> collection.find(Filters.eq("name", "configuration")).first());
             }
-            kafkaConfig = AccessController.doPrivileged((PrivilegedAction<KafkaConfig>) () -> collection.find(Filters.eq("name", "configuration")).first());
             if (kafkaConfig == null || !kafkaConfig.isValid()) {
                 log.debug("couldn't find any valid KafkaConfig with the current database {}");
                 enabled = false;
             } else {
                 log.info("KafkaService is enabled with the following bootstrap servers {}", kafkaConfig.bootstrapServers);
             }
+            
+            clientId = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID);
+            if (clientId == null) {
+                clientId = "client-" + Double.valueOf(Math.random()).intValue();
+            }
 
-            enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig==null?"":kafkaConfig.kSerPrivateKey));
+            enginePrivateKey = Base64.getDecoder().decode(settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, kafkaConfig == null ? "" : kafkaConfig.kSerPrivateKey));
             //This one should be wrapped also
 
             lsj = AccessController.doPrivileged((PrivilegedAction<LazySodiumJava>) () -> {
@@ -77,6 +123,7 @@ public class KafkaEngineService extends AbstractLifecycleComponent {
             final String topicSuffix = settings.get(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX, "api.ms2015");
             final List<String> regionsList = settings.getAsList(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_REGIONS, List.of("eu", "ca"));
             topicList.addAll(regionsList.stream().map(r -> kafkaConfig.topicPrefix + "." + topicSuffix + "." + r).collect(Collectors.toList()));
+
         } else {
             lsj = null;
             enginePrivateKey = null;
@@ -160,8 +207,8 @@ public class KafkaEngineService extends AbstractLifecycleComponent {
     }
 
 
-    public KSerSecuredMessage buildKserSecuredMessage(final String message) throws SodiumException{
-            return new KSerSecuredMessage(message, lsj, enginePrivateKey);
+    public KSerSecuredMessage buildKserSecuredMessage(final String message) throws SodiumException {
+        return new KSerSecuredMessage(message, lsj, enginePrivateKey);
     }
 
 

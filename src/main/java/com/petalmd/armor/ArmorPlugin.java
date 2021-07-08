@@ -475,12 +475,15 @@ public final class ArmorPlugin extends Plugin implements ActionPlugin, NetworkPl
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_ENGINE_DATABASE, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_MONGODB_GRAYLOG_DATABASE, Setting.Property.NodeScope, Setting.Property.Filtered));
 
-        //Kafka
+        //Kafka Engine
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_CLIENT_ID, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_PRIVATE_KEY, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_SUFFIX, Setting.Property.NodeScope, Setting.Property.Filtered));
         settings.add(Setting.listSetting(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_TOPIC_REGIONS, Collections.emptyList(), Function.identity(), Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.boolSetting(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_AUTH, Setting.Property.NodeScope, Setting.Property.Filtered));
+        settings.add(Setting.simpleString(ConfigConstants.ARMOR_KAFKA_ENGINE_SERVICE_VAULT_CLUSTER_PREFIX, Setting.Property.NodeScope, Setting.Property.Filtered));
 
         //IndexLifeCycle
         settings.add(Setting.boolSetting(ConfigConstants.ARMOR_INDEX_LIFECYCLE_ENABLED, false, Setting.Property.NodeScope, Setting.Property.Filtered));
