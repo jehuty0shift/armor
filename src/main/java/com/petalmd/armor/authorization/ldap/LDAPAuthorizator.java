@@ -28,12 +28,17 @@ import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
 import org.apache.directory.api.ldap.model.cursor.CursorException;
 import org.apache.directory.api.ldap.model.cursor.EntryCursor;
+import org.apache.directory.api.ldap.model.cursor.SearchCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.entry.Value;
 import org.apache.directory.api.ldap.model.exception.LdapException;
+import org.apache.directory.api.ldap.model.filter.FilterEncoder;
+import org.apache.directory.api.ldap.model.message.SearchRequest;
+import org.apache.directory.api.ldap.model.message.SearchRequestImpl;
 import org.apache.directory.api.ldap.model.message.SearchScope;
 import org.apache.directory.api.ldap.model.name.Dn;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.search.FilterBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -72,7 +77,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
 
         Entry entry = null;
         String dn = null;
-        EntryCursor result = null;
+        SearchCursor result = null;
         EntryCursor rolesResult = null;
         LdapConnection ldapConnection = null;
 
@@ -114,16 +119,19 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             } else {
 
                 //TODO FUTURE all ldap searches: follow referrals
-                result = ldapConnection.search(
-                        settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""),
-                        settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH, "(sAMAccountName={0})").replace("{0}",
-                                authenticatedUser), SearchScope.SUBTREE);
+                final SearchRequest searchRequest = new SearchRequestImpl();
+                searchRequest.setBase(new Dn(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, "")));
+                final String searchFilter = FilterBuilder.equal(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH,"sAMAccountName"),authenticatedUser).toString();
+                searchRequest.setFilter(searchFilter);
+                searchRequest.setScope(SearchScope.SUBTREE);
+
+                result = ldapConnection.search(searchRequest);
 
                 if (!result.next()) {
                     throw new AuthException("No user '" + authenticatedUser + "' found", AuthException.ExceptionType.NOT_FOUND);
                 }
 
-                entry = result.get();
+                entry = result.getEntry();
 
                 if (result.next()) {
                     throw new AuthException("More than user found");
@@ -170,7 +178,7 @@ public class LDAPAuthorizator implements NonCachingAuthorizator {
             rolesResult = ldapConnection.search(
                     settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLEBASE, ""),
                     settings.get(ConfigConstants.ARMOR_AUTHENTICATION_AUTHORIZATION_LDAP_ROLESEARCH, "(member={0})")
-                            .replace("{0}", dn).replace("{1}", authenticatedUser)
+                            .replace("{0}", dn).replace("{1}", FilterEncoder.encodeFilterValue(authenticatedUser))
                             .replace("{2}", userRoleAttributeValue == null ? "{2}" : userRoleAttributeValue), SearchScope.SUBTREE);
 
             for (final Iterator iterator = rolesResult.iterator(); iterator.hasNext(); ) {

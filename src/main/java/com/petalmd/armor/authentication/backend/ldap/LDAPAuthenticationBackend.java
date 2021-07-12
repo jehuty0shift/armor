@@ -25,11 +25,16 @@ import com.petalmd.armor.authentication.User;
 import com.petalmd.armor.authentication.backend.NonCachingAuthenticationBackend;
 import com.petalmd.armor.util.ConfigConstants;
 import com.petalmd.armor.util.SecurityUtil;
-import org.apache.directory.api.ldap.model.cursor.EntryCursor;
+import org.apache.directory.api.ldap.model.cursor.SearchCursor;
 import org.apache.directory.api.ldap.model.entry.Entry;
 import org.apache.directory.api.ldap.model.exception.LdapOperationException;
+import org.apache.directory.api.ldap.model.message.SearchRequest;
+import org.apache.directory.api.ldap.model.message.SearchRequestImpl;
 import org.apache.directory.api.ldap.model.message.SearchScope;
+import org.apache.directory.api.ldap.model.name.Dn;
+import org.apache.directory.api.ldap.schema.manager.impl.DefaultSchemaManager;
 import org.apache.directory.ldap.client.api.LdapConnection;
+import org.apache.directory.ldap.client.api.search.FilterBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -44,10 +49,12 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final Settings settings;
+    private final DefaultSchemaManager schemaManager;
 
     @Inject
     public LDAPAuthenticationBackend(final Settings settings) {
         this.settings = settings;
+        this.schemaManager = new DefaultSchemaManager();
     }
 
     @Override
@@ -56,9 +63,12 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
         final String user = authCreds.getUsername();
 
         final char[] password = authCreds.getPassword();
+        if (password == null) {
+            throw new AuthException("password provided is null", AuthException.ExceptionType.ERROR, user);
+        }
         authCreds.clear();
 
-        EntryCursor result = null;
+        SearchCursor result = null;
 
 
         LdapConnection ldapConnection = null;
@@ -91,15 +101,19 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
                 ldapConnection.anonymousBind();
             }
 
-            result = ldapConnection.search(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""),
-                    settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH, "(sAMAccountName={0})").replace("{0}", user),
-                    SearchScope.SUBTREE);
+            SearchRequest searchRequest = new SearchRequestImpl();
+            Dn searchDn = new Dn(schemaManager, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""));
+            searchRequest.setBase(searchDn);
+            final String equal = FilterBuilder.equal(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, "uid"), user).toString();
+            searchRequest.setFilter(equal);
+            searchRequest.setScope(SearchScope.SUBTREE);
+            result = ldapConnection.search(searchRequest);
 
             if (!result.next()) {
                 throw new AuthException("No user " + user + " found", AuthException.ExceptionType.NOT_FOUND);
             }
 
-            final Entry entry = result.get();
+            final Entry entry = result.getEntry();
             final String dn = entry.getDn().toString();
 
             if (result.next()) {
@@ -140,7 +154,8 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
         } catch (LdapOperationException e) {
             log.warn("cannot authenticate due to LdapOperationException", e);
             throw new AuthException("Cannot authenticate user", AuthException.ExceptionType.NOT_FOUND);
-        } catch (AuthException e) {
+        } catch (final AuthException e) {
+            log.debug("Auth exception thrown {}", e.toString());
             throw e;
         } catch (final Exception e) {
             log.error(e.toString(), e);
