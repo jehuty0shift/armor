@@ -104,7 +104,7 @@ public class LDAPAuthenticationBackend implements NonCachingAuthenticationBacken
             SearchRequest searchRequest = new SearchRequestImpl();
             Dn searchDn = new Dn(schemaManager, settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, ""));
             searchRequest.setBase(searchDn);
-            final String equal = FilterBuilder.equal(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERBASE, "uid"), user).toString();
+            final String equal = FilterBuilder.equal(settings.get(ConfigConstants.ARMOR_AUTHENTICATION_LDAP_USERSEARCH, "uid"),user).toString();
             searchRequest.setFilter(equal);
             searchRequest.setScope(SearchScope.SUBTREE);
             result = ldapConnection.search(searchRequest);

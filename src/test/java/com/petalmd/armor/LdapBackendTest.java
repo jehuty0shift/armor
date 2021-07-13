@@ -37,12 +37,6 @@ import org.junit.Test;
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class LdapBackendTest extends AbstractLDAPTest {
 
-
-    @Test
-    public void testLdapBackendTest() throws Exception{
-        Dn dn = new Dn(new DefaultSchemaManager(), "ou=users,dc=laas,dc=runabove,dc=com");
-
-    }
     @Test
     public void testLdapAuthentication() throws Exception {
 
